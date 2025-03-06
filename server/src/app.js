@@ -5,9 +5,7 @@ const morgan = require('morgan');
 const logger = require('./utils/logger');
 
 // Import routes
-const authRoutes = require('./routes/auth.routes');
-const seriesRoutes = require('./routes/series.routes');
-const episodeRoutes = require('./routes/episode.routes');
+const routes = require('./routes');
 
 const app = express();
 
@@ -15,11 +13,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/series', seriesRoutes);
-app.use('/api/episodes', episodeRoutes);
+app.use('/api/v1', routes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
