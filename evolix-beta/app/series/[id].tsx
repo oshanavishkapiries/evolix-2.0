@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, Link, Stack } from 'expo-router';
-import { getTVSeriesDetails, getTVSeriesSeasons } from '../utils/api';
+import { getTVSeriesDetails, getTVSeriesSeasons } from '../services/api';
 import { TVSeriesDetails, Season } from '../types/api';
 
 export default function SeriesDetailsScreen() {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, Link, Stack } from 'expo-router';
-import { getSeasonEpisodes } from '../utils/api';
+import { getSeasonEpisodes } from '../services/api';
 import { Season, Episode } from '../types/api';
 
 export default function SeasonDetailsScreen() {
@@ -71,7 +71,20 @@ export default function SeasonDetailsScreen() {
         <View style={styles.episodeList}>
           <Text style={styles.sectionTitle}>Episodes</Text>
           {seasonData.episodes.map((episode) => (
-            <Link key={episode._id} href={`/player?videoUrl=${encodeURIComponent(episode.stream.video_link)}&subtitleUrl=${encodeURIComponent(episode.stream.subtitle_link)}`} asChild>
+            <Link 
+              key={episode._id}
+              href={{
+                pathname: "/extract/[provider]",
+                params: {
+                  provider: episode?.stream?.provider,
+                  videoUrl: episode.stream.video_link,
+                  subtitleUrl: episode.stream.subtitle_link,
+                  posterUrl: episode.poster.high,
+                  title: episode.name,                 
+                }
+              }}
+              asChild
+            >
               <Pressable style={styles.episodeCard}>
                 <Image
                   source={{ uri: episode.poster.low }}

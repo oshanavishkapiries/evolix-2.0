@@ -1,5 +1,4 @@
-export const subtitleExtractorScript = `
-  (function() {
+module.exports = `(function() {
     function sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -80,5 +79,4 @@ export const subtitleExtractorScript = `
     }
 
     true;
-  })();
-`; 
+  })();`;

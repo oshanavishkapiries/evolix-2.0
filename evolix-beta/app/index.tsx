@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, TextInput, StyleSheet, FlatList, ActivityIndicator, Text, Image, Dimensions, useWindowDimensions } from 'react-native';
-import { getAllTVSeries, searchTVSeries } from './utils/api';
+import { getAllTVSeries, searchTVSeries } from './services/api';
 import { TVSeries } from './types/api';
 import TVSeriesCard from './components/TVSeriesCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const debouncedSearch = useDebounce(searchQuery, 500);
   const { width } = useWindowDimensions();
-  const numColumns = Math.max(2, Math.floor(width / 300)); // Minimum 2 columns, then adapt based on screen width
+  const numColumns = 3; 
 
   useEffect(() => {
     loadTVSeries(true);
@@ -123,6 +123,7 @@ export default function HomeScreen() {
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
+            columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
             numColumns={numColumns}
             key={numColumns}
@@ -164,9 +165,12 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
   },
+  columnWrapper: {
+    justifyContent: 'flex-start',
+    gap: 16,
+  },
   gridItem: {
-    flex: 1,
-    margin: 8,
+    marginBottom: 16,
   },
   loader: {
     flex: 1,

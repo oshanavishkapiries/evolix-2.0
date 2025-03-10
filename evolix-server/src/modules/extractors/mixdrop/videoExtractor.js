@@ -1,5 +1,4 @@
-export const videoExtractorScript = `
-  (function() {
+module.exports = `(function() {
     // Function to find and click play button
     function findAndClickPlayButton() {
       const playButton = document.querySelector('button.vjs-big-play-button');
@@ -82,5 +81,4 @@ export const videoExtractorScript = `
     }
 
     true;
-  })();
-`; 
+  })();`;
