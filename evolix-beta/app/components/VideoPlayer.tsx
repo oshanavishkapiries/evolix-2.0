@@ -1,9 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Dimensions } from 'react-native';
-import Video from 'react-native-video';
-import Slider from '@react-native-community/slider';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import Orientation from 'react-native-orientation-locker';
+import React, { useState } from 'react';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import WebView from 'react-native-webview';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -20,172 +17,242 @@ export function VideoPlayer({
   posterUrl,
   headers 
 }: VideoPlayerProps) {
-  const videoRef = useRef(null);
-  const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [showControls, setShowControls] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Format time in MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+        <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.10.0/dist/videojs-http-streaming.min.js"></script>
+        <style>
+            body { 
+                margin: 0; 
+                background: #000; 
+                overflow: hidden;
+            }
+            .container {
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .video-js {
+                width: 100%;
+                height: 100%;
+            }
+            .vjs-theme-custom {
+                --vjs-theme-primary: #FFD700;
+                --vjs-theme-secondary: #fff;
+            }
+            .video-js .vjs-control-bar {
+                background-color: rgba(0, 0, 0, 0.7);
+            }
+            .video-js .vjs-slider {
+                background-color: rgba(255, 215, 0, 0.3);
+            }
+            .video-js .vjs-play-progress {
+                background-color: #FFD700;
+            }
+            .video-js .vjs-big-play-button {
+                background-color: rgba(0, 0, 0, 0.6);
+                border-color: #FFD700;
+            }
+            .video-js:hover .vjs-big-play-button {
+                background-color: rgba(0, 0, 0, 0.8);
+            }
+            .video-js .vjs-volume-level {
+                background-color: #FFD700;
+            }
+            .video-js .vjs-loading-spinner {
+                border-color: #FFD700;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <video-js id="player" 
+                class="video-js vjs-theme-custom vjs-big-play-centered vjs-fluid"
+                controls
+                preload="auto"
+                playsinline>
+            </video-js>
+        </div>
 
-  // Handle video load start
-  const onLoadStart = () => {
-    setLoading(true);
-    setError(null);
-  };
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const player = videojs('player', {
+                    controls: true,
+                    fluid: true,
+                    html5: {
+                        vhs: {
+                            overrideNative: true,
+                            fastPlayThreshold: 10,
+                            bandwidth: 5000000,
+                            maxBufferLength: 30,
+                            maxMaxBufferLength: 600,
+                            maxBufferSize: 60 * 1000 * 1000,
+                            maxBufferHole: 0.5,
+                            lowLatencyMode: true,
+                            backBufferLength: 90,
+                            enableLowLatencyMode: true,
+                            smoothQualityChange: true,
+                            handleManifestRedirects: true,
+                            allowSeeksWithinUnsafeLiveWindow: true,
+                            experimentalBufferBasedABR: true,
+                            useBandwidthFromLocalStorage: true,
+                            useDevicePixelRatio: true,
+                            handlePartialData: true,
+                            progressive: true,
+                            testBandwidth: true,
+                            startLevel: -1,
+                            abrEwmaDefaultEstimate: 500000,
+                            abrBandWidthFactor: 0.95,
+                            abrBandWidthUpFactor: 0.7,
+                            abrMaxWithRealBitrate: true,
+                            maxStarvationDelay: 4,
+                            maxLoadingDelay: 4,
+                            manifestLoadTime: 10000,
+                            manifestLoadPolicy: {
+                                default: {
+                                    maxTimeToFirstByteMs: 10000,
+                                    maxLoadTimeMs: 20000,
+                                    timeoutRetry: {
+                                        maxNumRetry: 6,
+                                        retryDelayMs: 1000,
+                                        maxRetryDelayMs: 8000
+                                    },
+                                    errorRetry: {
+                                        maxNumRetry: 6,
+                                        retryDelayMs: 1000,
+                                        maxRetryDelayMs: 8000
+                                    }
+                                }
+                            },
+                            segmentLoadTime: 10000,
+                            segmentLoadPolicy: {
+                                default: {
+                                    maxTimeToFirstByteMs: 10000,
+                                    maxLoadTimeMs: 20000,
+                                    timeoutRetry: {
+                                        maxNumRetry: 6,
+                                        retryDelayMs: 1000,
+                                        maxRetryDelayMs: 8000
+                                    },
+                                    errorRetry: {
+                                        maxNumRetry: 6,
+                                        retryDelayMs: 1000,
+                                        maxRetryDelayMs: 8000
+                                    }
+                                }
+                            }
+                        },
+                        nativeAudioTracks: false,
+                        nativeVideoTracks: false
+                    },
+                    playbackRates: [0.5, 1, 1.25, 1.5, 2],
+                    controlBar: {
+                        children: [
+                            'playToggle',
+                            'volumePanel',
+                            'currentTimeDisplay',
+                            'timeDivider',
+                            'durationDisplay',
+                            'progressControl',
+                            'playbackRateMenuButton',
+                            'subtitlesButton',
+                            'captionsButton',
+                            'qualitySelector',
+                            'fullscreenToggle'
+                        ]
+                    },
+                    sources: [{
+                        src: '${"https://cdn.fluidplayer.com/videos/valerian-480p.mkv"}',
+                        type: 'application/x-mpegURL'
+                    }],
+                    poster: '${posterUrl || ''}',
+                });
 
-  // Handle video load
-  const onLoad = (data: any) => {
-    setLoading(false);
-    setDuration(data.duration);
-  };
+                // Add subtitle if provided
+                ${subtitleUrl ? `
+                player.ready(function() {
+                    this.addRemoteTextTrack({
+                        kind: 'subtitles',
+                        srclang: 'en',
+                        label: 'Subtitles',
+                        src: '${subtitleUrl}',
+                        default: true
+                    }, false);
+                });
+                ` : ''}
 
-  // Handle video progress
-  const onProgress = (data: any) => {
-    setCurrentTime(data.currentTime);
-  };
+                // Handle errors
+                player.on('error', function() {
+                    console.log('Player error:', player.error());
+                });
 
-  // Handle video end
-  const onEnd = () => {
-    setPaused(true);
-    setCurrentTime(0);
-    videoRef.current?.seek(0);
-  };
+                // Handle ready state
+                player.on('ready', function() {
+                    console.log('Player is ready');
+                });
 
-  // Handle video error
-  const onError = (error: any) => {
-    setError(error);
-    setLoading(false);
-  };
+                // Handle play/pause
+                player.on('play', function() {
+                    console.log('Video started playing');
+                });
 
-  // Handle seeking
-  const onSeek = (value: number) => {
-    videoRef.current?.seek(value);
-    setCurrentTime(value);
-  };
+                player.on('pause', function() {
+                    console.log('Video paused');
+                });
 
-  // Toggle fullscreen
-  const toggleFullscreen = () => {
-    if (isFullscreen) {
-      Orientation.lockToPortrait();
-    } else {
-      Orientation.lockToLandscape();
-    }
-    setIsFullscreen(!isFullscreen);
-  };
+                // Handle quality changes
+                player.on('playing', function() {
+                    const currentQuality = player.qualityLevels().selectedIndex;
+                    console.log('Current quality:', currentQuality);
+                });
 
-  // Toggle controls visibility
-  const toggleControls = () => {
-    setShowControls(!showControls);
-  };
+                // Handle buffering
+                player.on('waiting', function() {
+                    console.log('Buffering...');
+                });
+
+                player.on('canplay', function() {
+                    console.log('Can play');
+                });
+            });
+        </script>
+    </body>
+    </html>
+  `;
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.videoContainer} 
-        onPress={toggleControls}
-        activeOpacity={1}
-      >
-        <Video
-          ref={videoRef}
+      <WebView
           source={{ 
-            uri: videoUrl,
-            headers
-          }}
-          style={styles.video}
-          poster={posterUrl}
-          posterResizeMode="cover"
-          resizeMode="contain"
-          paused={paused}
-          onLoadStart={onLoadStart}
-          onLoad={onLoad}
-          onProgress={onProgress}
-          onEnd={onEnd}
-          onError={onError}
-          selectedTextTrack={{
-            type: "title",
-            value: subtitleUrl ? "Subtitles" : undefined
-          }}
-          textTracks={subtitleUrl ? [
-            {
-              title: "Subtitles",
-              language: "en",
-              type: "text/vtt",
-              uri: subtitleUrl
-            }
-          ] : undefined}
-        />
-
+          html: htmlContent,
+          headers: headers 
+        }}
+        style={styles.webview}
+        onLoadStart={() => setLoading(true)}
+        onLoadEnd={() => setLoading(false)}
+        allowsFullscreenVideo={true}
+        mediaPlaybackRequiresUserAction={false}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        originWhitelist={['*']}
+        onError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.warn('WebView error:', nativeEvent);
+        }}
+      />
         {loading && (
           <View style={styles.loader}>
             <ActivityIndicator size="large" color="#FFD700" />
           </View>
         )}
-
-        {error && (
-          <View style={styles.errorContainer}>
-            <Icon name="error-outline" size={50} color="#FFD700" />
-            <Text style={styles.errorText}>Error playing video</Text>
-            <Text style={styles.errorDetails}>{error.toString()}</Text>
-          </View>
-        )}
-
-        {showControls && (
-          <View style={styles.controls}>
-            <View style={styles.topControls}>
-              <Text style={styles.title}>{title}</Text>
-              <TouchableOpacity onPress={toggleFullscreen}>
-                <Icon 
-                  name={isFullscreen ? "fullscreen-exit" : "fullscreen"} 
-                  size={24} 
-                  color="#FFD700" 
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.centerControls}>
-              <TouchableOpacity onPress={() => onSeek(Math.max(0, currentTime - 10))}>
-                <Icon name="replay-10" size={40} color="#FFD700" />
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => setPaused(!paused)}>
-                <Icon 
-                  name={paused ? "play-circle-filled" : "pause-circle-filled"} 
-                  size={60} 
-                  color="#FFD700" 
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => onSeek(Math.min(duration, currentTime + 10))}>
-                <Icon name="forward-10" size={40} color="#FFD700" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.bottomControls}>
-              <Text style={styles.time}>{formatTime(currentTime)}</Text>
-              <Slider
-                style={styles.slider}
-                minimumValue={0}
-                maximumValue={duration}
-                value={currentTime}
-                onValueChange={onSeek}
-                minimumTrackTintColor="#FFD700"
-                maximumTrackTintColor="rgba(255,255,255,0.3)"
-                thumbTintColor="#FFD700"
-              />
-              <Text style={styles.time}>{formatTime(duration)}</Text>
-            </View>
-          </View>
-        )}
-      </TouchableOpacity>
     </View>
   );
 }
@@ -195,80 +262,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-  videoContainer: {
+  webview: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  video: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
-  },
-  controls: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 10,
-    justifyContent: 'space-between',
-  },
-  topControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-  },
-  centerControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 40,
-  },
-  bottomControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
-  },
-  title: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  time: {
-    color: 'white',
-    fontSize: 12,
-    marginHorizontal: 10,
-  },
-  slider: {
-    flex: 1,
-    marginHorizontal: 10,
+    backgroundColor: 'black',
   },
   loader: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  errorContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-  },
-  errorText: {
-    color: 'white',
-    fontSize: 16,
-    marginTop: 10,
-  },
-  errorDetails: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    marginTop: 5,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
+    backgroundColor: 'black',
+  }
 });

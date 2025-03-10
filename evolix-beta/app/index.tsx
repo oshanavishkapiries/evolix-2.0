@@ -1,51 +1,30 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, FlatList, ActivityIndicator, Text, Image, Dimensions, useWindowDimensions } from 'react-native';
-import { getAllTVSeries, searchTVSeries } from './services/api';
+import { View, StyleSheet, ActivityIndicator, Text, Image } from 'react-native';
+import { getAllTVSeries } from './services/api';
 import { TVSeries } from './types/api';
-import TVSeriesCard from './components/TVSeriesCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDebounce } from './hooks/useDebounce';
 import { Stack } from 'expo-router';
+import RecentlyAdded from './components/RecentlyAdded';
 
 export default function HomeScreen() {
   const [series, setSeries] = useState<TVSeries[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const insets = useSafeAreaInsets();
-  const debouncedSearch = useDebounce(searchQuery, 500);
-  const { width } = useWindowDimensions();
-  const numColumns = 3; 
 
   useEffect(() => {
-    loadTVSeries(true);
-  }, [debouncedSearch]);
+    loadTVSeries();
+  }, []);
 
-  const loadTVSeries = async (refresh = false) => {
+  const loadTVSeries = async () => {
     try {
-      if (refresh) {
-        setLoading(true);
-        setCurrentPage(1);
-      } else {
-        setLoadingMore(true);
-      }
+      setLoading(true);
       setError('');
 
-      const page = refresh ? 1 : currentPage;
-      const response = debouncedSearch
-        ? await searchTVSeries(debouncedSearch)
-        : await getAllTVSeries(page, 20);
+      const response = await getAllTVSeries(1, 20);
       
       if (response.success) {
-        const newSeries = response.data.results;
-        setSeries(prev => refresh ? newSeries : [...prev, ...newSeries]);
-        setHasMore(response.data.hasMore);
-        if (!refresh) {
-          setCurrentPage(prev => prev + 1);
-        }
+        setSeries(response.data.results);
       } else {
         setError(response.message || 'Failed to load TV series');
       }
@@ -62,32 +41,7 @@ export default function HomeScreen() {
       }
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
-  };
-
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore && !loading && !debouncedSearch) {
-      loadTVSeries();
-    }
-  };
-
-  const renderFooter = () => {
-    if (!loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="large" color="#ffd700" />
-      </View>
-    );
-  };
-
-  const renderItem = ({ item, index }: { item: TVSeries; index: number }) => {
-    const itemWidth = (width - (numColumns + 1) * 16) / numColumns;
-    return (
-      <View style={[styles.gridItem, { width: itemWidth }]}>
-        <TVSeriesCard series={item} />
-      </View>
-    );
   };
 
   return (
@@ -104,35 +58,14 @@ export default function HomeScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search TV Series..."
-            placeholderTextColor="#666"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
         </View>
 
         {error ? (
           <Text style={styles.error}>{error}</Text>
-        ) : loading && !loadingMore ? (
+        ) : loading ? (
           <ActivityIndicator size="large" color="#ffd700" style={styles.loader} />
         ) : (
-          <FlatList
-            data={series}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-            columnWrapperStyle={styles.columnWrapper}
-            showsVerticalScrollIndicator={false}
-            numColumns={numColumns}
-            key={numColumns}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={renderFooter}
-            refreshing={loading}
-            onRefresh={() => loadTVSeries(true)}
-          />
+          <RecentlyAdded series={series} />
         )}
       </View>
     </>
@@ -153,32 +86,10 @@ const styles = StyleSheet.create({
   logo: {
     height: 40,
     width: '100%',
-    marginBottom: 16,
-  },
-  searchInput: {
-    backgroundColor: '#1a1a1a',
-    padding: 12,
-    borderRadius: 8,
-    color: '#ffffff',
-    fontSize: 16,
-  },
-  list: {
-    padding: 16,
-  },
-  columnWrapper: {
-    justifyContent: 'flex-start',
-    gap: 16,
-  },
-  gridItem: {
-    marginBottom: 16,
   },
   loader: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerLoader: {
-    paddingVertical: 20,
     alignItems: 'center',
   },
   error: {

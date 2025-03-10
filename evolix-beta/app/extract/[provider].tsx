@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator, StyleSheet, Text } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Text, Button } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   getMetadata,
@@ -124,6 +124,7 @@ export default function ExtractPage() {
     return (
       <View style={styles.container}>
         <Text style={styles.error}>{error}</Text>
+        <Button title="Retry" onPress={() => router.replace("/")} />
       </View>
     );
   }

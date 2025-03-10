@@ -36,6 +36,7 @@ export default function PlayerScreen() {
       <View style={styles.container}>
         <VideoPlayer
           videoUrl={params.videoUrl || ""}
+          title={params.title || ""}
           subtitleUrl={params.subtitleUrl || ""}
           posterUrl={params.posterUrl || ""}
           headers={headers}
