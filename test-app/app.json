@@ -1,39 +1,31 @@
 {
   "expo": {
-    "name": "test-app",
+    "name": "Evolix",
     "slug": "evolix",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "icon": "./assets/icon.webp",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.webp",
+        "backgroundColor": "#000000"
       },
       "package": "com.oshan_avishka.evolix"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/icon.webp"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
@@ -46,6 +38,7 @@
         "projectId": "9587d2af-0159-43e3-96e9-d49e2a71b581"
       }
     },
-    "owner": "oshan_avishka"
+    "owner": "oshan_avishka",
+    "scheme": "evolix"
   }
 }

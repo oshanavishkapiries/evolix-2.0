@@ -1,239 +1,185 @@
-import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text, ActivityIndicator } from 'react-native';
-import { WebView } from 'react-native-webview';
-import { videoExtractorScript } from './utils/videoExtractor';
+import React, { useEffect, useState } from 'react';
+import { View, TextInput, StyleSheet, FlatList, ActivityIndicator, Text, Image, Dimensions, useWindowDimensions } from 'react-native';
+import { getAllTVSeries, searchTVSeries } from './utils/api';
+import { TVSeries } from './types/api';
+import TVSeriesCard from './components/TVSeriesCard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDebounce } from './hooks/useDebounce';
+import { Stack } from 'expo-router';
 
 export default function HomeScreen() {
-  const [url, setUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [videoUrl, setVideoUrl] = useState('');
+  const [series, setSeries] = useState<TVSeries[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
-  const [isExtracting, setIsExtracting] = useState(false);
+  const insets = useSafeAreaInsets();
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  const { width } = useWindowDimensions();
+  const numColumns = Math.max(2, Math.floor(width / 300)); // Minimum 2 columns, then adapt based on screen width
 
-  const handleUrlSubmit = () => {
-    if (url) {
-      setIsLoading(true);
-      setVideoUrl('');
-      setError('');
-      setIsExtracting(true);
-    }
-  };
+  useEffect(() => {
+    loadTVSeries(true);
+  }, [debouncedSearch]);
 
-  const handleWebViewLoad = () => {
-    setIsLoading(false);
-  };
-
-  const handleError = (syntheticEvent: any) => {
-    const { nativeEvent } = syntheticEvent;
-    console.warn('WebView error:', nativeEvent);
-    setError('Failed to load the page. Please try again.');
-    setIsLoading(false);
-    setIsExtracting(false);
-  };
-
-  const handleMessage = (event: any) => {
+  const loadTVSeries = async (refresh = false) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'videoUrl') {
-        console.log('Found video URL:', data.url);
-        setVideoUrl(data.url);
-        setIsExtracting(false);
+      if (refresh) {
+        setLoading(true);
+        setCurrentPage(1);
+      } else {
+        setLoadingMore(true);
       }
-    } catch (error) {
-      console.error('Error parsing message:', error);
-      setError('Failed to extract video URL');
-      setIsExtracting(false);
+      setError('');
+
+      const page = refresh ? 1 : currentPage;
+      const response = debouncedSearch
+        ? await searchTVSeries(debouncedSearch)
+        : await getAllTVSeries(page, 20);
+      
+      if (response.success) {
+        const newSeries = response.data.results;
+        setSeries(prev => refresh ? newSeries : [...prev, ...newSeries]);
+        setHasMore(response.data.hasMore);
+        if (!refresh) {
+          setCurrentPage(prev => prev + 1);
+        }
+      } else {
+        setError(response.message || 'Failed to load TV series');
+      }
+    } catch (err) {
+      console.error('Error loading TV series:', err);
+      if (err instanceof Error) {
+        if (err.message.includes('Network request failed')) {
+          setError('Unable to connect to the server. Please check your internet connection and make sure the server is running.');
+        } else {
+          setError(`Error: ${err.message}`);
+        }
+      } else {
+        setError('An unexpected error occurred while loading TV series');
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <link rel="stylesheet" href="https://releases.flowplayer.org/7.2.7/skin/skin.css">
-        <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
-        <script src="https://releases.flowplayer.org/7.2.7/flowplayer.min.js"></script>
-        <style>
-          body { 
-            margin: 0; 
-            padding: 0;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-          }
-          .video-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-          }
-          .flowplayer {
-            width: 100% !important;
-            height: 100% !important;
-          }
-          .error-message {
-            color: white;
-            text-align: center;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="video-container">
-          ${videoUrl ? `
-            <div class="flowplayer" data-key="YOUR_FLOWPLAYER_KEY">
-              <video>
-                <source type="video/mp4" src="${videoUrl}">
-              </video>
-            </div>
-            <script>
-              flowplayer(function (api) {
-                api.on('ready', function (e, api, video) {
-                  api.play();
-                });
-                api.on('error', function (e, api, err) {
-                  document.body.innerHTML = '<div class="error-message">Failed to load video. The URL might be expired or require authentication.</div>';
-                });
-              });
-            </script>
-          ` : ''}
-        </div>
-      </body>
-    </html>
-  `;
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore && !loading && !debouncedSearch) {
+      loadTVSeries();
+    }
+  };
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="large" color="#ffd700" />
+      </View>
+    );
+  };
+
+  const renderItem = ({ item, index }: { item: TVSeries; index: number }) => {
+    const itemWidth = (width - (numColumns + 1) * 16) / numColumns;
+    return (
+      <View style={[styles.gridItem, { width: itemWidth }]}>
+        <TVSeriesCard series={item} />
+      </View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter URL to test"
-          value={url}
-          onChangeText={setUrl}
-          autoCapitalize="none"
-        />
-        <Button title="Load URL" onPress={handleUrlSubmit} />
-      </View>
-
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : videoUrl ? (
-        <View style={styles.videoContainer}>
-          <WebView
-            source={{ 
-              html: htmlContent,
-              headers: {
-                'Referer': 'https://mixdrop.ps',
-                'Origin': 'https://mixdrop.ps'
-              }
-            }}
-            style={styles.video}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            allowsInlineMediaPlayback={true}
-            mediaPlaybackRequiresUserAction={false}
-            allowsFullscreenVideo={true}
-            onError={handleError}
-            userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    <>
+      <Stack.Screen 
+        options={{
+          headerShown: false
+        }}
+      />
+      <View style={[styles.container]}>
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <Image
+            source={require('../assets/evolix-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search TV Series..."
+            placeholderTextColor="#666"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
         </View>
-      ) : (
-        url && (
-          <View style={styles.webviewContainer}>
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0000ff" />
-              <Text style={styles.loadingText}>
-                {isLoading ? 'Loading page...' : 'preparing video...'}
-              </Text>
-            </View>
-            <WebView
-              source={{ uri: url }}
-              style={[styles.webview, { opacity: 0 }]}
-              onLoadEnd={handleWebViewLoad}
-              onError={handleError}
-              injectedJavaScript={videoExtractorScript}
-              onMessage={handleMessage}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              startInLoadingState={true}
-              scalesPageToFit={true}
-              allowsInlineMediaPlayback={true}
-              mediaPlaybackRequiresUserAction={false}
-              allowsFullscreenVideo={true}
-              userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            />
-          </View>
-        )
-      )}
-    </View>
+
+        {error ? (
+          <Text style={styles.error}>{error}</Text>
+        ) : loading && !loadingMore ? (
+          <ActivityIndicator size="large" color="#ffd700" style={styles.loader} />
+        ) : (
+          <FlatList
+            data={series}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            numColumns={numColumns}
+            key={numColumns}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            refreshing={loading}
+            onRefresh={() => loadTVSeries(true)}
+          />
+        )}
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    backgroundColor: '#000000',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#000000',
   },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    marginRight: 10,
-    borderRadius: 5,
+  logo: {
+    height: 40,
+    width: '100%',
+    marginBottom: 16,
   },
-  webviewContainer: {
-    flex: 1,
-  },
-  webview: {
-    flex: 1,
-  },
-  videoContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  video: {
-    flex: 1,
-  },
-  loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    zIndex: 1,
-  },
-  loadingText: {
-    marginTop: 10,
+  searchInput: {
+    backgroundColor: '#1a1a1a',
+    padding: 12,
+    borderRadius: 8,
+    color: '#ffffff',
     fontSize: 16,
   },
-  errorContainer: {
+  list: {
+    padding: 16,
+  },
+  gridItem: {
+    flex: 1,
+    margin: 8,
+  },
+  loader: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  errorText: {
-    color: 'red',
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  error: {
+    color: '#ff0000',
     textAlign: 'center',
-    fontSize: 16,
+    margin: 16,
   },
 }); 

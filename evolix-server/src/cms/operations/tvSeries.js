@@ -287,5 +287,4 @@ module.exports = {
     createTvSeries,
     generateFullCsv,
     addStreamLinks,
-    generateSampleCsv
 }; 

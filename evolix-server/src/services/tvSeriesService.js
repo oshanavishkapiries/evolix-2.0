@@ -1,5 +1,7 @@
 const TvSeriesSeasons = require("../models/TvSeriesSeasons");
 const TvSeriesDetails = require("../models/TvSeriesDetails");
+const TvSeriesEpisodes = require("../models/TvSeriesEpisodes");
+
 
 class TvSeriesService {
   async getAllTvSeries(page = 1, limit = 20) {

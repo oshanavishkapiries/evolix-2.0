@@ -12,9 +12,38 @@ export const videoExtractorScript = `
 
     // Function to find video URL
     function findVideoUrl() {
-      const video = document.querySelector('video');
-      if (video && video.src) {
-        return video.src;
+      // Try different video selectors
+      const videoSelectors = [
+        'video source[type="video/mp4"]',
+        'video source',
+        'video'
+      ];
+
+      for (const selector of videoSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const url = element.src || element.getAttribute('src');
+          if (url) return url;
+        }
+      }
+      return null;
+    }
+
+    // Function to find subtitle URL
+    function findSubtitleUrl() {
+      // Try different subtitle selectors
+      const subtitleSelectors = [
+        'track[kind="subtitles"]',
+        'track[kind="captions"]',
+        '.vjs-text-track-display'
+      ];
+
+      for (const selector of subtitleSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const url = element.src || element.getAttribute('src');
+          if (url) return url;
+        }
       }
       return null;
     }
@@ -24,22 +53,24 @@ export const videoExtractorScript = `
       // Try to find and click play button
       const buttonClicked = findAndClickPlayButton();
       
-      // Wait for video to load
-      const checkVideo = setInterval(() => {
+      // Wait for video and subtitle to load
+      const checkMedia = setInterval(() => {
         const videoUrl = findVideoUrl();
+        const subtitleUrl = findSubtitleUrl();
+
         if (videoUrl) {
-          clearInterval(checkVideo);
+          clearInterval(checkMedia);
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'videoUrl',
             url: videoUrl,
-            headers: {}
+            subtitleUrl: subtitleUrl || null
           }));
         }
       }, 1000);
 
       // Stop checking after 30 seconds
       setTimeout(() => {
-        clearInterval(checkVideo);
+        clearInterval(checkMedia);
       }, 30000);
     }
 
