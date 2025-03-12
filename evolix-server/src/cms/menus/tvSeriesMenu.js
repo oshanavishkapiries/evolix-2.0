@@ -2,7 +2,7 @@ const inquirer = require('inquirer');
 const chalk = require('chalk');
 const fs = require('fs');
 const path = require('path');
-const { createTvSeries, generateFullCsv, addStreamLinks } = require('../operations/tvSeries');
+const { createTvSeries, generateFullCsv, addStreamLinks, deleteTvSeries, listTvSeries } = require('../operations/tvSeries');
 
 const tvSeriesMenu = async () => {
     console.clear();
@@ -15,6 +15,10 @@ const tvSeriesMenu = async () => {
             message: 'Choose action:',
             choices: [
                 {
+                    name: chalk.blue('List TV Series'),
+                    value: 'list'
+                },
+                {
                     name: chalk.blue('Create TV Series'),
                     value: 'create'
                 },
@@ -25,6 +29,10 @@ const tvSeriesMenu = async () => {
                 {
                     name: chalk.blue('Update Stream Links from CSV'),
                     value: 'update_streams'
+                },
+                {
+                    name: chalk.red('Delete TV Series'),
+                    value: 'delete'
                 },
                 {
                     name: chalk.yellow('Back to Main Menu'),
@@ -46,6 +54,10 @@ const tvSeriesMenu = async () => {
         await handleGenerateFullCsv();
     } else if (action === 'update_streams') {
         await handleUpdateStreamLinks();
+    } else if (action === 'delete') {
+        await handleDeleteTvSeries();
+    } else if (action === 'list') {
+        await handleListTvSeries();
     }
 };
 
@@ -107,6 +119,82 @@ const handleUpdateStreamLinks = async () => {
 
     await addStreamLinks(csvPath);
     await continueOrExit();
+};
+
+const handleDeleteTvSeries = async () => {
+    const { tmdbId, confirm } = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'tmdbId',
+            message: 'Enter TMDB ID of the series to delete:',
+            validate: (input) => {
+                if (!input || isNaN(input)) {
+                    return 'Please enter a valid TMDB ID';
+                }
+                return true;
+            }
+        },
+        {
+            type: 'confirm',
+            name: 'confirm',
+            message: chalk.red.bold('WARNING: This will delete all data related to this series. Are you sure?'),
+            default: false
+        }
+    ]);
+
+    if (confirm) {
+        await deleteTvSeries(parseInt(tmdbId));
+    } else {
+        console.log(chalk.yellow('\nDeletion cancelled.'));
+    }
+    await continueOrExit();
+};
+
+const handleListTvSeries = async () => {
+    let currentPage = 1;
+    let searchQuery = '';
+    const limit = 10;
+
+    while (true) {
+        console.clear();
+        const result = await listTvSeries(currentPage, limit, searchQuery);
+
+        const choices = [
+            ...(result.hasPrevPage ? [{ name: chalk.blue('◄ Previous Page'), value: 'prev' }] : []),
+            ...(result.hasNextPage ? [{ name: chalk.blue('Next Page ►'), value: 'next' }] : []),
+            { name: chalk.yellow('Search'), value: 'search' },
+            { name: chalk.yellow('Back to Menu'), value: 'back' }
+        ];
+
+        const { action } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'action',
+                message: 'Choose action:',
+                choices
+            }
+        ]);
+
+        if (action === 'prev' && result.hasPrevPage) {
+            currentPage--;
+        } else if (action === 'next' && result.hasNextPage) {
+            currentPage++;
+        } else if (action === 'search') {
+            const { query } = await inquirer.prompt([
+                {
+                    type: 'input',
+                    name: 'query',
+                    message: 'Enter search term (title or TMDB ID):',
+                }
+            ]);
+            searchQuery = query;
+            currentPage = 1;
+        } else if (action === 'back') {
+            break;
+        }
+    }
+
+    await tvSeriesMenu();
 };
 
 const continueOrExit = async () => {

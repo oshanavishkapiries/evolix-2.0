@@ -283,8 +283,118 @@ const addStreamLinks = async (csvFilePath) => {
     }
 };
 
+const deleteTvSeries = async (tmdbId) => {
+    try {
+        console.log(chalk.blue('\nDeleting TV series and all related data...'));
+
+        // Get series details first to confirm deletion
+        const series = await TvSeriesDetails.findOne({ tmdb_id: tmdbId });
+        if (!series) {
+            throw new Error('TV Series not found!');
+        }
+
+        console.log(chalk.yellow.bold(`\nAbout to delete: ${series.title}`));
+        console.log(chalk.yellow(`Total Seasons: ${series.numberOfSeasons}`));
+        console.log(chalk.yellow(`Total Episodes: ${series.numberOfEpisodes}`));
+
+        // Delete all episodes
+        console.log(chalk.blue('\nDeleting episodes...'));
+        await TvSeriesEpisodes.deleteMany({ tmdb_id: tmdbId });
+        console.log(chalk.green('✓ Episodes deleted'));
+
+        // Delete all seasons
+        console.log(chalk.blue('Deleting seasons...'));
+        await TvSeriesSeasons.deleteMany({ tmdb_id: tmdbId });
+        console.log(chalk.green('✓ Seasons deleted'));
+
+        // Delete series details
+        console.log(chalk.blue('Deleting series details...'));
+        await TvSeriesDetails.deleteOne({ tmdb_id: tmdbId });
+        console.log(chalk.green('✓ Series details deleted'));
+
+        console.log(chalk.green.bold('\nTV series and all related data successfully deleted! 🗑️\n'));
+    } catch (error) {
+        console.error(chalk.red.bold('\nError deleting TV series:'), error.message);
+        throw error;
+    }
+};
+
+const listTvSeries = async (page = 1, limit = 10, searchQuery = '') => {
+    try {
+        console.log(chalk.blue('\nFetching TV series list...'));
+
+        // Build search query
+        const query = searchQuery
+            ? {
+                $or: [
+                    { title: { $regex: searchQuery, $options: 'i' } },
+                    { tmdb_id: isNaN(searchQuery) ? null : parseInt(searchQuery) }
+                ]
+            }
+            : {};
+
+        // Get total count for pagination
+        const totalSeries = await TvSeriesDetails.countDocuments(query);
+        const totalPages = Math.ceil(totalSeries / limit);
+
+        // Validate page number
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+
+        // Get paginated results
+        const series = await TvSeriesDetails.find(query)
+            .sort({ title: 1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .select('tmdb_id title year numberOfSeasons numberOfEpisodes status');
+
+        // Display results
+        console.log(chalk.green.bold('\nTV Series List:'));
+        console.log(chalk.yellow('─'.repeat(80)));
+        console.log(chalk.yellow(
+            'TMDB ID'.padEnd(10) +
+            'Title'.padEnd(40) +
+            'Year'.padEnd(6) +
+            'Seasons'.padEnd(10) +
+            'Episodes'.padEnd(10) +
+            'Status'
+        ));
+        console.log(chalk.yellow('─'.repeat(80)));
+
+        series.forEach(show => {
+            console.log(
+                chalk.white(
+                    show.tmdb_id.toString().padEnd(10) +
+                    show.title.substring(0, 38).padEnd(40) +
+                    (show.year || 'N/A').toString().padEnd(6) +
+                    show.numberOfSeasons.toString().padEnd(10) +
+                    show.numberOfEpisodes.toString().padEnd(10) +
+                    show.status
+                )
+            );
+        });
+
+        console.log(chalk.yellow('─'.repeat(80)));
+        console.log(chalk.blue(`Page ${page} of ${totalPages} (Total series: ${totalSeries})`));
+
+        return {
+            series,
+            currentPage: page,
+            totalPages,
+            totalSeries,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+        };
+    } catch (error) {
+        console.error(chalk.red.bold('\nError listing TV series:'), error.message);
+        throw error;
+    }
+};
+
 module.exports = {
     createTvSeries,
     generateFullCsv,
     addStreamLinks,
+    deleteTvSeries,
+    listTvSeries
 }; 
