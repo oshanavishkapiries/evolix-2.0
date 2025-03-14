@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
-import { Link } from 'expo-router';
-import { TVSeries } from '../types/api';
+import React from "react";
+import { View, Text, Image, StyleSheet, Pressable } from "react-native";
+import { Link } from "expo-router";
+import { TVSeries } from "../types/api";
 
 interface TVSeriesCardProps {
   series: TVSeries;
@@ -10,71 +10,45 @@ interface TVSeriesCardProps {
 export default function TVSeriesCard({ series }: TVSeriesCardProps) {
   return (
     <Link href={`/series/${series.id}`} asChild>
-      <Pressable style={styles.card}>
+      <Pressable style={styles.itemContainer}>
         <Image
           source={{ uri: series.mainPoster.low }}
           style={styles.poster}
           resizeMode="cover"
         />
-        <View style={styles.overlay}>
-          <View style={styles.info}>
-            <Text style={styles.title} numberOfLines={2}>
-              {series.title}
-            </Text>
-            <Text style={styles.year}>{series.year}</Text>
-            <View style={styles.metadata}>
-              <Text style={styles.rating}>⭐ {series.rating}</Text>
-              <Text style={styles.seasons}>{series.numberOfSeasons} Seasons</Text>
-            </View>
-          </View>
-        </View>
+        <Text style={styles.quality}>{series.rating}</Text>
+        <Text style={styles.itemTitle} numberOfLines={1}>
+          {series.title}
+        </Text>
       </Pressable>
     </Link>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    overflow: 'hidden',
-    aspectRatio: 2/3,
-    position: 'relative',
+  itemContainer: {
+    width: "100%",
   },
   poster: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: 210,
+    borderRadius: 8,
+    backgroundColor: "#1a1a1a",
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-    opacity: 0,
+  quality: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    color: "#FFFFFF",
+    fontSize: 12,
   },
-  info: {
-    padding: 12,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  year: {
+  itemTitle: {
+    color: "#FFFFFF",
     fontSize: 14,
-    color: '#888888',
-  },
-  metadata: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginTop: 8,
   },
-  rating: {
-    fontSize: 14,
-    color: '#ffd700',
-  },
-  seasons: {
-    fontSize: 14,
-    color: '#888888',
-  },
-}); 
+});

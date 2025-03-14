@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, Image } from 'react-native';
-import { getAllTVSeries } from './services/api';
-import { TVSeries } from './types/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import RecentlyAdded from './components/RecentlyAdded';
+import { TVSeries } from '../types/api';
+import { getAllTVSeries } from '../services/api';
+import RecentlyAdded from '../components/RecentlyAdded';
 
 export default function HomeScreen() {
   const [series, setSeries] = useState<TVSeries[]>([]);
@@ -54,7 +54,7 @@ export default function HomeScreen() {
       <View style={[styles.container]}>
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <Image
-            source={require('../assets/evolix-logo.png')}
+            source={require('../../assets/evolix-logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />

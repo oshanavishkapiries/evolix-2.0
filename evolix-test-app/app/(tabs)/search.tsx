@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, FlatList, ActivityIndicator, Text, Image, Pressable } from 'react-native';
-import { searchTVSeries } from './services/api';
-import { TVSeries } from './types/api';
-import { useDebounce } from './hooks/useDebounce';
+
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useDebounce } from '../hooks/useDebounce';
+import { TVSeries } from '../types/api';
+import { searchTVSeries } from '../services/api';
 
 export default function SearchScreen() {
   const [series, setSeries] = useState<TVSeries[]>([]);

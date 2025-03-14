@@ -1,14 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, Link, Stack } from 'expo-router';
-import { getSeasonEpisodes } from '../services/api';
-import { Season, Episode } from '../types/api';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { useLocalSearchParams, Link, Stack } from "expo-router";
+import { getSeasonEpisodes } from "../services/api";
+import { Season, Episode } from "../types/api";
 
 export default function SeasonDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const [seasonData, setSeasonData] = useState<Season & { episodes: Episode[] } | null>(null);
+  const [seasonData, setSeasonData] = useState<
+    (Season & { episodes: Episode[] }) | null
+  >(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadSeasonDetails();
@@ -17,28 +27,30 @@ export default function SeasonDetailsScreen() {
   const loadSeasonDetails = async () => {
     try {
       setLoading(true);
-      setError('');
-      
+      setError("");
+
       const response = await getSeasonEpisodes(id as string);
-      
+
       if (response.success) {
         setSeasonData(response.data);
       } else {
-        setError('Failed to load season details');
+        setError("Failed to load season details");
       }
     } catch (err) {
-      setError('An error occurred while loading season details');
+      setError("An error occurred while loading season details");
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />;
+    return (
+      <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
+    );
   }
 
   if (error || !seasonData) {
-    return <Text style={styles.error}>{error || 'Season not found'}</Text>;
+    return <Text style={styles.error}>{error || "Season not found"}</Text>;
   }
 
   return (
@@ -46,8 +58,9 @@ export default function SeasonDetailsScreen() {
       <Stack.Screen
         options={{
           title: seasonData.name,
-          headerStyle: { backgroundColor: '#000000' },
-          headerTintColor: '#ffffff',
+          headerShown: true,
+          headerStyle: { backgroundColor: "#000000" },
+          headerTintColor: "#ffffff",
         }}
       />
       <ScrollView style={styles.container}>
@@ -60,7 +73,8 @@ export default function SeasonDetailsScreen() {
           <View style={styles.info}>
             <Text style={styles.title}>{seasonData.name}</Text>
             <Text style={styles.metadata}>
-              {seasonData.episodeCount} Episodes • {new Date(seasonData.airDate).getFullYear()}
+              {seasonData.episodeCount} Episodes •{" "}
+              {new Date(seasonData.airDate).getFullYear()}
             </Text>
             <Text style={styles.overview} numberOfLines={3}>
               {seasonData.overview}
@@ -71,7 +85,7 @@ export default function SeasonDetailsScreen() {
         <View style={styles.episodeList}>
           <Text style={styles.sectionTitle}>Episodes</Text>
           {seasonData.episodes.map((episode) => (
-            <Link 
+            <Link
               key={episode._id}
               href={{
                 pathname: "/extract/[provider]",
@@ -80,12 +94,12 @@ export default function SeasonDetailsScreen() {
                   videoUrl: episode.stream.video_link,
                   subtitleUrl: episode.stream.subtitle_link,
                   posterUrl: episode.poster.high,
-                  title: episode.name,                 
-                }
+                  title: episode.name,
+                },
               }}
               asChild
             >
-              <Pressable style={styles.episodeCard}>
+              <TouchableOpacity style={styles.episodeCard}>
                 <Image
                   source={{ uri: episode.poster.low }}
                   style={styles.episodePoster}
@@ -99,13 +113,15 @@ export default function SeasonDetailsScreen() {
                     {episode.overview}
                   </Text>
                   <View style={styles.episodeMetadata}>
-                    <Text style={styles.episodeRating}>⭐ {episode.rating}</Text>
+                    <Text style={styles.episodeRating}>
+                      ⭐ {episode.rating}
+                    </Text>
                     <Text style={styles.episodeAirDate}>
                       {new Date(episode.airDate).toLocaleDateString()}
                     </Text>
                   </View>
                 </View>
-              </Pressable>
+              </TouchableOpacity>
             </Link>
           ))}
         </View>
@@ -117,13 +133,13 @@ export default function SeasonDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: "#333",
   },
   poster: {
     width: 120,
@@ -136,18 +152,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: "bold",
+    color: "#ffffff",
     marginBottom: 8,
   },
   metadata: {
     fontSize: 16,
-    color: '#888888',
+    color: "#888888",
     marginBottom: 8,
   },
   overview: {
     fontSize: 14,
-    color: '#ffffff',
+    color: "#ffffff",
     lineHeight: 20,
   },
   episodeList: {
@@ -155,16 +171,16 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: "bold",
+    color: "#ffffff",
     marginBottom: 16,
   },
   episodeCard: {
-    flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    flexDirection: "row",
+    backgroundColor: "#1a1a1a",
     borderRadius: 8,
     marginBottom: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   episodePoster: {
     width: 120,
@@ -176,35 +192,35 @@ const styles = StyleSheet.create({
   },
   episodeTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: "bold",
+    color: "#ffffff",
     marginBottom: 4,
   },
   episodeOverview: {
     fontSize: 14,
-    color: '#888888',
+    color: "#888888",
     marginBottom: 8,
   },
   episodeMetadata: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   episodeRating: {
     fontSize: 14,
-    color: '#ffd700',
+    color: "#ffd700",
   },
   episodeAirDate: {
     fontSize: 14,
-    color: '#666666',
+    color: "#666666",
   },
   loader: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   error: {
-    color: '#ff0000',
-    textAlign: 'center',
+    color: "#ff0000",
+    textAlign: "center",
     margin: 16,
   },
-}); 
+});
