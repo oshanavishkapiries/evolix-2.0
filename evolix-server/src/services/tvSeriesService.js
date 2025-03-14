@@ -10,7 +10,7 @@ class TvSeriesService {
 
       const tvSeries = await TvSeriesDetails.find()
         .select(
-          "title year rating numberOfSeasons mainBackdrop.low tmdb_id genres mainPoster.low _id"
+          "title year rating numberOfSeasons mainBackdrop tmdb_id genres mainPoster.low logos.low  _id"
         )
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -31,7 +31,7 @@ class TvSeriesService {
         { score: { $meta: "textScore" } }
       )
         .select(
-          "title year rating numberOfSeasons mainBackdrop.low tmdb_id genres mainPoster.low _id"
+          "title year rating numberOfSeasons mainBackdrop.low tmdb_id genres mainPoster.low logos.low _id"
         )
         .sort({ score: { $meta: "textScore" } })
         .skip(skip)
