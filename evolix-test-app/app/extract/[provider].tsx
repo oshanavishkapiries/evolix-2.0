@@ -47,6 +47,7 @@ export default function ExtractPage() {
 
         const subtitleScript = await getSubtitleExtractorScript(provider);
         setSubtitleScript(subtitleScript);
+
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to extract media"
@@ -80,7 +81,7 @@ export default function ExtractPage() {
   const handleMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      console.log("Received data from WebView:", data);
+      console.log("💢💢💢 Received data from WebView:", data);
 
       if (counter === 0) {
         setMessage("server connected ⚡");
@@ -200,6 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    backgroundColor: "#000000",
   },
   text: {
     fontSize: 18,

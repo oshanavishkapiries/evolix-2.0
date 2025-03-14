@@ -6,6 +6,8 @@ interface ExtractorMetadata {
 }
 
 export async function getSubtitleExtractorScript(provider: string): Promise<string> {
+
+  console.log("Fetching subtitle extractor script:", provider);
   try {
       const response = await fetch(`${API_URL}/extractors/${provider}/subtitle`);
       if (!response.ok) {
@@ -21,6 +23,7 @@ export async function getSubtitleExtractorScript(provider: string): Promise<stri
 
 export async function getVideoExtractorScript(provider: string): Promise<string> {
 
+  console.log("Fetching video extractor script:", provider);
   try {
       const response = await fetch(`${API_URL}/extractors/${provider}/video`);
       if (!response.ok) {
