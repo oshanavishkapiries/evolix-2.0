@@ -50,7 +50,7 @@ export default function SeriesDetailsScreen() {
 
   if (loading) {
     return (
-      <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
+      <ActivityIndicator size="large" color="#FFD700" style={styles.loader} />
     );
   }
 
@@ -230,6 +230,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#000000",
   },
   error: {
     color: "#ff0000",
