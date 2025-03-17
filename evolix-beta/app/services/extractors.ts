@@ -5,22 +5,6 @@ interface ExtractorMetadata {
   Origin?: string;
 }
 
-export async function getSubtitleExtractorScript(provider: string): Promise<string> {
-
-  console.log("Fetching subtitle extractor script:", provider);
-  try {
-      const response = await fetch(`${API_URL}/extractors/${provider}/subtitle`);
-      if (!response.ok) {
-          throw new Error('Failed to fetch subtitle extractor script');
-      }
-      const script = await response.text();
-      return script;
-  } catch (error) {
-      console.error('Error fetching subtitle extractor script:', error);
-      throw error;
-  }
-}
-
 export async function getVideoExtractorScript(provider: string): Promise<string> {
 
   console.log("Fetching video extractor script:", provider);

@@ -3,7 +3,6 @@ import { View, ActivityIndicator, StyleSheet, Text, Button } from "react-native"
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   getMetadata,
-  getSubtitleExtractorScript,
   getVideoExtractorScript,
 } from "../../services/extractors";
 import { WebView } from "react-native-webview";
@@ -11,11 +10,10 @@ import React from "react";
 
 export default function ExtractPage() {
   const router = useRouter();
-  const { provider, videoUrl, subtitleUrl, posterUrl, title } =
+  const { provider, videoUrl, posterUrl, title } =
     useLocalSearchParams<{
       provider: string;
       videoUrl: string;
-      subtitleUrl: string;
       posterUrl: string;
       title: string;
     }>();
@@ -24,13 +22,9 @@ export default function ExtractPage() {
   const [extractedVideoUrl, setExtractedVideoUrl] = useState<string | null>(
     null
   );
-  const [extractedSubtitleUrl, setExtractedSubtitleUrl] = useState<
-    string | null
-  >(null);
 
   const [metadata, setMetadata] = useState<any>(null);
   const [videoScript, setVideoScript] = useState<string | null>(null);
-  const [subtitleScript, setSubtitleScript] = useState<string | null>(null);
   const [message, setMessage] = useState<string>(
     "connecting to evolix server..."
   );
@@ -45,9 +39,6 @@ export default function ExtractPage() {
         const videoScript = await getVideoExtractorScript(provider);
         setVideoScript(videoScript);
 
-        const subtitleScript = await getSubtitleExtractorScript(provider);
-        setSubtitleScript(subtitleScript);
-
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to extract media"
@@ -59,13 +50,12 @@ export default function ExtractPage() {
   }, [provider, router]);
 
   useEffect(() => {
-    if (extractedVideoUrl && extractedSubtitleUrl) {
+    if (extractedVideoUrl) {
       setTimeout(() => {
       router.replace({
         pathname: "/player",
         params: {
           videoUrl: extractedVideoUrl,
-          subtitleUrl: extractedSubtitleUrl,
           posterUrl,
           title,
           headers: JSON.stringify({
@@ -76,7 +66,7 @@ export default function ExtractPage() {
         });
       }, 1000);
     }
-  }, [extractedVideoUrl, extractedSubtitleUrl, router, metadata]);
+  }, [extractedVideoUrl, router, metadata]);
 
   const handleMessage = (event: any) => {
     try {
@@ -100,11 +90,6 @@ export default function ExtractPage() {
       if (data.type === "videoUrl") {
         setMessage("stream ready...");
         setExtractedVideoUrl(data.url);
-      }
-
-      if (data.type === "subtitleUrl") {
-        setMessage("subtitles ready...");
-        setExtractedSubtitleUrl(data.url);
       }
 
       if (data.type === "error") {
@@ -164,28 +149,6 @@ export default function ExtractPage() {
               window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message }));
             }
           `}
-              userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            />
-          )}
-
-          {subtitleScript && extractedVideoUrl && !extractedSubtitleUrl && (
-            <WebView
-              style={{ width: 0, height: 0, opacity: 0 }}
-              javaScriptEnabled={true}
-              onMessage={handleMessage}
-              onError={handleError}
-              source={{
-                uri: subtitleUrl,
-              }}
-              injectedJavaScript={`
-              ${subtitleScript}
-              try {
-                const extractedUrl = extractSubtitle();
-                window.ReactNativeWebView.postMessage(JSON.stringify({ subtitleUrl: extractedUrl }));
-              } catch (error) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message }));
-              }
-            `}
               userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
             />
           )}
