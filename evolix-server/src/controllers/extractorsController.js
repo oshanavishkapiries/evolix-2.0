@@ -13,6 +13,17 @@ const mixdropVideo = async (req, res) => {
     }
 }
 
+const mixdropSubtitle = async (req, res) => {
+    try {
+        const script = require("../modules/extractors/mixdrop/subTitleExtractor");
+        res.setHeader('Content-Type', 'application/javascript');
+        res.send(script);
+    } catch (error) {
+        console.error('Error serving subtitle extractor script:', error);
+        return serverErrorResponse(res, 'Failed to load subtitle extractor script');
+    }
+}
+
 const mixdropMetaData = async (req, res) => {
     try {
         const script = require("../modules/extractors/mixdrop/metaData");

@@ -149,7 +149,7 @@ const generateFullCsv = async (tmdbId) => {
         }
 
         // Generate CSV content
-        const csvRows = ['tmdb_id,season_number,episode_number,name,provider,video_link,quality'];
+        const csvRows = ['tmdb_id,season_number,episode_number,name,provider,video_link,subtitle_link,quality'];
         
         for (const episode of episodes) {
             const row = [
@@ -159,6 +159,7 @@ const generateFullCsv = async (tmdbId) => {
                 episode.name.replace(/,/g, ';'), // Replace commas to avoid CSV issues
                 episode.stream?.provider || 'unknown',
                 episode.stream?.video_link || '',
+                episode.stream?.subtitle_link || '',
                 episode.stream?.quality || '720p'
             ];
             csvRows.push(row.join(','));
@@ -179,10 +180,11 @@ const generateFullCsv = async (tmdbId) => {
         console.log(chalk.yellow('- name: Episode name (do not change)'));
         console.log(chalk.yellow('- provider: Streaming provider name'));
         console.log(chalk.yellow('- video_link: URL to the video'));
+        console.log(chalk.yellow('- subtitle_link: URL to the subtitle file'));
         console.log(chalk.yellow('- quality: Video quality (e.g., 720p, 1080p)'));
         console.log(chalk.blue('\nInstructions:'));
         console.log(chalk.white('1. Open the CSV file in Excel or similar program'));
-        console.log(chalk.white('2. Fill in the provider, video_link, and quality columns'));
+        console.log(chalk.white('2. Fill in the provider, video_link, subtitle_link, and quality columns'));
         console.log(chalk.white('3. Save the file and use "Update Stream Links" option to update the database'));
 
         return filePath;
@@ -226,6 +228,7 @@ const addStreamLinks = async (csvFilePath) => {
                 episode_number,
                 provider,
                 video_link,
+                subtitle_link,
                 quality
             } = record;
 
@@ -251,10 +254,11 @@ const addStreamLinks = async (csvFilePath) => {
             }
 
             // Only update if there are actual stream details
-            if (provider || video_link || quality) {
+            if (provider || video_link || subtitle_link || quality) {
                 episode.stream = {
                     provider: provider || episode.stream?.provider || 'unknown',
                     video_link: video_link || episode.stream?.video_link || null,
+                    subtitle_link: subtitle_link || episode.stream?.subtitle_link || null,
                     quality: quality || episode.stream?.quality || '720p'
                 };
 
