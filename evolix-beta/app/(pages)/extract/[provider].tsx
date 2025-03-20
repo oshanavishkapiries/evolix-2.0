@@ -11,13 +11,21 @@ import React from "react";
 
 export default function ExtractPage() {
   const router = useRouter();
-  const { provider, videoUrl, subtitleUrl, posterUrl, title } =
+  const { provider, videoUrl, subtitleUrl, posterUrl, title, episodeId, seriesId, seriesTitle, episodeTitle, episodeNumber, seasonNumber, thumbnailUrl, initialTimestamp } =
     useLocalSearchParams<{
       provider: string;
       videoUrl: string;
       subtitleUrl: string;
       posterUrl: string;
       title: string;
+      episodeId: string;
+      seriesId: string;
+      seriesTitle: string;
+      episodeTitle: string;
+      episodeNumber: string;
+      seasonNumber: string;
+      thumbnailUrl: string;
+      initialTimestamp: string;
     }>();
 
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +47,30 @@ export default function ExtractPage() {
   useEffect(() => {
     async function extract() {
       try {
+        // If the videoUrl is already a direct video URL (contains .m3u8 or .mp4), skip extraction
+        if (videoUrl.includes('.m3u8') || videoUrl.includes('.mp4')) {
+          // Immediately navigate to player for direct video URLs
+          router.replace({
+            pathname: "/player",
+            params: {
+              videoUrl,
+              subtitleUrl,
+              posterUrl,
+              title,
+              headers: JSON.stringify({}),
+              episodeId,
+              seriesId,
+              seriesTitle,
+              episodeTitle,
+              episodeNumber,
+              seasonNumber,
+              thumbnailUrl,
+              initialTimestamp: initialTimestamp || "0"
+            },
+          });
+          return;
+        }
+
         const metadata = await getMetadata(provider);
         setMetadata(metadata);
 
@@ -56,27 +88,35 @@ export default function ExtractPage() {
     }
 
     extract();
-  }, [provider, router]);
+  }, [provider, videoUrl, subtitleUrl, router, posterUrl, title, episodeId, seriesId, seriesTitle, episodeTitle, episodeNumber, seasonNumber, thumbnailUrl, initialTimestamp]);
 
   useEffect(() => {
     if (extractedVideoUrl && extractedSubtitleUrl) {
       setTimeout(() => {
-      router.replace({
-        pathname: "/player",
-        params: {
-          videoUrl: extractedVideoUrl,
-          subtitleUrl: extractedSubtitleUrl,
-          posterUrl,
-          title,
-          headers: JSON.stringify({
-            Referer: metadata?.Referer,
-            Origin: metadata?.Origin,
-          }),
-        },
+        router.replace({
+          pathname: "/player",
+          params: {
+            videoUrl: extractedVideoUrl,
+            subtitleUrl: extractedSubtitleUrl,
+            posterUrl,
+            title,
+            headers: JSON.stringify({
+              Referer: metadata?.Referer,
+              Origin: metadata?.Origin,
+            }),
+            episodeId,
+            seriesId,
+            seriesTitle,
+            episodeTitle,
+            episodeNumber,
+            seasonNumber,
+            thumbnailUrl,
+            initialTimestamp: initialTimestamp || "0"
+          },
         });
       }, 1000);
     }
-  }, [extractedVideoUrl, extractedSubtitleUrl, router, metadata]);
+  }, [extractedVideoUrl, extractedSubtitleUrl, router, metadata, episodeId, seriesId, seriesTitle, episodeTitle, episodeNumber, seasonNumber, thumbnailUrl, initialTimestamp]);
 
   const handleMessage = (event: any) => {
     try {

@@ -12,6 +12,14 @@ type ParamsFromURL = {
   posterUrl?: string;
   title?: string;
   headers?: string;
+  episodeId?: string;
+  seriesId?: string;
+  seriesTitle?: string;
+  episodeTitle?: string;
+  episodeNumber?: string;
+  seasonNumber?: string;
+  thumbnailUrl?: string;
+  initialTimestamp?: string;
 }
 
 export default function PlayerScreen() {
@@ -34,6 +42,14 @@ export default function PlayerScreen() {
           subtitleUrl={params.subtitleUrl || ""}
           posterUrl={params.posterUrl || ""}
           headers={headers}
+          episodeId={params.episodeId}
+          seriesId={params.seriesId}
+          seriesTitle={params.seriesTitle}
+          episodeTitle={params.episodeTitle}
+          episodeNumber={params.episodeNumber ? parseInt(params.episodeNumber) : undefined}
+          seasonNumber={params.seasonNumber ? parseInt(params.seasonNumber) : undefined}
+          thumbnailUrl={params.thumbnailUrl}
+          initialTimestamp={params.initialTimestamp ? parseInt(params.initialTimestamp) : 0}
         />
       </View>
     </>
