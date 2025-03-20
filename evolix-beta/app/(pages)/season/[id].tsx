@@ -95,6 +95,13 @@ export default function SeasonDetailsScreen() {
                   subtitleUrl: episode.stream.subtitle_link,
                   posterUrl: episode.poster.high,
                   title: episode.name,
+                  episodeId: episode._id,
+                  seriesId: seasonData.series,
+                  seriesTitle: seasonData.name,
+                  episodeTitle: episode.name,
+                  episodeNumber: episode.episodeNumber,
+                  seasonNumber: seasonData.seasonNumber,
+                  thumbnailUrl: episode.poster.high
                 },
               }}
               asChild

@@ -41,7 +41,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       <Tabs.Screen
         name="all-series"
         options={{
@@ -51,13 +51,23 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       <Tabs.Screen
         name="search"
         options={{
           title: "Search",
           tabBarIcon: ({ color }) => (
             <Ionicons name="search" size={24} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "History",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="history" size={24} color={color} />
           ),
         }}
       />

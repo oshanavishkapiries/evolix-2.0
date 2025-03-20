@@ -1,20 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, Image, ScrollView } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { TVSeries } from '../types/api';
 import { getAllTVSeries } from '../services/api';
 import SeriesSection from '../components/SeriesSection';
 import FeaturedSlider from '../components/FeaturedSlider';
+import { WatchHistoryService } from '../services/watchHistory';
+import { WatchHistoryItem } from '../types/watchHistory';
 
 export default function HomeScreen() {
   const [series, setSeries] = useState<TVSeries[]>([]);
+  const [recentlyWatched, setRecentlyWatched] = useState<WatchHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     loadTVSeries();
+    loadRecentlyWatched();
   }, []);
 
   const loadTVSeries = async () => {
@@ -23,7 +27,7 @@ export default function HomeScreen() {
       setError('');
 
       const response = await getAllTVSeries(1, 20);
-      
+
       if (response.success) {
         setSeries(response.data.results);
       } else {
@@ -45,9 +49,36 @@ export default function HomeScreen() {
     }
   };
 
+  const loadRecentlyWatched = async () => {
+    try {
+      const historyState = await WatchHistoryService.getWatchHistory();
+      setRecentlyWatched(historyState.items.slice(0, 5));
+    } catch (error) {
+      console.error('Error loading recently watched:', error);
+    }
+  };
+
+  const handleRecentlyWatchedPress = (item: WatchHistoryItem) => {
+    router.push({
+      pathname: '/player',
+      params: {
+        videoUrl: item.videoUrl,
+        title: `${item.seriesTitle} - S${item.seasonNumber}E${item.episodeNumber}`,
+        episodeId: item.episodeId,
+        seriesId: item.seriesId,
+        seriesTitle: item.seriesTitle,
+        episodeTitle: item.episodeTitle,
+        episodeNumber: item.episodeNumber,
+        seasonNumber: item.seasonNumber,
+        thumbnailUrl: item.thumbnailUrl,
+        initialTimestamp: item.timestamp
+      }
+    });
+  };
+
   return (
     <>
-      <Stack.Screen 
+      <Stack.Screen
         options={{
           headerShown: false
         }}
@@ -71,6 +102,36 @@ export default function HomeScreen() {
           <ScrollView showsVerticalScrollIndicator={false}>
             <FeaturedSlider series={series.slice(0, 3)} />
             <View style={styles.sections}>
+              {recentlyWatched.length > 0 && (
+                <View style={styles.recentlyWatchedSection}>
+                  <Text style={styles.sectionTitle}>Recently Watched</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.recentlyWatchedList}
+                  >
+                    {recentlyWatched.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.recentlyWatchedItem}
+                        onPress={() => handleRecentlyWatchedPress(item)}
+                      >
+                        <Image
+                          source={{ uri: item.thumbnailUrl }}
+                          style={styles.recentlyWatchedThumbnail}
+                          resizeMode="cover"
+                        />
+                        <Text style={styles.recentlyWatchedTitle} numberOfLines={2}>
+                          {item.seriesTitle}
+                        </Text>
+                        <Text style={styles.recentlyWatchedEpisode}>
+                          S{item.seasonNumber}E{item.episodeNumber}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
               <SeriesSection title="Recently Added" series={series.slice(0, 5)} />
               <SeriesSection title="Featured" series={series.slice(5, 10)} />
             </View>
@@ -124,5 +185,38 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     width: '100%',
+  },
+  recentlyWatchedSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  recentlyWatchedList: {
+    paddingHorizontal: 16,
+  },
+  recentlyWatchedItem: {
+    width: 160,
+    marginRight: 16,
+  },
+  recentlyWatchedThumbnail: {
+    width: 160,
+    height: 90,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  recentlyWatchedTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  recentlyWatchedEpisode: {
+    color: '#888888',
+    fontSize: 12,
   },
 }); 

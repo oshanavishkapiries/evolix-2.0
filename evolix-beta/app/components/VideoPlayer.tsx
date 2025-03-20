@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import WebView from 'react-native-webview';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { WatchHistoryService } from '../services/watchHistory';
+import { WatchHistoryItem } from '../types/watchHistory';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -9,6 +11,14 @@ interface VideoPlayerProps {
   title?: string;
   posterUrl?: string;
   headers?: any;
+  episodeId?: string;
+  seriesId?: string;
+  seriesTitle?: string;
+  episodeTitle?: string;
+  episodeNumber?: number;
+  seasonNumber?: number;
+  thumbnailUrl?: string;
+  initialTimestamp?: number;
 }
 
 export function VideoPlayer({
@@ -17,10 +27,23 @@ export function VideoPlayer({
   title = "Video Player",
   posterUrl,
   headers,
+  episodeId,
+  seriesId,
+  seriesTitle,
+  episodeTitle,
+  episodeNumber,
+  seasonNumber,
+  thumbnailUrl,
+  initialTimestamp = 0
 }: VideoPlayerProps) {
   const [loading, setLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [subtitleContent, setSubtitleContent] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(initialTimestamp);
+
+  console.log('====================================');
+  console.log('initialTimestamp', initialTimestamp);
+  console.log('====================================');
 
   useEffect(() => {
     async function fetchSubtitles() {
@@ -30,7 +53,7 @@ export function VideoPlayer({
             headers: headers || {},
           });
           const text = await response.text();
-          setSubtitleContent(text); 
+          setSubtitleContent(text);
         } catch (error) {
           console.warn('Error fetching subtitles:', error);
           setSubtitleContent(null);
@@ -84,9 +107,19 @@ export function VideoPlayer({
         })
       );
     });
+
+    // Add timeupdate event listener
+    document.getElementById('my-video').addEventListener('timeupdate', function() {
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          event: 'timeupdate',
+          currentTime: this.currentTime
+        })
+      );
+    });
+
     true;
   `;
-
 
   const encodeToBase64 = (text: string) => {
     try {
@@ -134,20 +167,26 @@ export function VideoPlayer({
     </head>
     <body>
         <div id="video-container">
-            <video id="my-video">
+            <video id="my-video" preload="auto" ${initialTimestamp > 0 ? `data-start-time="${initialTimestamp}"` : ''}>
                 <source src="${videoUrl}" type="${videoUrl.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4'}" />
-                ${
-                  subtitleContent
-                    ? `<track src="data:text/vtt;base64,${encodeToBase64(
-                        subtitleContent
-                      )}" kind="metadata" srclang="en" label="sinhala" default>`
-                    : ''
-                }
+                ${subtitleContent
+      ? `<track src="data:text/vtt;base64,${encodeToBase64(
+        subtitleContent
+      )}" kind="metadata" srclang="en" label="sinhala" default>`
+      : ''
+    }
             </video>
         </div>
 
         <script>
             window.onload = function() {
+                var videoElement = document.getElementById('my-video');
+                var startTime = videoElement.getAttribute('data-start-time');
+                
+                if (startTime) {
+                    videoElement.currentTime = parseFloat(startTime);
+                }
+
                 var player = fluidPlayer('my-video', {
                     layoutControls: {
                         primaryColor: "#FFD700",
@@ -176,16 +215,44 @@ export function VideoPlayer({
     </html>
   `;
 
-  const onMessage = (event: any) => {
+  const onMessage = async (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
+
       if (data.event === 'fullscreen') {
         setIsFullscreen(data.isFullscreen);
+      } else if (data.event === 'timeupdate' && episodeId) {
+        const newTime = Math.floor(data.currentTime);
+        if (newTime !== currentTime) {
+          setCurrentTime(newTime);
+          await WatchHistoryService.updateWatchTimestamp(episodeId, newTime);
+        }
       }
     } catch (error) {
       console.warn('Error parsing WebView message:', error);
     }
   };
+
+  useEffect(() => {
+    if (episodeId && seriesId && seriesTitle && episodeTitle && episodeNumber && seasonNumber) {
+      const watchHistoryItem: WatchHistoryItem = {
+        id: `${seriesId}-${episodeId}`,
+        seriesId,
+        seriesTitle,
+        episodeId,
+        episodeTitle,
+        episodeNumber,
+        seasonNumber,
+        timestamp: currentTime,
+        lastWatchedAt: Date.now(),
+        thumbnailUrl,
+        provider: videoUrl.split('/')[2],
+        videoUrl,
+        subtitleUrl: subtitleUrl || ''
+      };
+      WatchHistoryService.addToWatchHistory(watchHistoryItem);
+    }
+  }, [episodeId, seriesId, seriesTitle, episodeTitle, episodeNumber, seasonNumber, currentTime, thumbnailUrl, videoUrl, subtitleUrl]);
 
   return (
     <View style={[styles.container, isFullscreen && styles.fullscreen]}>
