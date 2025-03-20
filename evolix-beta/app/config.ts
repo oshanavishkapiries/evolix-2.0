@@ -1,1 +1,1 @@
-export const API_URL = 'https://evolix-server.duckdns.org/api';
+export const API_URL = 'http://95.111.248.142:5421/api';
