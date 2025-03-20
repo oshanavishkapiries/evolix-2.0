@@ -1,24 +1,20 @@
-# Use Node.js LTS version
-FROM node:20-slim
+# base image
+FROM node:20-alpine
 
-# Create app directory
-WORKDIR /usr/src/app
+# set working 
+WORKDIR /app
 
-# Copy package files
+# copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies
+# install dependencies
 RUN npm install
 
-# Copy source code
+# copy source cod
 COPY . .
 
-# Expose port from .env (5421)
+# expose port
 EXPOSE 5421
 
-# Set environment variables
-ENV NODE_ENV=development
-ENV PORT=5421
-
-# Start the application
-CMD ["npm", "start"] 
+# start app
+CMD ["npm","start"]
