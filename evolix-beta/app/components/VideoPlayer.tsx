@@ -37,7 +37,7 @@ export function VideoPlayer({
   initialTimestamp = 0
 }: VideoPlayerProps) {
   const [loading, setLoading] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   const [subtitleContent, setSubtitleContent] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(initialTimestamp);
 
@@ -67,15 +67,10 @@ export function VideoPlayer({
   useEffect(() => {
     async function changeOrientation() {
       try {
-        if (isFullscreen) {
-          await ScreenOrientation.lockAsync(
-            ScreenOrientation.OrientationLock.LANDSCAPE
-          );
-        } else {
-          await ScreenOrientation.lockAsync(
-            ScreenOrientation.OrientationLock.PORTRAIT_UP
-          );
-        }
+        // Always set to landscape initially
+        await ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.LANDSCAPE
+        );
       } catch (error) {
         console.warn('Error changing orientation:', error);
       }
@@ -88,7 +83,7 @@ export function VideoPlayer({
         console.warn('Error unlocking orientation:', error)
       );
     };
-  }, [isFullscreen]);
+  }, []); // Changed to empty dependency array to run only once on mount
 
   const injectedJavaScript = `
     document.addEventListener('fullscreenchange', function() {
@@ -197,18 +192,35 @@ export function VideoPlayer({
                         autoPlay: true,
                         mute: false,
                         keyboardControl: true,
+                        doubleclickFullscreen:  true,
                         layout: 'default',
                         allowDownload: false,
-                        playbackRateEnabled: false,
+                        playbackRateEnabled: true,
                         subtitlesEnabled: true,
                         allowTheatre: false,
+                        autoRotateFullScreen: true,
                         loop: false,
+                        controlBar: {
+                            autoHide:           true,
+                            autoHideTimeout:    1,
+                            animated:           true,
+                            playbackRates:      ['x2', 'x1.5', 'x1', 'x0.5']
+                        },
                         controlForwardBackward: {
                             show: true,
                             skipSeconds: 10
                         }
                     }
                 });
+
+                // Force fullscreen on load
+                setTimeout(() => {
+                    if (videoElement.requestFullscreen) {
+                        videoElement.requestFullscreen();
+                    } else if (videoElement.webkitRequestFullscreen) {
+                        videoElement.webkitRequestFullscreen();
+                    }
+                }, 1000);
             };
         </script>
     </body>
