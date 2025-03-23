@@ -67,7 +67,6 @@ export function VideoPlayer({
   useEffect(() => {
     async function changeOrientation() {
       try {
-        // Always set to landscape initially
         await ScreenOrientation.lockAsync(
           ScreenOrientation.OrientationLock.LANDSCAPE
         );
@@ -83,7 +82,7 @@ export function VideoPlayer({
         console.warn('Error unlocking orientation:', error)
       );
     };
-  }, []); // Changed to empty dependency array to run only once on mount
+  }, []); 
 
   const injectedJavaScript = `
     document.addEventListener('fullscreenchange', function() {
@@ -198,6 +197,7 @@ export function VideoPlayer({
                         playbackRateEnabled: true,
                         subtitlesEnabled: true,
                         allowTheatre: false,
+                        title: "${title || ''}",
                         autoRotateFullScreen: true,
                         loop: false,
                         controlBar: {

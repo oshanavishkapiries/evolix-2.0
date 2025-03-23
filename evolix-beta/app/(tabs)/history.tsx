@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, Text, TouchableOpacity, Image } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { View, StyleSheet, FlatList, Text, TouchableOpacity, Image, Alert } from 'react-native';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { WatchHistoryService } from '../services/watchHistory';
 import { WatchHistoryItem } from '../types/watchHistory';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HistoryScreen() {
     const [history, setHistory] = useState<WatchHistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadHistory();
-    }, []);
+    useFocusEffect(
+        React.useCallback(() => {
+            loadHistory();
+        }, [])
+    );
 
     const loadHistory = async () => {
         try {
@@ -22,6 +25,65 @@ export default function HistoryScreen() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDeleteItem = async (item: WatchHistoryItem) => {
+        Alert.alert(
+            "Delete Item",
+            "Are you sure you want to delete this item from history?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const historyState = await WatchHistoryService.getWatchHistory();
+                            const updatedItems = historyState.items.filter(i => i.id !== item.id);
+                            await WatchHistoryService.clearWatchHistory();
+                            if (updatedItems.length > 0) {
+                                for (const item of updatedItems) {
+                                    await WatchHistoryService.addToWatchHistory(item);
+                                }
+                            }
+                            setHistory(updatedItems);
+                        } catch (error) {
+                            console.error('Error deleting item:', error);
+                            Alert.alert("Error", "Failed to delete item");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleDeleteAll = () => {
+        Alert.alert(
+            "Delete All History",
+            "Are you sure you want to delete all watch history?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Delete All",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await WatchHistoryService.clearWatchHistory();
+                            setHistory([]);
+                        } catch (error) {
+                            console.error('Error clearing history:', error);
+                            Alert.alert("Error", "Failed to clear history");
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const formatTime = (seconds: number): string => {
@@ -61,11 +123,13 @@ export default function HistoryScreen() {
             style={styles.item}
             onPress={() => handleItemPress(item)}
         >
-            <Image
-                source={{ uri: item.thumbnailUrl }}
-                style={styles.thumbnail}
-                resizeMode="cover"
-            />
+            <View style={styles.imageContent}>
+                <Image
+                    source={{ uri: item.thumbnailUrl }}
+                    style={styles.thumbnail}
+                    resizeMode="cover"
+                />
+            </View>
             <View style={styles.itemContent}>
                 <Text style={styles.seriesTitle}>{item.seriesTitle}</Text>
                 <Text style={styles.episodeTitle}>
@@ -75,6 +139,12 @@ export default function HistoryScreen() {
                     Last watched: {formatTime(item.timestamp)}
                 </Text>
             </View>
+            <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteItem(item)}
+            >
+                <Ionicons name="trash-outline" size={20} color="#ff4444" />
+            </TouchableOpacity>
         </TouchableOpacity>
     );
 
@@ -85,6 +155,14 @@ export default function HistoryScreen() {
                     title: 'Watch History',
                     headerStyle: { backgroundColor: '#000000' },
                     headerTintColor: '#ffffff',
+                    headerRight: () => (
+                        <TouchableOpacity
+                            onPress={handleDeleteAll}
+                            style={styles.deleteAllButton}
+                        >
+                            <Text style={styles.deleteAllText}>Delete All</Text>
+                        </TouchableOpacity>
+                    ),
                 }}
             />
             <View style={styles.container}>
@@ -106,6 +184,11 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
+    deleteAllText: {
+        color: '#ff4444',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
     container: {
         flex: 1,
         backgroundColor: '#000000',
@@ -120,9 +203,15 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         overflow: 'hidden',
     },
-    thumbnail: {
+    imageContent: {
         width: 120,
-        height: 68,
+        height: 100,
+        overflow: "hidden",
+        position: "relative",
+    },
+    thumbnail: {
+        width: "100%",
+        height: "100%",
     },
     itemContent: {
         flex: 1,
@@ -152,5 +241,13 @@ const styles = StyleSheet.create({
         color: '#888888',
         textAlign: 'center',
         marginTop: 20,
+    },
+    deleteButton: {
+        padding: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    deleteAllButton: {
+        marginRight: 16,
     },
 }); 

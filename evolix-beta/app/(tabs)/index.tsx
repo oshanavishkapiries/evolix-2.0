@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { TVSeries } from '../types/api';
 import { getAllTVSeries } from '../services/api';
 import SeriesSection from '../components/SeriesSection';
@@ -18,8 +18,13 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadTVSeries();
-    loadRecentlyWatched();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadRecentlyWatched();
+    }, [])
+  );
 
   const loadTVSeries = async () => {
     try {
