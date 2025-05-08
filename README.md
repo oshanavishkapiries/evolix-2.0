@@ -1,6 +1,6 @@
 # Evolix - Android App for HD Movies & Shows
 
-![Evolix Banner](https://media.licdn.com/dms/image/v2/D562DAQFAMvuVgNnh3g/profile-treasury-image-shrink_800_800/B56ZYoTiv7HoAY-/0/1744432953938?e=1745038800&v=beta&t=cwr8bH73ktKkG2oPsKBBBB_XM52TBFUXs_Y0ZHu043c)
+![Evolix Banner](https://i.ibb.co/5xzqnBqg/1744432953938.jpg)
 
 With **Evolix** on your Android phone, you can enjoy HD films and TV shows effortlessly.
 
