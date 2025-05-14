@@ -1,0 +1,268 @@
+{
+	"info": {
+		"_postman_id": "6ff493a7-7c97-40d6-8b21-420b3db063f0",
+		"name": "evolix",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "39975726"
+	},
+	"item": [
+		{
+			"name": "tvSeries",
+			"item": [
+				{
+					"name": "get-all-tv-series",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host2}}/api/tv-series",
+							"host": [
+								"{{host2}}"
+							],
+							"path": [
+								"api",
+								"tv-series"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "2",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-details-by-id",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host}}/api/tv-series/:id",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"tv-series",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "67cdc4ef9f561a2abaf626c2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-seasons-by-id",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host}}/api/tv-series/:id/seasons",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"tv-series",
+								":id",
+								"seasons"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "67cdb97b9f561a2abaf61cab"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-episodes-by-season-id",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host2}}/api/tv-series/:seasonId/episodes",
+							"host": [
+								"{{host2}}"
+							],
+							"path": [
+								"api",
+								"tv-series",
+								":seasonId",
+								"episodes"
+							],
+							"variable": [
+								{
+									"key": "seasonId",
+									"value": "67cdb97c9f561a2abaf61caf"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "extractors",
+			"item": [
+				{
+					"name": "mixdrop",
+					"item": [
+						{
+							"name": "mixdrop-video",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{host2}}/api/extractors/mixdrop/video",
+									"host": [
+										"{{host2}}"
+									],
+									"path": [
+										"api",
+										"extractors",
+										"mixdrop",
+										"video"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "mixdrop-subtitle",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{host}}/api/extractors/mixdrop/subtitle",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"extractors",
+										"mixdrop",
+										"subtitle"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "mixdrop-metaData",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{host}}/api/extractors/mixdrop/metadata",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"extractors",
+										"mixdrop",
+										"metadata"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "health-check",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host2}}/api/health-check",
+					"host": [
+						"{{host2}}"
+					],
+					"path": [
+						"api",
+						"health-check"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "host",
+			"value": "http://localhost:5421",
+			"type": "string"
+		},
+		{
+			"key": "host2",
+			"value": "http://95.111.248.142:5421",
+			"type": "string"
+		}
+	]
+}
