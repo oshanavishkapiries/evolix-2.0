@@ -1,20 +1,20 @@
-# base image
+# Base image
 FROM node:20-alpine
 
-# set working 
+# Set working directory
 WORKDIR /app
 
-# copy package.json and package-lock.json
+# Copy package.json and package-lock.json first (better caching)
 COPY package*.json ./
 
-# install dependencies
-RUN npm install
+# Install dependencies in production mode
+RUN npm ci --only=production
 
-# copy source cod
+# Copy rest of the application
 COPY . .
 
-# expose port
+# Expose port
 EXPOSE 5421
 
-# start app
-CMD ["npm","start"]
+# Start the application
+CMD ["npm", "start"]
