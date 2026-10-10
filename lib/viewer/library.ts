@@ -14,6 +14,10 @@ export type ContinueItem = {
   /** e.g. "S1:E3 - Pilot"; empty for movies. */
   label: string;
   posterPath: string | null;
+  /** Landscape image: episode still for shows when there is one, else the title backdrop. */
+  backdropPath: string | null;
+  /** Minutes left in the current item (null when unknown or not started). */
+  leftMinutes: number | null;
   href: string;
   /** 0-100; 0 for "up next" episodes that were not started. */
   percent: number;
@@ -40,6 +44,7 @@ export async function listBookmarks(userId: string, limit = 200): Promise<Card[]
         title: movies.title,
         date: movies.releaseDate,
         posterPath: movies.posterPath,
+        backdropPath: movies.backdropPath,
         rating: movies.rating,
         at: bookmarks.createdAt,
       })
@@ -54,6 +59,7 @@ export async function listBookmarks(userId: string, limit = 200): Promise<Card[]
         title: shows.name,
         date: shows.firstAirDate,
         posterPath: shows.posterPath,
+        backdropPath: shows.backdropPath,
         rating: shows.rating,
         at: bookmarks.createdAt,
       })
@@ -66,7 +72,7 @@ export async function listBookmarks(userId: string, limit = 200): Promise<Card[]
   return [...m.map((r) => ({ ...r, kind: "movie" as const })), ...s.map((r) => ({ ...r, kind: "show" as const }))]
     .sort((a, b) => b.at.getTime() - a.at.getTime())
     .slice(0, limit)
-    .map((r) => ({ kind: r.kind, id: r.id, title: r.title, date: r.date, posterPath: r.posterPath, rating: r.rating }));
+    .map((r) => ({ kind: r.kind, id: r.id, title: r.title, date: r.date, posterPath: r.posterPath, backdropPath: r.backdropPath, rating: r.rating }));
 }
 
 /** Saved position for one movie/episode, or 0 when none, finished, or barely started. */
@@ -97,6 +103,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
         id: movies.id,
         title: movies.title,
         posterPath: movies.posterPath,
+        backdropPath: movies.backdropPath,
         position: watchProgress.positionSeconds,
         duration: watchProgress.durationSeconds,
         at: watchProgress.updatedAt,
@@ -118,9 +125,11 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
         showId: shows.id,
         showName: shows.name,
         posterPath: shows.posterPath,
+        backdropPath: shows.backdropPath,
         seasonNumber: seasons.seasonNumber,
         episodeNumber: episodes.episodeNumber,
         episodeName: episodes.name,
+        stillPath: episodes.stillPath,
         position: watchProgress.positionSeconds,
         duration: watchProgress.durationSeconds,
         completed: watchProgress.completed,
@@ -143,11 +152,14 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
   ]);
 
   const pct = (p: number, d: number) => (d > 0 ? Math.min(99, Math.max(1, Math.round((p / d) * 100))) : 0);
+  const left = (p: number, d: number) => (d > 0 && p > 0 ? Math.max(1, Math.round((d - p) / 60)) : null);
   const items: (ContinueItem & { at: number })[] = movieRows.map((r) => ({
     key: `m-${r.id}`,
     title: r.title,
     label: "",
     posterPath: r.posterPath,
+    backdropPath: r.backdropPath,
+    leftMinutes: left(r.position, r.duration),
     href: `/watch/movie/${r.id}`,
     detailHref: `/movie/${r.id}`,
     percent: pct(r.position, r.duration),
@@ -159,7 +171,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
   for (const r of episodeRows) if (!latest.has(r.showId)) latest.set(r.showId, r);
 
   const finished = [...latest.values()].filter((r) => r.completed);
-  const order = new Map<string, { seasonNumber: number; episodeNumber: number; name: string }[]>();
+  const order = new Map<string, { seasonNumber: number; episodeNumber: number; name: string; stillPath: string | null }[]>();
   if (finished.length) {
     const all = await db
       .select({
@@ -167,6 +179,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
         seasonNumber: seasons.seasonNumber,
         episodeNumber: episodes.episodeNumber,
         name: episodes.name,
+        stillPath: episodes.stillPath,
       })
       .from(episodes)
       .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
@@ -182,8 +195,9 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
   }
 
   for (const r of latest.values()) {
-    let ep = { seasonNumber: r.seasonNumber, episodeNumber: r.episodeNumber, name: r.episodeName };
+    let ep = { seasonNumber: r.seasonNumber, episodeNumber: r.episodeNumber, name: r.episodeName, stillPath: r.stillPath };
     let percent = pct(r.position, r.duration);
+    let leftMinutes = left(r.position, r.duration);
     if (r.completed) {
       const list = order.get(r.showId) ?? [];
       const i = list.findIndex((e) => e.seasonNumber === r.seasonNumber && e.episodeNumber === r.episodeNumber);
@@ -191,12 +205,15 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
       if (!next) continue; // nothing left to watch
       ep = next;
       percent = 0;
+      leftMinutes = null;
     } else if (r.position < MIN_RESUME_SECONDS) continue;
     items.push({
       key: `s-${r.showId}`,
       title: r.showName,
       label: `${code(ep.seasonNumber, ep.episodeNumber)}${ep.name ? ` - ${ep.name}` : ""}`,
       posterPath: r.posterPath,
+      backdropPath: ep.stillPath ?? r.backdropPath,
+      leftMinutes,
       href: `/watch/tv/${r.showId}/${ep.seasonNumber}/${ep.episodeNumber}`,
       detailHref: `/tv/${r.showId}`,
       percent,
@@ -207,5 +224,5 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
   return items
     .sort((a, b) => b.at - a.at)
     .slice(0, limit)
-    .map((it) => ({ key: it.key, title: it.title, label: it.label, posterPath: it.posterPath, href: it.href, percent: it.percent, detailHref: it.detailHref }));
+    .map((it) => ({ key: it.key, title: it.title, label: it.label, posterPath: it.posterPath, backdropPath: it.backdropPath, leftMinutes: it.leftMinutes, href: it.href, percent: it.percent, detailHref: it.detailHref }));
 }

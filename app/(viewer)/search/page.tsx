@@ -11,7 +11,7 @@ import {
 } from "@/lib/viewer/catalog";
 import { GridSkeleton } from "../_components/skeletons";
 import { NavMarker } from "../_components/nav-marker";
-import { PosterCard } from "../_components/poster-card";
+import { MediaCard } from "../_components/media-card";
 import { SearchBar } from "../_components/search-bar";
 
 export const metadata: Metadata = { title: "Browse" };
@@ -123,7 +123,7 @@ async function Results({ query }: { query: Query }) {
       <ul className="v-grid">
         {items.map((item) => (
           <li key={`${item.kind}-${item.id}`}>
-            <PosterCard item={item} badge={type === "all"} />
+            <MediaCard item={item} badge={type === "all"} />
           </li>
         ))}
       </ul>
