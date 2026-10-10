@@ -12,6 +12,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -67,6 +68,17 @@ export const sessions = pgTable("sessions", {
 // ---------------------------------------------------------------- CMS
 
 export const sourceKind = pgEnum("source_kind", ["direct", "hls", "embed"]);
+export const videoSite = pgEnum("video_site", ["youtube", "vimeo"]);
+export const videoType = pgEnum("video_type", [
+  "trailer",
+  "teaser",
+  "clip",
+  "featurette",
+  "behind_the_scenes",
+  "bloopers",
+  "opening_credits",
+  "other",
+]);
 export const subtitleFormat = pgEnum("subtitle_format", ["vtt", "srt"]);
 
 export type CastMember = {
@@ -209,5 +221,35 @@ export const subtitles = pgTable(
       "subtitles_one_parent_chk",
       sql`(${t.movieId} is null) <> (${t.episodeId} is null)`,
     ),
+  ],
+);
+
+export const videos = pgTable(
+  "videos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    movieId: uuid("movie_id").references(() => movies.id, { onDelete: "cascade" }),
+    showId: uuid("show_id").references(() => shows.id, { onDelete: "cascade" }),
+    site: videoSite("site").notNull(),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    type: videoType("type").notNull(),
+    official: boolean("official").notNull().default(false),
+    language: text("language"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    isVisible: boolean("is_visible").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("videos_movie_id_idx").on(t.movieId),
+    index("videos_show_id_idx").on(t.showId),
+    uniqueIndex("videos_movie_site_key_uq")
+      .on(t.movieId, t.site, t.key)
+      .where(sql`${t.movieId} is not null`),
+    uniqueIndex("videos_show_site_key_uq")
+      .on(t.showId, t.site, t.key)
+      .where(sql`${t.showId} is not null`),
+    check("videos_one_parent_chk", sql`(${t.movieId} is null) <> (${t.showId} is null)`),
   ],
 );
