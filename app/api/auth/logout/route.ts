@@ -1,5 +1,3 @@
-export const runtime = "nodejs";
-
 import { NextRequest } from "next/server";
 import { clearAuthCookies, json } from "@/lib/auth/http";
 import { refreshSessionId, revokeSession } from "@/lib/auth/session";

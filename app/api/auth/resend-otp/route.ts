@@ -1,5 +1,3 @@
-export const runtime = "nodejs";
-
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { emailSchema, fail, json, parseBody } from "@/lib/auth/http";
