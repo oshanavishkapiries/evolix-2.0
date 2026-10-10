@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { Breadcrumbs, type Crumb } from "./breadcrumbs";
+import { ProviderIo } from "./provider-io";
 import { StatusBadge } from "./title-rows";
 import { TabNav, type Tab } from "./tab-nav";
 import { useToast } from "./toast";
@@ -125,18 +126,21 @@ export function EntityShell({ kind, initial, children }: { kind: EntityKind; ini
               <StatusBadge published={entity.isPublished} />
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              await patch({ isPublished: !entity.isPublished }, entity.isPublished ? "Unpublished." : "Published.");
-              setBusy(false);
-            }}
-          >
-            {entity.isPublished ? "Unpublish" : "Publish"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ProviderIo kind={kind} id={entity.id} />
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await patch({ isPublished: !entity.isPublished }, entity.isPublished ? "Unpublished." : "Published.");
+                setBusy(false);
+              }}
+            >
+              {entity.isPublished ? "Unpublish" : "Publish"}
+            </button>
+          </div>
         </div>
         <TabNav label={`${kind === "movie" ? "Movie" : "Show"} sections`} tabs={tabs} />
       </header>
