@@ -1,4 +1,4 @@
-import { asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { z } from "zod";
 import { db } from "@/db";
@@ -100,4 +100,50 @@ export async function createShowTree(input: z.infer<typeof showCreate>) {
   if (videoValues.length) stmts.push(db.insert(videos).values(videoValues).onConflictDoNothing() as never);
   await db.batch(stmts as [(typeof stmts)[0], ...(typeof stmts)[0][]]);
   return showId;
+}
+
+/** Seasons of a show (by number) with their episode counts. */
+export async function listSeasonsWithCounts(showId: string) {
+  return db
+    .select({ ...getTableColumns(seasons), episodeCount: count(episodes.id) })
+    .from(seasons)
+    .leftJoin(episodes, eq(episodes.seasonId, seasons.id))
+    .where(eq(seasons.showId, showId))
+    .groupBy(seasons.id)
+    .orderBy(asc(seasons.seasonNumber));
+}
+
+/** One season with all its episodes, each with source and subtitle counts; null when the season does not exist. */
+export async function getSeasonDetail(showId: string, seasonNumber: number) {
+  const [season] = await db
+    .select()
+    .from(seasons)
+    .where(and(eq(seasons.showId, showId), eq(seasons.seasonNumber, seasonNumber)))
+    .limit(1);
+  if (!season) return null;
+  const rows = await db
+    .select({
+      ...getTableColumns(episodes),
+      sourceCount: sql<number>`(select count(*) from sources where sources.episode_id = ${episodes.id})`.mapWith(Number),
+      subtitleCount: sql<number>`(select count(*) from subtitles where subtitles.episode_id = ${episodes.id})`.mapWith(Number),
+    })
+    .from(episodes)
+    .where(eq(episodes.seasonId, season.id))
+    .orderBy(asc(episodes.episodeNumber));
+  return { season, episodes: rows };
+}
+
+/** One episode with its neighbours inside the season; null when season or episode is missing. */
+export async function getEpisodeDetail(showId: string, seasonNumber: number, episodeNumber: number) {
+  const detail = await getSeasonDetail(showId, seasonNumber);
+  if (!detail) return null;
+  const i = detail.episodes.findIndex((e) => e.episodeNumber === episodeNumber);
+  if (i < 0) return null;
+  const nav = (e?: { episodeNumber: number; name: string }) => (e ? { episodeNumber: e.episodeNumber, name: e.name } : null);
+  return {
+    season: detail.season,
+    episode: detail.episodes[i],
+    prev: nav(detail.episodes[i - 1]),
+    next: nav(detail.episodes[i + 1]),
+  };
 }
