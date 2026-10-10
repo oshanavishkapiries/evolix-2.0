@@ -3,7 +3,7 @@ import { imageUrl } from "@/lib/images";
 import { ratingText, yearOf } from "@/lib/viewer/format";
 import { BookmarkButton } from "./bookmarks";
 import { Overview, PosterTint, ShareButton } from "./detail-client";
-import { FilmPlayIcon, PlayIcon } from "./icons";
+import { PlayIcon } from "./icons";
 
 export type PlayAction = { href: string; label: string; detail?: string; percent?: number };
 
@@ -20,7 +20,6 @@ type Props = {
   posterPath: string | null;
   backdropPath: string | null;
   play: PlayAction | null;
-  hasTrailer: boolean;
 };
 
 /** Plex-style detail header (spec §5.5): poster left, metadata and actions right, tinted page. */
@@ -66,11 +65,6 @@ export function DetailHeader(p: Props) {
               <span className="v-btn v-btn-lg" aria-disabled="true">Not available yet</span>
             )}
             <BookmarkButton kind={p.kind} id={p.id} />
-            {p.hasTrailer && (
-              <a href="#trailers" className="v-round" aria-label="Trailers" title="Trailers">
-                <FilmPlayIcon size={20} />
-              </a>
-            )}
             <ShareButton title={p.title} />
           </div>
           {p.play?.detail && (
