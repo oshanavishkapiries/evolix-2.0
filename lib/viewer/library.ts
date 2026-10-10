@@ -226,3 +226,9 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
     .slice(0, limit)
     .map((it) => ({ key: it.key, title: it.title, label: it.label, posterPath: it.posterPath, backdropPath: it.backdropPath, leftMinutes: it.leftMinutes, href: it.href, percent: it.percent, detailHref: it.detailHref }));
 }
+
+/** The Continue Watching entry for one title (movie in progress, or the show's current/next episode). */
+export async function resumeFor(userId: string, kind: "movie" | "show", id: string): Promise<ContinueItem | null> {
+  const key = `${kind === "movie" ? "m" : "s"}-${id}`;
+  return (await continueWatching(userId, 200)).find((it) => it.key === key) ?? null;
+}

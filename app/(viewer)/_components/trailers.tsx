@@ -29,7 +29,7 @@ export function Trailers({ videos }: { videos: Video[] }) {
   if (!current) return null;
 
   return (
-    <section className="v-section" aria-labelledby="videos-h">
+    <section className="v-section" id="trailers" aria-labelledby="videos-h">
       <h2 id="videos-h">Trailers &amp; videos</h2>
       <div className="v-video-frame">
         {loaded ? (
