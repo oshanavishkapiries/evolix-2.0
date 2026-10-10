@@ -1,4 +1,5 @@
-import { AdminOverview } from "./_components/admin-lists";
+import { Suspense } from "react";
+import { AdminOverview } from "./_components/admin-overview";
 import { PageHeader } from "./_components/page-header";
 import Link from "next/link";
 
@@ -18,7 +19,9 @@ export default function AdminPage() {
           </>
         }
       />
-      <AdminOverview />
+      <Suspense fallback={<div className="skeleton mt-4 h-32" aria-busy="true" />}>
+        <AdminOverview />
+      </Suspense>
     </>
   );
 }

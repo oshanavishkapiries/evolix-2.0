@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { TitleList } from "../_components/admin-lists";
+import { Suspense } from "react";
+import { TitleList } from "../_components/title-list";
 import { PageHeader } from "../_components/page-header";
 
 export default function ShowsPage() {
@@ -13,7 +14,9 @@ export default function ShowsPage() {
           </Link>
         }
       />
-      <TitleList kind="shows" />
+      <Suspense fallback={<div className="skeleton mt-4 h-32" aria-busy="true" />}>
+        <TitleList kind="shows" />
+      </Suspense>
     </>
   );
 }

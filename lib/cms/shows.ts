@@ -1,13 +1,17 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, count, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { z } from "zod";
 import { db } from "@/db";
 import { episodes, seasons, shows, videos } from "@/db/schema";
 import type { showCreate } from "./schemas";
+import { listWhere, pageWindow, type ListParams } from "./search";
 import { listVideos, videoRows } from "./videos";
 
-export async function listShows() {
-  return db
+/** Shows newest first, optionally filtered (q, status) and paged; `total` ignores paging. */
+export async function listShows(params: ListParams = {}) {
+  const where = listWhere(params, [shows.name, shows.originalName], shows.isPublished);
+  const win = pageWindow(params);
+  const query = db
     .select({
       id: shows.id,
       tmdbId: shows.tmdbId,
@@ -17,7 +21,14 @@ export async function listShows() {
       isPublished: shows.isPublished,
     })
     .from(shows)
-    .orderBy(desc(shows.createdAt));
+    .where(where)
+    .orderBy(desc(shows.createdAt), desc(shows.id))
+    .$dynamic();
+  const [rows, [{ total }]] = await Promise.all([
+    win ? query.limit(win.limit).offset(win.offset) : query,
+    db.select({ total: count() }).from(shows).where(where),
+  ]);
+  return { rows, total, page: win?.page ?? 1, pageSize: win?.pageSize ?? rows.length };
 }
 
 export async function getShow(id: string) {

@@ -1,13 +1,17 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { randomUUID } from "node:crypto";
 import type { z } from "zod";
 import { movies, videos } from "@/db/schema";
 import type { movieCreate } from "./schemas";
+import { listWhere, pageWindow, type ListParams } from "./search";
 import { videoRows } from "./videos";
 
-export async function listMovies() {
-  return db
+/** Movies newest first, optionally filtered (q, status) and paged; `total` ignores paging. */
+export async function listMovies(params: ListParams = {}) {
+  const where = listWhere(params, [movies.title, movies.originalTitle], movies.isPublished);
+  const win = pageWindow(params);
+  const query = db
     .select({
       id: movies.id,
       tmdbId: movies.tmdbId,
@@ -17,7 +21,14 @@ export async function listMovies() {
       isPublished: movies.isPublished,
     })
     .from(movies)
-    .orderBy(desc(movies.createdAt));
+    .where(where)
+    .orderBy(desc(movies.createdAt), desc(movies.id))
+    .$dynamic();
+  const [rows, [{ total }]] = await Promise.all([
+    win ? query.limit(win.limit).offset(win.offset) : query,
+    db.select({ total: count() }).from(movies).where(where),
+  ]);
+  return { rows, total, page: win?.page ?? 1, pageSize: win?.pageSize ?? rows.length };
 }
 
 export async function getMovie(id: string) {
