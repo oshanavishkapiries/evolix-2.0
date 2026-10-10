@@ -1,8 +1,8 @@
 # Spec: Viewer UI redesign (Plex-inspired)
 
-- **Status:** Approved (decisions in §11)
+- **Status:** Implemented on branch `ui-redesign` (decisions in §10, notes in §11)
 - **Date:** 2026-10-10
-- **Scope:** viewer app only (`app/(viewer)/**`, `app/(viewer)/viewer.css`). Out of scope: admin CMS, auth pages, the full-screen player shell (`watch-shell.tsx`, which keeps its own look).
+- **Scope:** viewer app only (`app/(viewer)/**`, `app/(viewer)/styles/*.css`). Out of scope: admin CMS, auth pages, the full-screen player shell (`watch-shell.tsx`, which keeps its own look).
 - **Reference:** `/home/ubuntu/TEMP/ui-idea.zip`, 7 screenshots of Plex Web (splash, Home, collapsed sidebar, Movies & Shows, Discover, show detail top, show detail scrolled).
 
 ## 1. Goal
@@ -240,3 +240,31 @@ These override anything above that conflicts with them.
 | Q17 | Detail background: tint + **faint backdrop (~15%)**, no toggle. |
 | Q18 | Sidebar: Home, Movies, TV Shows, My List. Account/Admin stay in the avatar menu. |
 | Q19 | Genres tab uses **image tiles** (backdrop of a top title per genre, one grouped query). |
+
+## 11. Implementation notes
+
+**Styles:** split into `app/(viewer)/styles/`, imported in this order by `app/(viewer)/layout.tsx`:
+- `tokens.css`
+- `shell.css`
+- `cards.css`
+- `detail.css`
+- `components.css` (the former `viewer.css`)
+- `motion.css`
+
+**Preferences:**
+- Sidebar state and card size live in localStorage. An inline script in the viewer layout mirrors them onto `<html data-v-sidebar data-v-size>` before first paint.
+- The rows/grid choice lives in a cookie (`v-view-<page>`), so the server renders the remembered view. `?view=` overrides it.
+
+**Motion:**
+- `_components/motion.tsx`: `PageMotion`, `Reveal`/`SkeletonOut`, `Swap`.
+- The poster morph is named on click in `card-link.tsx`, because the same title can appear in several rows at once and duplicate names would cancel the transition.
+
+**Detail tint:** `detail-client.tsx` samples the w92 poster on a canvas. Lightness is pinned to 22% and saturation capped at 55%, so text stays readable.
+
+**Deviations from the plan above:**
+- §5.1: Home has no tabs and the hero is replaced by a Featured row (Q1, Q13).
+- §5.5: the "image toggle" icon was dropped (Q17). The ratings row shows TMDB only, because no other scores are stored.
+- §5.7: no splash screen (Q8).
+- §6.10: the tab underline animates in place (scale) rather than sliding between tabs, since tabs are separate routes.
+- §6.13: the overview "More" expands instantly; the planned fallback was used.
+- Not done in this pass: auth pages restyle (Q9) and DB-stored tint colour (Q4b).

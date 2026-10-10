@@ -1,4 +1,4 @@
-/* Viewer components (cards, rows, detail, watch). Tokens: styles/tokens.css; shell: styles/shell.css. */
+/* Shared viewer components: buttons, skeletons, search, detail sections, episodes, watch player. */
 
 /* Buttons */
 .v-btn {
@@ -26,7 +26,7 @@
 @media (prefers-reduced-motion: reduce) { .v-skel { animation: none; } }
 
 /* Empty / not-found */
-.v-empty { min-height: 60dvh; display: grid; place-content: center; justify-items: center; gap: 1rem; text-align: center; padding: var(--v-nav-h) var(--v-gutter) 2rem; }
+.v-empty { min-height: 60dvh; display: grid; place-content: center; justify-items: center; gap: 1rem; text-align: center; padding: 2rem var(--v-gutter); }
 .v-empty h1 { font-size: 1.75rem; }
 
 /* Search page */
@@ -86,9 +86,10 @@
 .v-watch { position: fixed; inset: 0; z-index: 200; background: #000; overflow: hidden; }
 .v-player-wrap { position: absolute; inset: 0; background: #000; }
 .v-player-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.v-player-wrap media-player { --media-brand: #e50914; --media-focus-ring-color: #e50914; --media-slider-track-fill-bg: #e50914; --media-slider-thumb-bg: #e50914; width: 100%; height: 100%; border-radius: 0; font-family: inherit; }
-.v-player-wrap media-player video { object-fit: contain; }
-.v-player-wrap media-player [data-media-captions] { --media-cue-color: #fff; --media-cue-bg: transparent; --media-cue-backdrop: none; text-shadow: 0 0 4px #000, 1px 1px 2px #000; }
+.v-player-wrap [data-media-player] { aspect-ratio: auto; --media-brand: #e50914; --media-focus-ring-color: #e50914; --media-slider-track-fill-bg: #e50914; --media-slider-thumb-bg: #e50914; width: 100%; height: 100%; border-radius: 0; font-family: inherit; }
+.v-player-wrap [data-media-provider] { position: absolute; inset: 0; aspect-ratio: auto; display: grid; place-items: center; }
+.v-player-wrap [data-media-provider] video { width: 100%; height: 100%; aspect-ratio: auto; object-fit: contain; }
+.v-player-wrap [data-media-player] [data-media-captions] { --media-cue-color: #fff; --media-cue-bg: transparent; --media-cue-backdrop: none; text-shadow: 0 0 4px #000, 1px 1px 2px #000; }
 .v-player-msg { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: .75rem; text-align: center; padding: 1.5rem; background: rgb(10 10 15 / .92); }
 .v-player-msg strong { font-size: 1.1rem; }
 .v-watch-bar { position: absolute; inset: 0 0 auto 0; z-index: 10; display: flex; align-items: center; gap: 1rem; padding: 1rem var(--v-gutter) 2.5rem; background: linear-gradient(rgb(0 0 0 / .8), transparent); transition: opacity .3s; pointer-events: none; }

@@ -119,3 +119,5 @@
   .v-genre:hover img { scale: 1.05; }
 }
 @media (max-width: 47.99rem) { .v-genres { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .75rem; } }
+.v-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .8rem; border-radius: 999px; background: rgb(255 255 255 / .1); font-size: .82rem; color: var(--v-fg); transition: background var(--v-dur-1); }
+.v-chip:hover { background: rgb(255 255 255 / .18); }

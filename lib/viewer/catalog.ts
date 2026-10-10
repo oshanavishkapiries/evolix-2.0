@@ -1,11 +1,9 @@
 import { and, count, eq, ilike, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
-import { cache } from "react";
 import { db } from "@/db";
 import { movies, shows } from "@/db/schema";
 import { escapeLike } from "@/lib/cms/search";
 import type { CardKind } from "./ids";
-import { firstEpisode } from "./detail";
 
 // Everything here only ever returns PUBLISHED titles.
 
@@ -132,72 +130,6 @@ export async function listGenres(minItems = 4, limit = 4, kind?: CardKind): Prom
     limit ${limit}`);
   return (res.rows as { genre: string }[]).map((r) => r.genre);
 }
-
-export type Hero = {
-  kind: CardKind;
-  id: string;
-  title: string;
-  tagline: string;
-  overview: string;
-  date: string | null;
-  rating: number | null;
-  runtimeMinutes: number | null;
-  genres: string[];
-  backdropPath: string;
-  logoPath: string | null;
-  playHref: string;
-};
-
-/** A random published title that has a backdrop (null when there is none). */
-export const getHero = cache(async (): Promise<Hero | null> => {
-  const [movie, show] = await Promise.all([
-    db
-      .select({
-        id: movies.id,
-        title: movies.title,
-        tagline: movies.tagline,
-        overview: movies.overview,
-        date: movies.releaseDate,
-        rating: movies.rating,
-        runtimeMinutes: movies.runtimeMinutes,
-        genres: movies.genres,
-        backdropPath: movies.backdropPath,
-        logoPath: movies.logoPath,
-      })
-      .from(movies)
-      .where(and(eq(movies.isPublished, true), sql`${movies.backdropPath} is not null`))
-      .orderBy(sql`random()`)
-      .limit(1),
-    db
-      .select({
-        id: shows.id,
-        title: shows.name,
-        tagline: shows.tagline,
-        overview: shows.overview,
-        date: shows.firstAirDate,
-        rating: shows.rating,
-        genres: shows.genres,
-        backdropPath: shows.backdropPath,
-        logoPath: shows.logoPath,
-      })
-      .from(shows)
-      .where(and(eq(shows.isPublished, true), sql`${shows.backdropPath} is not null`))
-      .orderBy(sql`random()`)
-      .limit(1),
-  ]);
-  const picks = [
-    ...movie.map((r) => ({ ...r, kind: "movie" as const })),
-    ...show.map((r) => ({ ...r, kind: "show" as const, runtimeMinutes: null })),
-  ];
-  const pick = picks[Math.floor(Math.random() * picks.length)];
-  if (!pick || !pick.backdropPath) return null;
-  let playHref = `/watch/movie/${pick.id}`;
-  if (pick.kind === "show") {
-    const ep = await firstEpisode(pick.id);
-    playHref = ep ? `/watch/tv/${pick.id}/${ep.seasonNumber}/${ep.episodeNumber}` : `/tv/${pick.id}`;
-  }
-  return { ...pick, backdropPath: pick.backdropPath, playHref };
-});
 
 export type GenreTile = { genre: string; count: number; backdropPath: string | null };
 

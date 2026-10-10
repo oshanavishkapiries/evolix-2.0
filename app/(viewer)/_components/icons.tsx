@@ -5,9 +5,6 @@ const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLin
 export const PlayIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" /></svg>
 );
-export const InfoIcon = ({ size = 20, className }: P) => (
-  <svg {...base(size)} className={className} {...stroke}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
-);
 export const HomeIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
 );
@@ -25,12 +22,6 @@ export const ChevronIcon = ({ size = 20, className, dir = "down" }: P & { dir?: 
 );
 export const BackIcon = ({ size = 18, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><path d="m12 19-7-7 7-7M19 12H5" /></svg>
-);
-export const StarIcon = ({ size = 16, className }: P) => (
-  <svg {...base(size)} className={className} fill="currentColor"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" /></svg>
-);
-export const ClockIcon = ({ size = 16, className }: P) => (
-  <svg {...base(size)} className={className} {...stroke}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
 );
 export const BookmarkIcon = ({ size = 20, className, filled = false }: P & { filled?: boolean }) => (
   <svg {...base(size)} className={className} {...stroke} fill={filled ? "currentColor" : "none"}><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" /></svg>
