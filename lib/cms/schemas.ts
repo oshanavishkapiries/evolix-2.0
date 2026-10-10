@@ -196,6 +196,8 @@ export const videoCreate = z
     movieId: z.uuid().optional(),
     showId: z.uuid().optional(),
     ...videoFields,
+    // Omitted: the video is appended after the current last one.
+    sortOrder: z.number().int().min(-100000).max(100000).optional(),
   })
   .refine((v) => (v.movieId === undefined) !== (v.showId === undefined), "Provide exactly one of movieId or showId")
   .refine(keyOk, { message: KEY_MSG, path: ["key"] });
