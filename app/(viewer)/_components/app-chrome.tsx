@@ -133,6 +133,8 @@ export function AppChrome() {
         </button>
         <Link href="/dashboard" className="v-logo" aria-label="Evolix home">
           {/* eslint-disable-next-line @next/next/no-img-element -- static SVG logo */}
+          <img src="/logo-mark.png" alt="" width={28} height={28} className="v-logo-mark" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- static SVG logo */}
           <img src="/svg/evolix.svg" alt="Evolix" width={100} height={29} />
         </Link>
         <NavSearch />
