@@ -18,6 +18,8 @@ const schema = z.object({
   OTP_RESEND_COOLDOWN_SECONDS: int(),
   OTP_MAX_ATTEMPTS: int(),
   DEV_LOG_OTP: z.string().default("false"),
+  TMDB_API_KEY: z.string().min(1),
+  ADMIN_EMAILS: z.string().default(""),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -30,6 +32,9 @@ if (!parsed.success) {
 
 export const env = {
   ...parsed.data,
+  adminEmails: parsed.data.ADMIN_EMAILS.split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
   isProd: parsed.data.NODE_ENV === "production",
   // Never true in production, whatever the variable says.
   devLogOtp:
