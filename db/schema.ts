@@ -257,3 +257,46 @@ export const videos = pgTable(
     check("videos_one_parent_chk", sql`(${t.movieId} is null) <> (${t.showId} is null)`),
   ],
 );
+
+// Per-user "My List". Exactly one of movie_id / show_id is set.
+export const bookmarks = pgTable(
+  "bookmarks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    movieId: uuid("movie_id").references(() => movies.id, { onDelete: "cascade" }),
+    showId: uuid("show_id").references(() => shows.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("bookmarks_one_target", sql`(${t.movieId} is null) <> (${t.showId} is null)`),
+    unique("bookmarks_user_movie_uq").on(t.userId, t.movieId),
+    unique("bookmarks_user_show_uq").on(t.userId, t.showId),
+    index("bookmarks_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+// Per-user playback position for a movie or an episode. Exactly one of movie_id / episode_id is set.
+export const watchProgress = pgTable(
+  "watch_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    movieId: uuid("movie_id").references(() => movies.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+    positionSeconds: integer("position_seconds").notNull().default(0),
+    durationSeconds: integer("duration_seconds").notNull().default(0),
+    completed: boolean("completed").notNull().default(false),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("watch_progress_one_target", sql`(${t.movieId} is null) <> (${t.episodeId} is null)`),
+    unique("watch_progress_user_movie_uq").on(t.userId, t.movieId),
+    unique("watch_progress_user_episode_uq").on(t.userId, t.episodeId),
+    index("watch_progress_user_updated_idx").on(t.userId, t.updatedAt),
+  ],
+);

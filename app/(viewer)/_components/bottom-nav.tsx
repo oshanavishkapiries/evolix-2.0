@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { FilmIcon, HomeIcon, SearchIcon, TvIcon } from "./icons";
+import { FilmIcon, HomeIcon, ListIcon, SearchIcon, TvIcon } from "./icons";
 import { NAV_ITEMS } from "./nav-items";
 
-const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, search: SearchIcon };
+const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon, search: SearchIcon };
 
 /** Mobile/tablet tab bar (the top links are hidden below the lg breakpoint). */
 export function BottomNav() {

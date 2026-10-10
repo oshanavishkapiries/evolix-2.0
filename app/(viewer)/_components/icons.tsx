@@ -32,3 +32,9 @@ export const StarIcon = ({ size = 16, className }: P) => (
 export const ClockIcon = ({ size = 16, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
 );
+export const BookmarkIcon = ({ size = 20, className, filled = false }: P & { filled?: boolean }) => (
+  <svg {...base(size)} className={className} {...stroke} fill={filled ? "currentColor" : "none"}><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" /></svg>
+);
+export const ListIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+);

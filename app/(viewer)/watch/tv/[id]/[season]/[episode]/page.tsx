@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isUuid, parseNumber } from "@/lib/viewer/ids";
+import { resumePosition } from "@/lib/viewer/library";
+import { currentUserId } from "@/lib/viewer/user";
 import { getEpisodeWatch, type EpisodeRef } from "@/lib/viewer/watch";
 import { EpisodeRow } from "../../../../../_components/seasons";
 import { pickSource, WatchView } from "../../../../../_components/watch-view";
@@ -37,6 +39,8 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
   const data = await getEpisodeWatch(p.id, p.season, p.episode);
   if (!data) notFound();
   const { current, prev, next } = data;
+  const userId = await currentUserId();
+  const startAt = userId ? await resumePosition(userId, { episodeId: current.id }) : 0;
   const selected = pickSource(data.sources, Array.isArray(sp.source) ? sp.source[0] : sp.source);
   const href = (e: EpisodeRef) => `/watch/tv/${p.id}/${e.seasonNumber}/${e.episodeNumber}`;
   const label = (e: EpisodeRef) => (e.seasonNumber === p.season ? `Episode ${e.episodeNumber}` : code(e.seasonNumber, e.episodeNumber));
@@ -50,6 +54,8 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       sources={data.sources}
       subtitles={data.subtitles}
       selected={selected}
+      track={{ kind: "episode", id: current.id }}
+      startAt={startAt}
       nav={
         <nav className="v-epnav" aria-label="Episode navigation">
           {prev ? <Link href={href(prev)} className="v-btn" prefetch={false}>← Previous: {label(prev)}</Link> : <span className="v-btn" aria-disabled="true">← Previous</span>}

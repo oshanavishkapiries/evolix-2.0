@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { imageUrl } from "@/lib/images";
+import { BookmarkButton } from "./bookmarks";
 import { InfoIcon, PlayIcon } from "./icons";
 import { ratingText, runtimeText, yearOf } from "@/lib/viewer/format";
 
@@ -22,6 +23,7 @@ export type HeroProps = {
   infoHref?: string;
   /** Rendered for h1 on detail pages; the home hero uses h2 so the page keeps one h1. */
   headingLevel?: 1 | 2;
+  bookmark?: { kind: "movie" | "show"; id: string };
 };
 
 export function TitleHero(p: HeroProps) {
@@ -75,6 +77,7 @@ export function TitleHero(p: HeroProps) {
             ) : (
               <span className="v-btn" aria-disabled="true">Not available yet</span>
             )}
+            {p.bookmark && <BookmarkButton kind={p.bookmark.kind} id={p.bookmark.id} />}
             {p.infoHref && (
               <Link href={p.infoHref} className="v-btn v-btn-info">
                 <InfoIcon size={20} /> More info

@@ -21,9 +21,12 @@ type Props = {
   selected: WatchSource | null;
   nav?: React.ReactNode;
   side?: React.ReactNode;
+  /** Progress tracking target and resume position (direct/HLS sources only). */
+  track?: { kind: "movie" | "episode"; id: string };
+  startAt?: number;
 };
 
-export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side }: Props) {
+export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt }: Props) {
   return (
     <div className="v-watch">
       <NavMarker active="watch" />
@@ -47,6 +50,8 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
             title={heading}
             source={{ id: selected.id, kind: selected.kind, url: selected.url }}
             subtitles={subtitles}
+            track={track}
+            startAt={startAt}
           />
         )}
       </div>

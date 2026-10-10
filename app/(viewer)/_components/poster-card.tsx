@@ -2,6 +2,7 @@ import Link from "next/link";
 import { imageUrl } from "@/lib/images";
 import { detailHref, ratingText, yearOf } from "@/lib/viewer/format";
 import type { Card } from "@/lib/viewer/catalog";
+import { BookmarkToggle } from "./bookmarks";
 import { PlayIcon } from "./icons";
 
 export function PosterCard({ item, badge = false }: { item: Card; badge?: boolean }) {
@@ -9,7 +10,8 @@ export function PosterCard({ item, badge = false }: { item: Card; badge?: boolea
   const year = yearOf(item.date);
   const rating = ratingText(item.rating);
   return (
-    <Link href={detailHref(item.kind, item.id)} className="v-card" prefetch={false}>
+    <div className="v-card">
+      <Link href={detailHref(item.kind, item.id)} className="v-card-link" prefetch={false}>
       <div className="v-card-img">
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN, sizes picked per use
@@ -29,6 +31,8 @@ export function PosterCard({ item, badge = false }: { item: Card; badge?: boolea
           </span>
         </span>
       </div>
-    </Link>
+      </Link>
+      <BookmarkToggle kind={item.kind} id={item.id} title={item.title} />
+    </div>
   );
 }

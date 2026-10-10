@@ -42,6 +42,7 @@ export default async function MoviePage({ params }: Props) {
         backdropPath={movie.backdropPath}
         logoPath={movie.logoPath}
         posterPath={movie.posterPath}
+        bookmark={{ kind: "movie", id: movie.id }}
         playHref={movie.playable ? `/watch/movie/${movie.id}` : null}
       />
       <MediaSections item={movie} />

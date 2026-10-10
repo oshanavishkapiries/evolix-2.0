@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BookmarkProvider } from "./_components/bookmarks";
 import { BottomNav } from "./_components/bottom-nav";
 import { ViewerNav } from "./_components/nav";
 import "./viewer.css";
@@ -13,7 +14,9 @@ export default function ViewerLayout({ children }: { children: React.ReactNode }
     <div className="viewer">
       <a href="#main" className="v-skip">Skip to content</a>
       <ViewerNav />
-      <main id="main">{children}</main>
+      <BookmarkProvider>
+        <main id="main">{children}</main>
+      </BookmarkProvider>
       <footer className="v-footer">Evolix - private family library</footer>
       <BottomNav />
     </div>

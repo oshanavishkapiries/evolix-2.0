@@ -5,7 +5,7 @@ import { checkAdminToken } from "@/lib/auth/admin";
 import { verifyAccessToken } from "@/lib/auth/tokens";
 import { titleRouteVisible } from "@/lib/viewer/exists";
 
-const PROTECTED = ["/dashboard", "/account", "/admin", "/search", "/movie", "/movies", "/tv", "/watch"];
+const PROTECTED = ["/dashboard", "/account", "/admin", "/search", "/movie", "/movies", "/my-list", "/tv", "/watch"];
 const VIEWER_TITLES = ["/movie", "/tv", "/watch"];
 const GUEST_ONLY = ["/login", "/register"];
 const matches = (path: string, bases: string[]) =>
@@ -53,6 +53,7 @@ export const config = {
     "/search/:path*",
     "/movie/:path*",
     "/movies",
+    "/my-list",
     "/tv/:path*",
     "/watch/:path*",
     "/login",

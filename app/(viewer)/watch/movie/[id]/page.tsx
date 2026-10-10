@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isUuid } from "@/lib/viewer/ids";
 import { yearOf } from "@/lib/viewer/format";
+import { resumePosition } from "@/lib/viewer/library";
+import { currentUserId } from "@/lib/viewer/user";
 import { getMovieWatch } from "@/lib/viewer/watch";
 import { pickSource, WatchView } from "../../../_components/watch-view";
 
@@ -25,6 +27,8 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
   if (!isUuid(id)) notFound();
   const movie = await getMovieWatch(id);
   if (!movie) notFound();
+  const userId = await currentUserId();
+  const startAt = userId ? await resumePosition(userId, { movieId: movie.id }) : 0;
   const selected = pickSource(movie.sources, Array.isArray(sp.source) ? sp.source[0] : sp.source);
 
   return (
@@ -37,6 +41,8 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
       sources={movie.sources}
       subtitles={movie.subtitles}
       selected={selected}
+      track={{ kind: "movie", id: movie.id }}
+      startAt={startAt}
     />
   );
 }

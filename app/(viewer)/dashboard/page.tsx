@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { browse, getHero, listGenres, listLatest } from "@/lib/viewer/catalog";
 import { NavMarker } from "../_components/nav-marker";
+import { currentUserId } from "@/lib/viewer/user";
+import { continueWatching, listBookmarks } from "@/lib/viewer/library";
+import { ContinueRow } from "../_components/continue-row";
 import { ContentRow } from "../_components/content-row";
 import { LibrarySkeleton } from "../_components/skeletons";
 import { TitleHero } from "../_components/title-hero";
@@ -23,11 +26,14 @@ export default function LibraryPage() {
 }
 
 async function LibraryContent() {
-  const [hero, movies, shows, genres] = await Promise.all([
+  const userId = await currentUserId();
+  const [hero, movies, shows, genres, resume, myList] = await Promise.all([
     getHero(),
     listLatest("movie"),
     listLatest("show"),
     listGenres(),
+    userId ? continueWatching(userId) : [],
+    userId ? listBookmarks(userId, 20) : [],
   ]);
   const genreRows = await Promise.all(genres.map(async (g) => ({ genre: g, items: (await browse({ genre: g, limit: 20 })).items })));
 
@@ -49,10 +55,13 @@ async function LibraryContent() {
           posterPath={null}
           playHref={hero.playHref}
           infoHref={detailHref(hero.kind, hero.id)}
+          bookmark={{ kind: hero.kind, id: hero.id }}
         />
       ) : (
         <div style={{ height: "var(--v-nav-h)" }} />
       )}
+      <ContinueRow items={resume} />
+      <ContentRow title="My List" items={myList} href="/my-list" badge />
       <ContentRow title="Recently added movies" items={movies} href="/movies" />
       <ContentRow title="Recently added shows" items={shows} href="/tv" />
       {genreRows.map((r) => (

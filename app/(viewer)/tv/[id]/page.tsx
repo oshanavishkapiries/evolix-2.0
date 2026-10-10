@@ -49,6 +49,7 @@ export default async function ShowPage({ params, searchParams }: Props) {
         backdropPath={show.backdropPath}
         logoPath={show.logoPath}
         posterPath={show.posterPath}
+        bookmark={{ kind: "show", id: show.id }}
         extra={seasonCount ? `${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}` : undefined}
         playHref={first ? `/watch/tv/${show.id}/${first.seasonNumber}/${first.episodeNumber}` : null}
       />

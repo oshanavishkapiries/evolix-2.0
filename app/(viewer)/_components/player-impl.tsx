@@ -2,10 +2,11 @@
 
 import "vidstack/player/styles/default/theme.css";
 import "vidstack/player/styles/default/layouts/video.css";
-import { MediaPlayer, MediaProvider, Track, type MediaProviderAdapter } from "@vidstack/react";
+import { MediaPlayer, MediaProvider, Track, type MediaPlayerInstance, type MediaProviderAdapter } from "@vidstack/react";
 import { defaultLayoutIcons, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
 import { isHLSProvider } from "vidstack";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { fetchWithRefresh } from "@/lib/client/api";
 import {
   pixeldrainId,
   pixeldrainInfoUrl,
@@ -15,17 +16,60 @@ import {
 } from "@/lib/viewer/providers";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 
+export type ProgressTarget = { kind: "movie" | "episode"; id: string };
+const SAVE_EVERY_MS = 15_000;
+
 const isEnglish = (lang: string) => /^en(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "english";
 
 export default function PlayerImpl({
   title,
   source,
   subtitles,
+  track,
+  startAt = 0,
 }: {
   title: string;
   source: Pick<WatchSource, "kind" | "url">;
   subtitles: WatchSubtitle[];
+  /** What to save progress against; omitted = no tracking. */
+  track?: ProgressTarget;
+  /** Resume position in seconds. */
+  startAt?: number;
 }) {
+  const player = useRef<MediaPlayerInstance>(null);
+  const lastSave = useRef(0);
+  const seekTo = useRef(startAt);
+
+  const save = useCallback(
+    (unloading = false) => {
+      const state = player.current?.state;
+      if (!track || !state || !state.duration || state.currentTime <= 0) return;
+      lastSave.current = Date.now();
+      const init: RequestInit = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...track, position: state.currentTime, duration: state.duration }),
+      };
+      // keepalive lets the request outlive the page; a 401 retry is not possible there.
+      if (unloading) fetch("/api/me/progress", { ...init, keepalive: true }).catch(() => {});
+      else fetchWithRefresh("/api/me/progress", init).catch(() => {});
+    },
+    [track],
+  );
+
+  useEffect(() => {
+    if (!track) return;
+    const hide = () => document.visibilityState === "hidden" && save(true);
+    document.addEventListener("visibilitychange", hide);
+    const leave = () => save(true);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", hide);
+      window.removeEventListener("pagehide", leave);
+      save(true); // leaving the watch page (client navigation)
+    };
+  }, [track, save]);
+
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [hint, setHint] = useState<PlayerType | null>(null);
@@ -66,6 +110,7 @@ export default function PlayerImpl({
 
   return (
     <MediaPlayer
+      ref={player}
       title={title}
       key={`${current.type}`}
       src={current}
@@ -74,6 +119,17 @@ export default function PlayerImpl({
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
         if (isHLSProvider(provider)) provider.library = () => import("hls.js");
       }}
+      onCanPlay={() => {
+        const at = seekTo.current;
+        seekTo.current = 0;
+        const duration = player.current?.state.duration ?? 0;
+        if (at > 0 && player.current && (!duration || at < duration - 5)) player.current.currentTime = at;
+      }}
+      onTimeUpdate={() => {
+        if (Date.now() - lastSave.current >= SAVE_EVERY_MS) save();
+      }}
+      onPause={() => save()}
+      onEnded={() => save()}
       onError={() => {
         if (attempt + 1 < candidates.length) setAttempt(attempt + 1);
         else setFailed(true);
