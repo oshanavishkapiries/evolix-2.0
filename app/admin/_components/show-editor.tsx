@@ -13,6 +13,8 @@ import {
   fromForm,
   toForm,
 } from "./fields";
+import { ChooseImages, SeasonImagePicker } from "./image-picker";
+import { PageHeader } from "./page-header";
 import { MediaManager } from "./items-section";
 import { VideosSection } from "./videos-section";
 
@@ -27,6 +29,7 @@ function NodeEditor({
   defs,
   label,
   onDeleted,
+  imagePicker,
   children,
 }: {
   endpoint: string;
@@ -34,6 +37,8 @@ function NodeEditor({
   defs: FieldDef[];
   label: string;
   onDeleted: () => void;
+  /** Season rows: tmdb ids needed to load image candidates. */
+  imagePicker?: { showTmdbId: number; seasonNumber: number };
   children?: React.ReactNode;
 }) {
   const [values, setValues] = useState<FormValues>(() => toForm(record, defs));
@@ -51,6 +56,15 @@ function NodeEditor({
     }
     setStatus(done);
     return true;
+  }
+
+  const poster = values.posterPath ? String(values.posterPath) : null;
+  const [savedPoster, setSavedPoster] = useState(poster);
+
+  async function savePoster(path: string | null) {
+    const ok = await save({ posterPath: path }, path ? "Season image saved." : "Season image cleared.");
+    if (ok) setSavedPoster(path);
+    return ok;
   }
 
   async function toggle(next: boolean) {
@@ -74,6 +88,10 @@ function NodeEditor({
   return (
     <details className="bg-white dark:bg-gray-900">
       <summary>
+        {imagePicker && tmdbImage(savedPoster, "w92") && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={tmdbImage(savedPoster, "w92")!} alt="" width={32} height={48} loading="lazy" className="mr-2 inline-block h-12 w-8 rounded object-cover align-middle" />
+        )}
         {label} - {visible ? "visible" : "hidden"}
       </summary>
       <p className="toolbar">
@@ -85,6 +103,25 @@ function NodeEditor({
           Delete
         </button>
       </p>
+      {imagePicker && (
+        <div className="mt-4 flex flex-wrap items-start gap-4">
+          {tmdbImage(poster, "w185") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={tmdbImage(poster, "w185")!} alt={`${label} poster`} width={92} height={138} loading="lazy" className="w-24 rounded-md" />
+          ) : (
+            <small>No season image</small>
+          )}
+          <div className="min-w-0 flex-1">
+            <SeasonImagePicker
+              tmdbId={imagePicker.showTmdbId}
+              seasonNumber={imagePicker.seasonNumber}
+              value={poster}
+              onChange={(p) => setValues((v) => ({ ...v, posterPath: p ?? "" }))}
+              onSave={savePoster}
+            />
+          </div>
+        </div>
+      )}
       <form onSubmit={onSubmit}>
         <fieldset>
           <legend>Edit {label}</legend>
@@ -122,9 +159,13 @@ export function ShowEditor({ id }: { id: string }) {
     setError("");
     setStatus("");
     const res = await adminApi<{ show: Show }>("PATCH", `/api/admin/shows/${id}`, body);
-    if (!res.ok) return setError(errorText(res));
+    if (!res.ok) {
+      setError(errorText(res));
+      return false;
+    }
     setShow((s) => (s ? { ...s, ...res.show } : s));
     setStatus(done);
+    return true;
   }
 
   function onSubmit(e: FormEvent) {
@@ -138,30 +179,36 @@ export function ShowEditor({ id }: { id: string }) {
     if (!window.confirm("Delete this show with all seasons, episodes, sources, subtitles and videos?")) return;
     const res = await adminApi("DELETE", `/api/admin/shows/${id}`);
     if (!res.ok) return setError(errorText(res));
-    navigate("/admin");
+    navigate("/admin/shows");
   }
 
   if (!show) return error ? <p role="alert">{error}</p> : <p>Loading...</p>;
 
   return (
     <>
-      <h1>{show.name}</h1>
+      <PageHeader
+        title={show.name}
+        actions={
+          <>
+            <span>
+              State:{" "}
+              <span className={`badge ${show.isPublished ? "badge-on" : "badge-off"}`}>{show.isPublished ? "published" : "draft"}</span>
+            </span>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => patch({ isPublished: !show.isPublished }, show.isPublished ? "Unpublished." : "Published.")}
+            >
+              {show.isPublished ? "Unpublish" : "Publish"}
+            </button>
+            <button type="button" className="btn-danger" onClick={remove}>
+              Delete show
+            </button>
+          </>
+        }
+      />
       {error && <p role="alert">{error}</p>}
       {status && <p role="status">{status}</p>}
-      <p className="toolbar">
-        State:{" "}
-        <span className={`badge ${show.isPublished ? "badge-on" : "badge-off"}`}>{show.isPublished ? "published" : "draft"}</span>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => patch({ isPublished: !show.isPublished }, show.isPublished ? "Unpublished." : "Published.")}
-        >
-          {show.isPublished ? "Unpublish" : "Publish"}
-        </button>{" "}
-        <button type="button" className="btn-danger" onClick={remove}>
-          Delete show
-        </button>
-      </p>
       <form onSubmit={onSubmit}>
         <fieldset>
           <legend>Show details (TMDB {show.tmdbId})</legend>
@@ -173,6 +220,13 @@ export function ShowEditor({ id }: { id: string }) {
           <button type="submit">Save changes</button>
         </fieldset>
       </form>
+      <ChooseImages
+        kind="tv"
+        tmdbId={show.tmdbId}
+        values={values}
+        onValues={setValues}
+        onSave={async (sel) => patch(sel, "Images saved.")}
+      />
       <VideosSection parent={{ showId: id }} />
       <section>
         <h2>Seasons</h2>
@@ -183,6 +237,7 @@ export function ShowEditor({ id }: { id: string }) {
             endpoint="/api/admin/seasons"
             record={s}
             defs={SEASON_DEFS}
+            imagePicker={{ showTmdbId: show.tmdbId, seasonNumber: s.seasonNumber }}
             label={`Season ${s.seasonNumber}${s.name ? `: ${s.name}` : ""}`}
             onDeleted={load}
           >

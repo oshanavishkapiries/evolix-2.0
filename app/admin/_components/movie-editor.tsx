@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { navigate } from "@/lib/client/api";
 import { EntityFields, FormValues, MOVIE_DEFS, fromForm, toForm } from "./fields";
+import { ChooseImages } from "./image-picker";
+import { PageHeader } from "./page-header";
 import { MediaManager } from "./items-section";
 import { VideosSection } from "./videos-section";
 
@@ -30,9 +32,13 @@ export function MovieEditor({ id }: { id: string }) {
     setError("");
     setStatus("");
     const res = await adminApi<{ movie: Record<string, unknown> }>("PATCH", `/api/admin/movies/${id}`, body);
-    if (!res.ok) return setError(errorText(res));
+    if (!res.ok) {
+      setError(errorText(res));
+      return false;
+    }
     apply(res.movie);
     setStatus(done);
+    return true;
   }
 
   function onSubmit(e: FormEvent) {
@@ -46,7 +52,7 @@ export function MovieEditor({ id }: { id: string }) {
     if (!window.confirm("Delete this movie and all its sources, subtitles and videos?")) return;
     const res = await adminApi("DELETE", `/api/admin/movies/${id}`);
     if (!res.ok) return setError(errorText(res));
-    navigate("/admin");
+    navigate("/admin/movies");
   }
 
   if (!movie) return error ? <p role="alert">{error}</p> : <p>Loading...</p>;
@@ -54,19 +60,25 @@ export function MovieEditor({ id }: { id: string }) {
 
   return (
     <>
-      <h1>{String(movie.title)}</h1>
+      <PageHeader
+        title={String(movie.title)}
+        actions={
+          <>
+            <span>
+              State:{" "}
+              <span className={`badge ${published ? "badge-on" : "badge-off"}`}>{published ? "published" : "draft"}</span>
+            </span>
+            <button type="button" className="btn-secondary" onClick={() => patch({ isPublished: !published }, published ? "Unpublished." : "Published.")}>
+              {published ? "Unpublish" : "Publish"}
+            </button>
+            <button type="button" className="btn-danger" onClick={remove}>
+              Delete movie
+            </button>
+          </>
+        }
+      />
       {error && <p role="alert">{error}</p>}
       {status && <p role="status">{status}</p>}
-      <p className="toolbar">
-        State:{" "}
-        <span className={`badge ${published ? "badge-on" : "badge-off"}`}>{published ? "published" : "draft"}</span>
-        <button type="button" className="btn-secondary" onClick={() => patch({ isPublished: !published }, published ? "Unpublished." : "Published.")}>
-          {published ? "Unpublish" : "Publish"}
-        </button>{" "}
-        <button type="button" className="btn-danger" onClick={remove}>
-          Delete movie
-        </button>
-      </p>
       <form onSubmit={onSubmit}>
         <fieldset>
           <legend>Movie details (TMDB {String(movie.tmdbId)})</legend>
@@ -78,6 +90,13 @@ export function MovieEditor({ id }: { id: string }) {
           <button type="submit">Save changes</button>
         </fieldset>
       </form>
+      <ChooseImages
+        kind="movie"
+        tmdbId={Number(movie.tmdbId)}
+        values={values}
+        onValues={setValues}
+        onSave={async (sel) => patch(sel, "Images saved.")}
+      />
       <VideosSection parent={{ movieId: id }} />
       <MediaManager parent={{ movieId: id }} />
     </>

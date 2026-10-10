@@ -1,9 +1,10 @@
+import { PageHeader } from "../../_components/page-header";
 import { ShowCreate } from "../../_components/show-create";
 
 export default function NewShowPage() {
   return (
     <>
-      <h1>Add show</h1>
+      <PageHeader title="Add show" />
       <ShowCreate />
     </>
   );
