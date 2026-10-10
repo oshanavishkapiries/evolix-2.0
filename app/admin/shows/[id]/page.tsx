@@ -1,15 +1,9 @@
-import { Suspense } from "react";
-import { ShowEditor } from "../../_components/show-editor";
+import { OverviewPage } from "../../_components/entity-pages";
+import { isUuid } from "@/lib/cms/api";
+import { showCounts } from "@/lib/cms/counts";
 
-async function Editor({ params }: { params: Promise<{ id: string }> }) {
+export default async function ShowOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <ShowEditor id={id} />;
-}
-
-export default function ShowPage({ params }: { params: Promise<{ id: string }> }) {
-  return (
-    <Suspense fallback={<p>Loading...</p>}>
-      <Editor params={params} />
-    </Suspense>
-  );
+  const counts = isUuid(id) ? await showCounts(id) : { seasons: 0, episodes: 0, sources: 0, subtitles: 0, videos: 0 };
+  return <OverviewPage counts={counts} />;
 }
