@@ -20,8 +20,6 @@ export function AuthShell({
     <div className={`a-screen ${font.className}`}>
       <Link href="/" className="a-logo" aria-label="Evolix home">
         {/* eslint-disable-next-line @next/next/no-img-element -- local SVG */}
-        <img src="/logo-mark.png" alt="" width={44} height={44} className="a-logo-mark" />
-        {/* eslint-disable-next-line @next/next/no-img-element -- local SVG */}
         <img src="/svg/evolix.svg" alt="Evolix" width={150} height={44} />
       </Link>
       <main className="a-card">
