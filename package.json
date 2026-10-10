@@ -12,13 +12,16 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
+    "@vidstack/react": "^1.15.7",
     "argon2": "^0.45.1",
     "drizzle-orm": "^0.45.4",
+    "hls.js": "^1.7.3",
     "jose": "^6.2.12",
     "next": "16.4.0",
     "nodemailer": "^10.0.16",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "vidstack": "^1.15.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
