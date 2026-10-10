@@ -329,14 +329,11 @@ export function SeasonImagePicker({
   seasonNumber,
   value,
   onChange,
-  onSave,
 }: {
   tmdbId: number;
   seasonNumber: number;
   value: string | null;
   onChange: (path: string | null) => void;
-  /** When given, shows Save/Clear buttons that persist the choice. */
-  onSave?: (path: string | null) => Promise<boolean>;
 }) {
   const [posters, setPosters] = useState<ImageCandidate[] | null>(null);
   const [error, setError] = useState("");
@@ -377,23 +374,6 @@ export function SeasonImagePicker({
             />
           ))}
         </ul>
-      )}
-      {onSave && (
-        <p className="toolbar">
-          <button type="button" disabled={busy} onClick={() => onSave(value)}>
-            Save season image
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={busy || !value}
-            onClick={async () => {
-              if (await onSave(null)) onChange(null);
-            }}
-          >
-            Clear season image
-          </button>
-        </p>
       )}
     </details>
   );
