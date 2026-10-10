@@ -1,0 +1,57 @@
+/* Signed-out pages (login, register, password reset, verify). Unlayered so it wins over Tailwind base. */
+body:has(.a-screen) { background: #2a313b; }
+.a-screen {
+  --a-gold: #f5a623; --a-gold-hover: #ffb73d;
+  min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.75rem;
+  padding: 2rem 1rem; color: #1f1f1f; line-height: 1.5;
+  background:
+    radial-gradient(90% 70% at 15% 0%, rgb(86 104 128 / .35), transparent 65%),
+    radial-gradient(80% 60% at 100% 100%, rgb(245 166 35 / .08), transparent 60%),
+    linear-gradient(160deg, #2f3844, #232a33 70%);
+}
+.a-logo { display: block; }
+.a-logo img { height: 2.75rem; width: auto; }
+.a-card {
+  width: 100%; max-width: 38rem; padding: clamp(1.75rem, 5vw, 3rem) clamp(1.25rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.5rem);
+  background: #fff; border-radius: 6px; box-shadow: 0 24px 60px rgb(0 0 0 / .45);
+  animation: a-in .45s cubic-bezier(.2, .8, .2, 1) both;
+}
+.a-card > * + * { margin-top: 0; }
+.a-card h1 { font-size: 1.6rem; font-weight: 700; text-align: center; color: #111; letter-spacing: -.01em; }
+.a-sub { margin-top: .5rem; text-align: center; color: #555; font-size: .95rem; }
+.a-card form { margin-top: 1.75rem; display: grid; gap: 1.1rem; }
+.a-card form > * + * { margin-top: 0; }
+.a-card form > p { margin: 0; }
+.a-card label { display: block; font-size: .8rem; font-weight: 700; letter-spacing: .02em; color: #333; }
+.a-card input:not([type="checkbox"], [type="radio"]) {
+  display: block; width: 100%; height: 3rem; margin-top: .4rem; padding: 0 .9rem; border: 1px solid #cfd3d8; border-radius: 4px;
+  background: #f5f6f7; color: #111; font: inherit; font-size: 1rem; font-weight: 400; transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.a-card input:not([type="checkbox"], [type="radio"]):hover { border-color: #aeb4bb; }
+.a-card input:not([type="checkbox"], [type="radio"]):focus { outline: none; background: #fff; border-color: var(--a-gold); box-shadow: 0 0 0 3px rgb(245 166 35 / .25); }
+.a-card input::placeholder { color: #9aa0a6; }
+.a-card button {
+  display: block; width: 100%; height: 3.1rem; padding: 0 1rem; border: 0; border-radius: 4px; background: var(--a-gold); color: #fff;
+  font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background-color .15s, transform .1s;
+}
+.a-card button:hover:not(:disabled) { background: var(--a-gold-hover); }
+.a-card button:active:not(:disabled) { transform: scale(.985); }
+.a-card button:disabled { opacity: .6; cursor: not-allowed; }
+.a-card button.btn-secondary { margin-top: 1rem; background: transparent; color: #555; border: 1px solid #cfd3d8; font-weight: 500; font-size: .9rem; height: 2.75rem; }
+.a-card button.btn-secondary:hover:not(:disabled) { background: #f0f1f3; }
+.a-card :is(p[role="alert"], p[role="status"]) { margin: 0; padding: .7rem .9rem; border-radius: 4px; font-size: .88rem; border: 1px solid; }
+.a-card p[role="alert"] { background: #fdecea; border-color: #f3b4ae; color: #8a1c13; }
+.a-card p[role="status"] { background: #e8f5ea; border-color: #a9d6b0; color: #1e5a2b; }
+.a-card a { color: #6b6f75; text-decoration: none; transition: color .15s; }
+.a-card a:hover { color: #b87500; text-decoration: underline; }
+.a-card form a { font-size: .9rem; }
+.a-links { margin-top: 1.75rem; display: flex; flex-direction: column; align-items: center; gap: .6rem; font-size: .9rem; }
+.a-links a { color: #555; }
+.a-card :is(input, button, a):focus-visible { outline: 2px solid var(--a-gold); outline-offset: 2px; }
+.a-actions { display: grid; gap: .75rem; margin-top: 1.75rem; }
+.a-actions a { display: grid; place-items: center; height: 3.1rem; border-radius: 4px; font-weight: 700; text-decoration: none; }
+.a-actions a:first-child { background: var(--a-gold); color: #fff; }
+.a-actions a:first-child:hover { background: var(--a-gold-hover); text-decoration: none; color: #fff; }
+.a-actions a + a { border: 1px solid #cfd3d8; color: #333; }
+@keyframes a-in { from { opacity: 0; transform: translateY(14px); } }
+@media (prefers-reduced-motion: reduce) { .a-card { animation: none; } }

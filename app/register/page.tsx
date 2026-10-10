@@ -1,13 +1,14 @@
+import { AuthShell } from "@/app/_components/auth-shell";
 import { RegisterForm } from "./register-form";
 
 export default function RegisterPage() {
   return (
-    <main className="auth card">
-      <h1>Register</h1>
+    <AuthShell
+      title="Create your account"
+      subtitle="Sign up to start watching"
+      links={[{ href: "/login", label: "Already have an account? Log in" }]}
+    >
       <RegisterForm />
-      <p className="text-sm">
-        <a href="/login">Already have an account? Log in</a>
-      </p>
-    </main>
+    </AuthShell>
   );
 }
