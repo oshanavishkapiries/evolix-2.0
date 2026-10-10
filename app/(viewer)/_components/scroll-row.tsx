@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronIcon } from "./icons";
 
 /** Hub row: header with arrows (hover devices) above a scroll-snap list (touch users swipe). */
-export function ScrollRow({ label, head, variant = "poster", children }: { label: string; head: React.ReactNode; variant?: "poster" | "landscape"; children: React.ReactNode }) {
+export function ScrollRow({ label, head, variant = "poster", children }: { label: string; head: React.ReactNode; variant?: "poster" | "landscape" | "cast" | "video" | "shot"; children: React.ReactNode }) {
   const ref = useRef<HTMLUListElement>(null);
   const [edge, setEdge] = useState({ left: false, right: false });
 
