@@ -32,6 +32,10 @@ export function WatchShell({
   const [panel, setPanel] = useState<PanelKey | null>(null);
   const [idle, setIdle] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // A brief non-interactive glimpse of the episodes panel, so viewers learn it exists.
+  const [peek, setPeek] = useState(false);
+  const hasEpisodes = Boolean(episodes);
+  const touched = useRef(false);
 
   const wake = useCallback(() => {
     setIdle(false);
@@ -55,7 +59,11 @@ export function WatchShell({
       history.replaceState(null, "", location.pathname + location.search);
       setPanel("sources");
     };
-    const onPanel = (e: Event) => setPanel((e as CustomEvent<PanelKey>).detail);
+    const onPanel = (e: Event) => {
+      touched.current = true;
+      setPeek(false);
+      setPanel((e as CustomEvent<PanelKey>).detail);
+    };
     window.addEventListener(WATCH_PANEL_EVENT, onPanel);
     window.addEventListener("keydown", onKey);
     window.addEventListener("hashchange", onHash);
@@ -69,8 +77,31 @@ export function WatchShell({
     };
   }, [backHref, panel, router]);
 
+  useEffect(() => {
+    if (!hasEpisodes) return;
+    try {
+      if (sessionStorage.getItem("v-ep-peek")) return;
+    } catch {}
+    const open = setTimeout(() => {
+      if (touched.current) return;
+      try {
+        sessionStorage.setItem("v-ep-peek", "1");
+      } catch {}
+      setPeek(true);
+    }, 1200);
+    const close = setTimeout(() => setPeek(false), 4200);
+    return () => {
+      clearTimeout(open);
+      clearTimeout(close);
+    };
+  }, [hasEpisodes]);
+
   const hidden = idle && !embed && !panel;
-  const toggle = (k: PanelKey) => setPanel((p) => (p === k ? null : k));
+  const toggle = (k: PanelKey) => {
+    touched.current = true;
+    setPeek(false);
+    setPanel((p) => (p === k ? null : k));
+  };
 
   return (
     <div className="v-watch" data-idle={hidden} onPointerMove={wake} onPointerDown={wake} onKeyDown={wake}>
@@ -103,13 +134,13 @@ export function WatchShell({
         <Panel id="sources" title="Sources" open={panel === "sources"} onClose={() => setPanel(null)}>{sources}</Panel>
       )}
       {episodes && (
-        <Panel id="episodes" title="Episodes" open={panel === "episodes"} onClose={() => setPanel(null)}>{episodes}</Panel>
+        <Panel id="episodes" title="Episodes" open={panel === "episodes" || peek} peeking={peek && panel === null} onClose={() => setPanel(null)}>{episodes}</Panel>
       )}
     </div>
   );
 }
 
-function Panel({ id, title, open, onClose, children }: { id: string; title: string; open: boolean; onClose: () => void; children: React.ReactNode }) {
+function Panel({ id, title, open, peeking, onClose, children }: { id: string; title: string; open: boolean; peeking?: boolean; onClose: () => void; children: React.ReactNode }) {
   const body = useRef<HTMLDivElement>(null);
   // Bring the playing episode into view when the panel opens.
   useEffect(() => {
@@ -118,7 +149,7 @@ function Panel({ id, title, open, onClose, children }: { id: string; title: stri
     return () => clearTimeout(t);
   }, [open]);
   return (
-    <aside id={id} className="v-watch-panel" data-open={open} aria-hidden={!open} inert={!open} aria-label={title}>
+    <aside id={id} className="v-watch-panel" data-open={open} data-peek={peeking} aria-hidden={!open} inert={!open} aria-label={title}>
       <header className="v-panel-head">
         <h2>{title}</h2>
         <button type="button" className="v-bar-icon" aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>

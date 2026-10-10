@@ -63,7 +63,7 @@ export default async function ShowPage({ params, searchParams }: Props) {
         play={play}
         hasTrailer={show.videos.length > 0}
       />
-      <Seasons show={show} />
+      <Seasons show={show} resumeHref={resume?.href} />
       <MediaSections item={show} />
     </div>
     </PageMotion>
