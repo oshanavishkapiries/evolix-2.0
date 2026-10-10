@@ -104,7 +104,7 @@
 body:has(.viewer [data-nav="watch"]) { background: #000; }
 
 /* Page header (spec §3.1): title left, tabs centred, view controls right */
-.v-page { padding: 1rem var(--v-gutter) 4rem; max-width: 120rem; }
+.v-page { padding: 1rem var(--v-gutter) 4rem; }
 .v-ph { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .5rem 1rem; min-height: 3rem; margin-bottom: 1rem; }
 .v-ph-title { min-width: 0; }
 .v-ph-title h1 { font-size: 1.25rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

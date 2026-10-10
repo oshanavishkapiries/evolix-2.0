@@ -8,7 +8,7 @@ import "./styles/tokens.css";
 import "./styles/shell.css";
 import "./styles/cards.css";
 import "./styles/detail.css";
-import "./viewer.css";
+import "./styles/components.css";
 import "./styles/motion.css";
 
 const font = Noto_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], display: "swap", variable: "--v-font" });

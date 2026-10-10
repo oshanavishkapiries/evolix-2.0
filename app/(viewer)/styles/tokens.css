@@ -26,7 +26,6 @@ body:has(.viewer) { background: #1f1f1f; }
   /* Layout */
   --v-top-h: 3.5rem;
   --v-side-w: 0px;
-  --v-nav-h: 0px; /* legacy: the top bar is solid now, pages start below it */
   --v-gutter: clamp(1rem, 3vw, 2.5rem);
   --v-radius: .375rem;
   /* Card width for the size slider (data-v-size on <html>) */
