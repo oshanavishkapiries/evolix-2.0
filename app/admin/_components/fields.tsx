@@ -125,6 +125,8 @@ export const MOVIE_DEFS: FieldDef[] = [
   { key: "status", label: "Status", kind: "text" },
   { key: "posterPath", label: "Poster path", kind: "path" },
   { key: "backdropPath", label: "Backdrop path", kind: "path" },
+  { key: "logoPath", label: "Logo path", kind: "path" },
+  { key: "galleryBackdrops", label: "Gallery backdrops (up to 5 paths, comma separated)", kind: "list" },
   { key: "cast", label: "Cast (JSON: name, character, profilePath)", kind: "json" },
 ];
 
@@ -142,6 +144,8 @@ export const SHOW_DEFS: FieldDef[] = [
   { key: "originalLanguage", label: "Original language", kind: "text" },
   { key: "posterPath", label: "Poster path", kind: "path" },
   { key: "backdropPath", label: "Backdrop path", kind: "path" },
+  { key: "logoPath", label: "Logo path", kind: "path" },
+  { key: "galleryBackdrops", label: "Gallery backdrops (up to 5 paths, comma separated)", kind: "list" },
   { key: "cast", label: "Cast (JSON: name, character, profilePath)", kind: "json" },
 ];
 

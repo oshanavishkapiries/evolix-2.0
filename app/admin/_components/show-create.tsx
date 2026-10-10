@@ -5,7 +5,9 @@ import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { navigate } from "@/lib/client/api";
 import { EntityFields, FormValues, SHOW_DEFS, fromForm, toForm } from "./fields";
 import { SearchPicker } from "./search-picker";
-import { PrefillVideos } from "./videos-section";
+import { ImagePicker, SeasonImagePicker, selectionFromValues, valuesWithSelection } from "./image-picker";
+import { PrefillVideos, defaultPicks, pickedVideos } from "./videos-section";
+import { EMPTY_CANDIDATES, type ImageCandidates } from "@/lib/images";
 import type { VideoPrefill } from "@/lib/videos";
 
 type Episode = { episodeNumber: number; name: string; isVisible: boolean } & Record<string, unknown>;
@@ -16,6 +18,8 @@ export function ShowCreate() {
   const [values, setValues] = useState<FormValues>({});
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [videos, setVideos] = useState<VideoPrefill[]>([]);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [images, setImages] = useState<ImageCandidates>(EMPTY_CANDIDATES);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [published, setPublished] = useState(false);
   const [error, setError] = useState("");
@@ -24,7 +28,7 @@ export function ShowCreate() {
   async function select(id: number) {
     setError("");
     setStatus("Loading show, seasons and episodes from TMDB (this can take a moment)...");
-    const res = await adminApi<{ show: Record<string, unknown> & { seasons: Season[]; warnings: string[]; videos: VideoPrefill[] } }>(
+    const res = await adminApi<{ show: Record<string, unknown> & { seasons: Season[]; warnings: string[]; videos: VideoPrefill[]; images: ImageCandidates } }>(
       "GET",
       `/api/admin/tmdb/tv/${id}`,
     );
@@ -35,6 +39,8 @@ export function ShowCreate() {
     setSeasons(res.show.seasons);
     setWarnings(res.show.warnings);
     setVideos(res.show.videos ?? []);
+    setPicked(defaultPicks(res.show.videos ?? []));
+    setImages(res.show.images ?? EMPTY_CANDIDATES);
   }
 
   const setSeason = (i: number, fn: (s: Season) => Season) =>
@@ -51,7 +57,7 @@ export function ShowCreate() {
       tmdbId,
       isPublished: published,
       seasons,
-      videos,
+      videos: pickedVideos(videos, picked),
     });
     if (!res.ok) {
       setStatus("");
@@ -101,6 +107,22 @@ export function ShowCreate() {
                     Season {s.seasonNumber}: {s.name} ({s.episodes.length} episodes)
                   </label>
                 </summary>
+                <div className="mt-2 flex flex-wrap items-start gap-4">
+                  {tmdbImage(s.posterPath, "w185") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={tmdbImage(s.posterPath, "w185")!} alt={`Season ${s.seasonNumber} poster`} width={92} height={138} loading="lazy" className="w-24 rounded-md" />
+                  ) : (
+                    <small>No season image</small>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <SeasonImagePicker
+                      tmdbId={tmdbId!}
+                      seasonNumber={s.seasonNumber}
+                      value={typeof s.posterPath === "string" ? s.posterPath : null}
+                      onChange={(p) => setSeason(i, (x) => ({ ...x, posterPath: p }))}
+                    />
+                  </div>
+                </div>
                 <ul className="mt-2 space-y-1 pl-6">
                   {s.episodes.map((ep, j) => (
                     <li key={ep.episodeNumber}>
@@ -123,7 +145,15 @@ export function ShowCreate() {
               </details>
             ))}
           </fieldset>
-          <PrefillVideos videos={videos} onChange={setVideos} />
+          <fieldset>
+            <legend>Images</legend>
+            <ImagePicker
+              candidates={images}
+              value={selectionFromValues(values)}
+              onChange={(sel) => setValues((v) => valuesWithSelection(v, sel))}
+            />
+          </fieldset>
+          <PrefillVideos videos={videos} picked={picked} onChange={setPicked} />
           <button type="submit">Save show</button>
         </form>
       )}
