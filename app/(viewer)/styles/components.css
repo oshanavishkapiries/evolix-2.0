@@ -99,15 +99,35 @@
 .v-watch[data-idle="true"] { cursor: none; }
 .v-watch-bar h1 { flex: 1; min-width: 0; font-size: clamp(1rem, 2.2vw, 1.4rem); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .v-watch-actions { display: flex; align-items: center; gap: .5rem; }
-.v-bar-btn { padding: .4rem .9rem; border-radius: .25rem; background: rgb(255 255 255 / .15); color: #fff; font-size: .875rem; font-weight: 500; cursor: pointer; border: 0; }
-.v-bar-btn:hover, .v-bar-btn[aria-expanded="true"] { background: #e50914; }
-.v-bar-close { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%; font-size: 1.1rem; color: #fff !important; }
-.v-bar-close:hover { background: rgb(255 255 255 / .15); }
 .v-back { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 50%; color: #fff !important; }
 .v-back:hover { background: rgb(255 255 255 / .15); }
-.v-watch-panel { position: absolute; inset: 0 0 0 auto; z-index: 20; width: min(26rem, 100%); padding: 4.5rem 1rem 1.5rem; overflow-y: auto; scrollbar-width: thin; background: rgb(10 10 15 / .96); box-shadow: -20px 0 40px rgb(0 0 0 / .5); translate: 100% 0; transition: translate .25s; }
-.v-watch-panel[data-open="true"] { translate: 0 0; }
-.v-watch-panel h2 { font-size: 1.05rem; margin-bottom: .5rem; }
+.v-bar-icon, .v-ctl { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 0; background: transparent; color: #fff; cursor: pointer; transition: background var(--v-dur-1) var(--v-ease), scale var(--v-dur-1) var(--v-ease); }
+.v-bar-icon:hover, .v-ctl:hover { background: rgb(255 255 255 / .18); scale: 1.08; }
+.v-bar-icon:active, .v-ctl:active { scale: .94; }
+.v-ctl { width: 2.25rem; height: 2.25rem; margin-inline: .1rem; }
+.v-watch-scrim { position: absolute; inset: 0; z-index: 15; background: rgb(0 0 0 / .55); opacity: 0; visibility: hidden; transition: opacity .3s var(--v-ease), visibility 0s .3s; }
+.v-watch-scrim[data-open="true"] { opacity: 1; visibility: visible; transition: opacity .3s var(--v-ease); }
+.v-watch-panel { position: absolute; inset: 0 0 0 auto; z-index: 20; width: min(26rem, 100%); display: flex; flex-direction: column; background: rgb(18 18 22 / .97); box-shadow: -20px 0 50px rgb(0 0 0 / .6); translate: 100% 0; opacity: 0; visibility: hidden; transition: translate .35s var(--v-ease), opacity .25s var(--v-ease), visibility 0s .35s; }
+.v-watch-panel[data-open="true"] { translate: 0 0; opacity: 1; visibility: visible; transition: translate .35s var(--v-ease), opacity .25s var(--v-ease); }
+.v-panel-head { display: flex; align-items: center; justify-content: space-between; padding: .9rem 1rem .9rem 1.25rem; border-bottom: 1px solid rgb(255 255 255 / .08); }
+.v-panel-head h2 { margin: 0; font-size: 1.1rem; }
+.v-panel-body { flex: 1; min-height: 0; padding: 1rem; overflow-y: auto; scrollbar-width: thin; }
+.v-watch-panel[data-open="true"] .v-panel-body > *, .v-watch-panel[data-open="true"] .v-episodes > li { animation: v-panel-in .4s var(--v-ease) backwards; }
+.v-watch-panel[data-open="true"] .v-episodes > li { animation-delay: 120ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(2) { animation-delay: 180ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(3) { animation-delay: 210ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(4) { animation-delay: 240ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(5) { animation-delay: 270ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(6) { animation-delay: 300ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(7) { animation-delay: 330ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(8) { animation-delay: 360ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(9) { animation-delay: 390ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(10) { animation-delay: 420ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(11) { animation-delay: 450ms; }
+.v-watch-panel[data-open="true"] .v-episodes > li:nth-child(12) { animation-delay: 480ms; }
+.v-panel-body h2 { font-size: .95rem; color: var(--v-fg-faint); margin: 0 0 .5rem; }
+@keyframes v-panel-in { from { opacity: 0; translate: 14px 0; } }
+@media (prefers-reduced-motion: reduce) { .v-watch-panel, .v-watch-scrim { transition-duration: .01s; } .v-watch-panel * { animation: none !important; } }
 .v-sources { display: flex; flex-wrap: wrap; gap: .5rem; }
 .v-source { padding: .4rem .9rem; border-radius: .375rem; border: 1px solid var(--v-border); background: var(--v-card); font-size: .875rem; }
 .v-source:hover { border-color: var(--v-fg-faint); }
