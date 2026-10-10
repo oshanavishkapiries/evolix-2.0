@@ -1,1 +1,65 @@
 @import "tailwindcss";
+
+/* Basic neutral styling: grays plus indigo accent; light/dark follows the OS. */
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  h1 { @apply text-2xl font-semibold; }
+  h2 { @apply text-xl font-semibold; }
+  h3 { @apply text-lg font-semibold; }
+  a { @apply text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300; }
+  main > * + *, form > * + *, section > * + *, details > * + * { @apply mt-4; }
+  ul, ol { @apply list-none p-0; }
+  small { @apply text-gray-500 dark:text-gray-400; }
+
+  label { @apply block text-sm font-medium; }
+  label:has(> input[type="checkbox"]) { @apply inline-flex items-center gap-2; }
+  input[type="checkbox"] { @apply size-4 accent-indigo-600; }
+  input:not([type="checkbox"], [type="radio"]), textarea, select {
+    @apply mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100;
+  }
+  textarea { @apply font-normal; }
+  :is(input, textarea, select, button, summary):focus-visible,
+  a:focus-visible {
+    @apply outline-2 outline-offset-2 outline-indigo-500;
+  }
+
+  button {
+    @apply cursor-pointer rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-indigo-600;
+  }
+  fieldset { @apply rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900; }
+  legend { @apply px-1 text-sm font-semibold; }
+  summary { @apply cursor-pointer font-medium; }
+  details { @apply rounded-md border border-gray-200 p-3 dark:border-gray-800; }
+  dt { @apply text-sm text-gray-500 dark:text-gray-400; }
+  dd { @apply mb-3 break-all; }
+
+  p[role="alert"], p[role="status"] { @apply rounded-md border px-3 py-2 text-sm; }
+  p[role="alert"] { @apply border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200; }
+  p[role="status"] { @apply border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200; }
+}
+
+@layer components {
+  .page { @apply mx-auto w-full max-w-5xl p-4 sm:p-6; }
+  .card { @apply rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900; }
+  .auth { @apply mx-auto mt-8 w-full max-w-sm sm:mt-16; }
+  .auth form > button[type="submit"] { @apply w-full py-2.5; }
+  .auth form > p { @apply mt-4; }
+  .toolbar { @apply flex flex-wrap items-center gap-2; }
+  .btn-secondary {
+    @apply border border-gray-300 bg-white text-gray-800 hover:bg-gray-100 disabled:hover:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 dark:disabled:hover:bg-gray-800;
+  }
+  .btn-danger { @apply bg-red-600 hover:bg-red-700 disabled:hover:bg-red-600; }
+  .badge { @apply inline-block rounded-full px-2 py-0.5 text-xs font-medium; }
+  .badge-on { @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200; }
+  .badge-off { @apply bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300; }
+  .rows { @apply divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900; }
+  .rows > li { @apply flex flex-wrap items-center justify-between gap-2 px-4 py-2; }
+  .fields { @apply grid gap-4 sm:grid-cols-2; }
+  .fields > .wide { @apply sm:col-span-2; }
+  .fields textarea[rows="6"] { @apply font-mono text-sm; }
+  .poster { @apply w-24 rounded-md; }
+}
