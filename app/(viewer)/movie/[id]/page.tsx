@@ -6,7 +6,7 @@ import { runtimeText, yearOf } from "@/lib/viewer/format";
 import { resumeFor } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { DetailHeader, type PlayAction } from "../../_components/detail-header";
-import { detailMetadata, MediaSections } from "../../_components/media-sections";
+import { detailMetadata } from "../../_components/media-sections";
 import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
@@ -54,9 +54,7 @@ export default async function MoviePage({ params }: Props) {
         posterPath={movie.posterPath}
         backdropPath={movie.backdropPath}
         play={play}
-        hasTrailer={movie.videos.length > 0}
       />
-      <MediaSections item={movie} />
     </div>
     </PageMotion>
   );

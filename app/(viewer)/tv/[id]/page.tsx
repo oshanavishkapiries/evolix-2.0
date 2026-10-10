@@ -6,7 +6,7 @@ import { yearOf } from "@/lib/viewer/format";
 import { resumeFor } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { DetailHeader, type PlayAction } from "../../_components/detail-header";
-import { detailMetadata, MediaSections } from "../../_components/media-sections";
+import { detailMetadata } from "../../_components/media-sections";
 import { Seasons } from "../../_components/seasons";
 import { PageMotion } from "../../_components/motion";
 
@@ -61,10 +61,8 @@ export default async function ShowPage({ params, searchParams }: Props) {
         posterPath={show.posterPath}
         backdropPath={show.backdropPath}
         play={play}
-        hasTrailer={show.videos.length > 0}
       />
       <Seasons show={show} resumeHref={resume?.href} />
-      <MediaSections item={show} />
     </div>
     </PageMotion>
   );
