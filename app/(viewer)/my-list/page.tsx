@@ -5,7 +5,6 @@ import { currentUserId } from "@/lib/viewer/user";
 import { listBookmarks } from "@/lib/viewer/library";
 import { HubRow } from "../_components/hub-row";
 import { MediaCard } from "../_components/media-card";
-import { NavMarker } from "../_components/nav-marker";
 import { PageHeader } from "../_components/page-header";
 import { GridSkeleton } from "../_components/skeletons";
 import { CardSizeSlider, ViewToggle } from "../_components/view-controls";
@@ -20,7 +19,6 @@ export default function MyListPage({ searchParams }: Props) {
   return (
     <PageMotion>
     <div className="v-page v-page-rows">
-      <NavMarker active="my-list" />
       <Suspense fallback={<SkeletonOut><PageHeader title="My List" /><div className="v-page-pad"><GridSkeleton count={12} /></div></SkeletonOut>}>
         <Reveal><Items searchParams={searchParams} /></Reveal>
       </Suspense>

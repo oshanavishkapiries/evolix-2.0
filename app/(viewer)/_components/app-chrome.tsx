@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
 import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
-import { SIDEBAR_ITEMS } from "./nav-items";
+import { activeNavKey, SIDEBAR_ITEMS } from "./nav-items";
 import { PREF_SIDEBAR, savePref } from "./prefs";
 
 const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon };
@@ -107,6 +107,7 @@ function UserMenu() {
 
 /** Top bar + left sidebar. Desktop: hamburger toggles expanded/rail (remembered). Tablet: opens a drawer. */
 export function AppChrome() {
+  const activeKey = activeNavKey(usePathname());
   const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
@@ -148,7 +149,7 @@ export function AppChrome() {
             const Icon = ICONS[n.key];
             return (
               <li key={n.key}>
-                <Link href={n.href} data-key={n.key} title={n.label} onClick={() => setDrawer(false)}>
+                <Link href={n.href} data-key={n.key} aria-current={n.key === activeKey ? "page" : undefined} title={n.label} onClick={() => setDrawer(false)}>
                   <Icon size={22} />
                   <span>{n.label}</span>
                 </Link>

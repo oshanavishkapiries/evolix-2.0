@@ -10,7 +10,6 @@ import {
   type TypeFilter,
 } from "@/lib/viewer/catalog";
 import { GridSkeleton } from "../_components/skeletons";
-import { NavMarker } from "../_components/nav-marker";
 import { MediaCard } from "../_components/media-card";
 import { PageHeader } from "../_components/page-header";
 import { SearchBar } from "../_components/search-bar";
@@ -51,7 +50,6 @@ export default function SearchPage({ searchParams }: { searchParams: Promise<Raw
   return (
     <PageMotion>
     <div className="v-page">
-      <NavMarker active="search" />
       <PageHeader title="Search" subtitle="Movies & Shows" controls={<CardSizeSlider />} />
       <Suspense fallback={<SkeletonOut><GridSkeleton count={12} /></SkeletonOut>}>
         <Reveal><SearchContent searchParams={searchParams} /></Reveal>

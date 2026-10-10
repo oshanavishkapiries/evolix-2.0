@@ -5,7 +5,6 @@ import { browse, listGenres, listGenreTiles, SEARCH_PAGE_SIZE, SORTS, type Sort 
 import type { CardKind } from "@/lib/viewer/ids";
 import { HubRow } from "./hub-row";
 import { MediaCard } from "./media-card";
-import { NavMarker } from "./nav-marker";
 import { PageHeader } from "./page-header";
 import { GridSkeleton, RowSkeleton } from "./skeletons";
 import { CardSizeSlider, ViewToggle } from "./view-controls";
@@ -32,7 +31,6 @@ export function BrowsePage({ kind, basePath, heading, searchParams }: { kind: Ca
   return (
     <PageMotion>
     <div className="v-page v-page-rows">
-      <NavMarker active={kind === "movie" ? "movies" : "tv"} />
       <Suspense fallback={<SkeletonOut><PageHeader title={heading} /><RowSkeleton /><RowSkeleton /></SkeletonOut>}>
         <Reveal><Content kind={kind} basePath={basePath} heading={heading} searchParams={searchParams} /></Reveal>
       </Suspense>

@@ -75,16 +75,9 @@
 .v-scrim[data-open="true"] { opacity: 1; pointer-events: auto; }
 @media (min-width: 80rem) { .v-scrim { display: none; } }
 
-/* Active destination: pages render a <span data-nav="..."> marker (keeps the chrome free of route hooks) */
-.viewer:has([data-nav="dashboard"]) :is(.v-side, .v-bottom) a[data-key="dashboard"],
-.viewer:has([data-nav="movies"]) :is(.v-side, .v-bottom) a[data-key="movies"],
-.viewer:has([data-nav="tv"]) :is(.v-side, .v-bottom) a[data-key="tv"],
-.viewer:has([data-nav="my-list"]) :is(.v-side, .v-bottom) a[data-key="my-list"],
-.viewer:has([data-nav="search"]) .v-bottom a[data-key="search"] { color: var(--v-primary); }
-.viewer:has([data-nav="dashboard"]) .v-side a[data-key="dashboard"]::before,
-.viewer:has([data-nav="movies"]) .v-side a[data-key="movies"]::before,
-.viewer:has([data-nav="tv"]) .v-side a[data-key="tv"]::before,
-.viewer:has([data-nav="my-list"]) .v-side a[data-key="my-list"]::before { scale: 1 1; }
+/* Active destination (aria-current set from the pathname) */
+:is(.v-side, .v-bottom) a[aria-current="page"] { color: var(--v-primary); }
+.v-side a[aria-current="page"]::before { scale: 1 1; }
 
 /* Phone tab bar */
 .v-bottom {
