@@ -47,7 +47,7 @@ export function DashboardView() {
     <>
       {error && <p role="alert">{error}</p>}
       {user ? (
-        <dl>
+        <dl className="card">
           <dt>Email</dt>
           <dd>{user.email}</dd>
           <dt>ID</dt>
@@ -63,8 +63,10 @@ export function DashboardView() {
           <a href="/admin">Admin</a>
         </p>
       )}
-      <button type="button" onClick={logout}>Log out</button>{" "}
-      <button type="button" onClick={logoutAll}>Log out of all devices</button>
+      <div className="toolbar">
+        <button type="button" className="btn-secondary" onClick={logout}>Log out</button>
+        <button type="button" className="btn-danger" onClick={logoutAll}>Log out of all devices</button>
+      </div>
     </>
   );
 }
