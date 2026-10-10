@@ -12,10 +12,12 @@ export async function adminApi<T = Record<string, unknown>>(
   method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<AdminResult<T>> {
   try {
     const res = await fetchWithRefresh(path, {
       method,
+      signal,
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
