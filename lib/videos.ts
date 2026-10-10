@@ -77,3 +77,49 @@ export type VideoPrefill = {
   publishedAt: string | null;
   sortOrder: number;
 };
+
+const TYPE_PRIORITY: Record<VideoType, number> = {
+  trailer: 0,
+  teaser: 1,
+  clip: 2,
+  featurette: 3,
+  behind_the_scenes: 4,
+  bloopers: 5,
+  opening_credits: 5,
+  other: 5,
+};
+
+type Rankable = { type: VideoType; official: boolean; language: string | null; publishedAt: string | null };
+
+/** Best first: type priority, official, English, then newest. */
+export function compareVideos(a: Rankable, b: Rankable) {
+  const time = (x: Rankable) => (x.publishedAt ? Date.parse(x.publishedAt) || 0 : 0);
+  return (
+    TYPE_PRIORITY[a.type] - TYPE_PRIORITY[b.type] ||
+    Number(b.official) - Number(a.official) ||
+    Number(b.language === "en") - Number(a.language === "en") ||
+    time(b) - time(a)
+  );
+}
+
+export const DEFAULT_VIDEO_PICK = 5;
+const MAX_SAME_TYPE = 3;
+
+/**
+ * Picks the best `limit` videos (ranked order). No more than 3 of one type
+ * while other types are available; leftovers fill in when nothing else is left.
+ */
+export function rankVideos<T extends Rankable>(videos: T[], limit = DEFAULT_VIDEO_PICK): T[] {
+  const sorted = [...videos].sort(compareVideos);
+  const perType = new Map<VideoType, number>();
+  const picked: T[] = [];
+  const overflow: T[] = [];
+  for (const v of sorted) {
+    const n = perType.get(v.type) ?? 0;
+    if (picked.length < limit && n < MAX_SAME_TYPE) {
+      picked.push(v);
+      perType.set(v.type, n + 1);
+    } else overflow.push(v);
+  }
+  return [...picked, ...overflow.slice(0, Math.max(0, limit - picked.length))];
+}

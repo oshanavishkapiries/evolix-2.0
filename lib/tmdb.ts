@@ -1,7 +1,16 @@
 // Server-only TMDB client. The API key never leaves the server.
 import { env } from "@/lib/env";
 import type { CastMember } from "@/db/schema";
-import { isValidKey, type VideoPrefill, type VideoSite, type VideoType } from "@/lib/videos";
+import { pickImages } from "@/lib/cms/image-pick";
+import {
+  EMPTY_CANDIDATES,
+  imageUrl,
+  isImagePath,
+  type ImageCandidate,
+  type ImageCandidates,
+  type ImageSelection,
+} from "@/lib/images";
+import { compareVideos, isValidKey, type VideoPrefill, type VideoSite, type VideoType } from "@/lib/videos";
 
 const BASE = "https://api.themoviedb.org/3";
 const SEASON_CONCURRENCY = 4;
@@ -16,9 +25,7 @@ export class TmdbError extends Error {
   }
 }
 
-export function imageUrl(path: string | null | undefined, size = "w500") {
-  return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
-}
+export { imageUrl };
 
 async function tmdb<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const url = new URL(`${BASE}${path}`);
@@ -89,19 +96,73 @@ function mapVideos(block: Raw | undefined): VideoPrefill[] {
       publishedAt: published ? new Date(v.published_at).toISOString() : null,
     });
   }
-  const time = (x: { publishedAt: string | null }) => (x.publishedAt ? Date.parse(x.publishedAt) : 0);
-  items.sort(
-    (a, b) =>
-      Number(b.type === "trailer") - Number(a.type === "trailer") ||
-      Number(b.official) - Number(a.official) ||
-      time(b) - time(a),
-  );
+  items.sort(compareVideos);
   return items.slice(0, VIDEO_LIMIT).map((v, i) => ({ ...v, sortOrder: i }));
 }
 
 // `include_video_language` makes English (and untagged) videos come back even
 // when the title's own language differs from the request language.
-const DETAIL_PARAMS = { append_to_response: "credits,videos", include_video_language: "en,null" };
+const DETAIL_PARAMS = {
+  append_to_response: "credits,videos,images",
+  include_video_language: "en,null",
+  include_image_language: "en,null",
+};
+
+function mapImageList(list: unknown): ImageCandidate[] {
+  if (!Array.isArray(list)) return [];
+  const out: ImageCandidate[] = [];
+  for (const i of list as Raw[]) {
+    if (!isImagePath(i?.file_path)) continue;
+    out.push({
+      filePath: i.file_path,
+      width: typeof i.width === "number" ? i.width : 0,
+      height: typeof i.height === "number" ? i.height : 0,
+      language: /^[a-z]{2}$/i.test(str(i.iso_639_1)) ? str(i.iso_639_1).toLowerCase() : null,
+      voteAverage: typeof i.vote_average === "number" ? Math.round(i.vote_average * 1000) / 1000 : 0,
+    });
+  }
+  return out;
+}
+
+/** Maps a TMDB `images` block (all three kinds). */
+function mapImages(block: Raw | undefined): ImageCandidates {
+  if (!block) return EMPTY_CANDIDATES;
+  return {
+    posters: mapImageList(block.posters),
+    backdrops: mapImageList(block.backdrops),
+    logos: mapImageList(block.logos),
+  };
+}
+
+/** All images of a stored/known title plus the auto-picked selection. */
+export async function getTmdbImages(
+  kind: "movie" | "tv",
+  tmdbId: number,
+): Promise<{ candidates: ImageCandidates; selection: ImageSelection }> {
+  const data = await tmdb<Raw>(`/${kind}/${tmdbId}/images`, { include_image_language: "en,null" });
+  const candidates = mapImages(data);
+  return { candidates, selection: pickImages(candidates) };
+}
+
+/** Poster candidates of one season. */
+export async function getTmdbSeasonImages(tmdbId: number, seasonNumber: number): Promise<ImageCandidate[]> {
+  const data = await tmdb<Raw>(`/tv/${tmdbId}/season/${seasonNumber}/images`, {
+    include_image_language: "en,null",
+  });
+  return mapImageList(data.posters);
+}
+
+/** Auto-picked images win; TMDB's own default poster/backdrop is the fallback. */
+function withPicked(images: ImageCandidates, defaults: { poster: string | null; backdrop: string | null }) {
+  const sel = pickImages(images);
+  return {
+    images,
+    posterPath: sel.posterPath ?? defaults.poster,
+    backdropPath: sel.backdropPath ?? defaults.backdrop,
+    logoPath: sel.logoPath,
+    galleryBackdrops: sel.galleryBackdrops,
+  };
+}
 
 /** Videos for an already-stored title (used by the import endpoint). */
 export async function getTmdbVideos(kind: "movie" | "tv", tmdbId: number): Promise<VideoPrefill[]> {
@@ -150,6 +211,10 @@ export type MoviePrefill = {
   status: string;
   posterPath: string | null;
   backdropPath: string | null;
+  logoPath: string | null;
+  galleryBackdrops: string[];
+  /** Every TMDB image candidate, for the gallery picker. */
+  images: ImageCandidates;
   cast: CastMember[];
   videos: VideoPrefill[];
 };
@@ -169,8 +234,7 @@ export async function getMovieDetails(tmdbId: number): Promise<MoviePrefill> {
     voteCount: numOrNull(m.vote_count),
     originalLanguage: str(m.original_language),
     status: str(m.status),
-    posterPath: strOrNull(m.poster_path),
-    backdropPath: strOrNull(m.backdrop_path),
+    ...withPicked(mapImages(m.images), { poster: strOrNull(m.poster_path), backdrop: strOrNull(m.backdrop_path) }),
     cast: cast(m.credits),
     videos: mapVideos(m.videos),
   };
@@ -211,6 +275,10 @@ export type ShowPrefill = {
   originalLanguage: string;
   posterPath: string | null;
   backdropPath: string | null;
+  logoPath: string | null;
+  galleryBackdrops: string[];
+  /** Every TMDB image candidate, for the gallery picker. */
+  images: ImageCandidates;
   cast: CastMember[];
   videos: VideoPrefill[];
   seasons: SeasonPrefill[];
@@ -274,8 +342,7 @@ export async function getShowDetails(tmdbId: number): Promise<ShowPrefill> {
     rating: rating(s.vote_average),
     voteCount: numOrNull(s.vote_count),
     originalLanguage: str(s.original_language),
-    posterPath: strOrNull(s.poster_path),
-    backdropPath: strOrNull(s.backdrop_path),
+    ...withPicked(mapImages(s.images), { poster: strOrNull(s.poster_path), backdrop: strOrNull(s.backdrop_path) }),
     cast: cast(s.credits),
     videos: mapVideos(s.videos),
     seasons,

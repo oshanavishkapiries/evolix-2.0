@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GALLERY_MAX, IMAGE_PATH_RE } from "@/lib/images";
 import { VIDEO_SITES, VIDEO_TYPES, isValidKey } from "@/lib/videos";
 
 const text = (max = 5000) => z.string().trim().max(max);
@@ -6,9 +7,16 @@ const date = z.iso.date().nullable();
 const path = z
   .string()
   .trim()
-  .regex(/^\/[\w\-./]+$/, "Must be a TMDB image path like /abc.jpg")
+  .regex(IMAGE_PATH_RE, "Must be a TMDB image path like /abc.jpg")
   .max(255)
   .nullable();
+const gallery = z
+  .array(path.unwrap())
+  .max(GALLERY_MAX, `At most ${GALLERY_MAX} gallery backdrops`)
+  .refine((a) => new Set(a).size === a.length, "Duplicate gallery backdrops");
+const withMainDistinct = <T extends { backdropPath?: string | null; galleryBackdrops?: string[] }>(v: T) =>
+  !v.backdropPath || !v.galleryBackdrops?.includes(v.backdropPath);
+const MAIN_MSG = "Gallery must not contain the main backdrop";
 const intNull = z.number().int().min(0).max(10_000_000).nullable();
 
 export const castSchema = z
@@ -59,12 +67,16 @@ const movieFields = {
   status: text(100).default(""),
   posterPath: path.default(null),
   backdropPath: path.default(null),
+  logoPath: path.default(null),
+  galleryBackdrops: gallery.default([]),
   cast: castSchema.default([]),
   isPublished: z.boolean().default(false),
 };
 const tmdbId = z.number().int().positive();
 
-export const movieCreate = z.object({ tmdbId, ...movieFields, videos: z.array(videoNested).max(100).default([]) });
+export const movieCreate = z
+  .object({ tmdbId, ...movieFields, videos: z.array(videoNested).max(100).default([]) })
+  .refine(withMainDistinct, { message: MAIN_MSG, path: ["galleryBackdrops"] });
 export const moviePatch = z.object(movieFields).partial().strict();
 
 const showFields = {
@@ -81,6 +93,8 @@ const showFields = {
   originalLanguage: text(20).default(""),
   posterPath: path.default(null),
   backdropPath: path.default(null),
+  logoPath: path.default(null),
+  galleryBackdrops: gallery.default([]),
   cast: castSchema.default([]),
   isPublished: z.boolean().default(false),
 };
@@ -119,6 +133,7 @@ export const showCreate = z
   .object({ tmdbId, ...showFields, seasons: z.array(seasonCreate).max(200).default([]),
     videos: z.array(videoNested).max(100).default([]),
   })
+  .refine(withMainDistinct, { message: MAIN_MSG, path: ["galleryBackdrops"] })
   .refine((s) => unique(s.seasons.map((x) => x.seasonNumber)), "Duplicate season numbers")
   .refine(
     (s) => s.seasons.every((x) => unique(x.episodes.map((e) => e.episodeNumber))),
