@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { episodes, movies, seasons, shows, sources, subtitles } from "@/db/schema";
@@ -10,15 +10,25 @@ export const MAX_ENTRIES = 5000;
 export const MAX_PREVIEW_ROWS = 1000;
 const INSERT_CHUNK = 500;
 
-export type ItemType = "movie" | "episode";
+export type ItemType = "movie" | "show";
 export type EntryKind = "source" | "subtitle";
 export type FileFormat = "csv" | "json";
+/** The movie or show a file is exported from / imported into. */
+export type Target = { type: ItemType; id: string };
 
 const SOURCE_COLUMNS = ["label", "kind", "url", "quality", "sortOrder", "isActive"] as const;
 const SUBTITLE_COLUMNS = ["label", "language", "url", "format", "sortOrder"] as const;
-const IDENTITY_COLUMNS = ["entry", "type", "tmdbId", "season", "episode", "title"] as const;
+/**
+ * One flat shape for movies and shows. Movies leave the structure columns empty. The structure columns
+ * (names, isVisible) are read-only context: the importer ignores them.
+ */
 export const CSV_COLUMNS = [
-  ...IDENTITY_COLUMNS,
+  "entry",
+  "seasonNumber",
+  "seasonName",
+  "episodeNumber",
+  "episodeName",
+  "isVisible",
   "label",
   "kind",
   "url",
@@ -29,28 +39,37 @@ export const CSV_COLUMNS = [
   "format",
 ] as const;
 
-// ------------------------------------------------------------------ export
+// ------------------------------------------------------------------ template
 
 type SourceOut = {
   label: string;
   kind: string;
   url: string;
   quality: string | null;
-  sortOrder: number;
+  sortOrder: number | null;
   isActive: boolean;
 };
-type SubtitleOut = { label: string; language: string; url: string; format: string; sortOrder: number };
-export type ExportItem = {
-  type: ItemType;
-  tmdbId: number;
-  season: number | null;
-  episode: number | null;
-  title: string;
-  sources: SourceOut[];
-  subtitles: SubtitleOut[];
-};
+type SubtitleOut = { label: string; language: string; url: string; format: string; sortOrder: number | null };
+type Entries = { sources: SourceOut[]; subtitles: SubtitleOut[] };
+export type EpisodeTemplate = { episodeNumber: number; name: string; isVisible: boolean } & Entries;
+export type SeasonTemplate = { seasonNumber: number; name: string; isVisible: boolean; episodes: EpisodeTemplate[] };
+export type Template =
+  | ({ type: "movie"; title: string; tmdbId: number } & Entries)
+  | { type: "show"; title: string; tmdbId: number; seasons: SeasonTemplate[] };
 
-const sourceOut = (r: SourceOut): SourceOut => ({
+/** Empty rows the admin fills in; ignored by the importer while the URL stays blank. */
+const blankSource = (): SourceOut => ({ label: "", kind: "direct", url: "", quality: null, sortOrder: null, isActive: true });
+const blankSubtitle = (): SubtitleOut => ({ label: "", language: "", url: "", format: "vtt", sortOrder: null });
+
+/** Existing rows, or one blank placeholder of each entry type when there are none. */
+function withPlaceholders(e: { sources: SourceOut[]; subtitles: SubtitleOut[] }): Entries {
+  return {
+    sources: e.sources.length ? e.sources : [blankSource()],
+    subtitles: e.subtitles.length ? e.subtitles : [blankSubtitle()],
+  };
+}
+
+const sourceOut = (r: typeof sources.$inferSelect): SourceOut => ({
   label: r.label,
   kind: r.kind,
   url: r.url,
@@ -58,7 +77,7 @@ const sourceOut = (r: SourceOut): SourceOut => ({
   sortOrder: r.sortOrder,
   isActive: r.isActive,
 });
-const subtitleOut = (r: SubtitleOut): SubtitleOut => ({
+const subtitleOut = (r: typeof subtitles.$inferSelect): SubtitleOut => ({
   label: r.label,
   language: r.language,
   url: r.url,
@@ -66,93 +85,90 @@ const subtitleOut = (r: SubtitleOut): SubtitleOut => ({
   sortOrder: r.sortOrder,
 });
 
-/** Every movie/episode with at least one source or subtitle; four queries, grouped in memory. */
-export async function loadExportItems(scope: "all" | "movies" | "episodes"): Promise<ExportItem[]> {
-  const wantMovies = scope !== "episodes";
-  const wantEpisodes = scope !== "movies";
-  const none = Promise.resolve([] as never[]);
-
-  const [mSources, mSubs, eSources, eSubs] = await Promise.all([
-    wantMovies
-      ? db
-          .select({ tmdbId: movies.tmdbId, title: movies.title, s: sources })
-          .from(sources)
-          .innerJoin(movies, eq(movies.id, sources.movieId))
-          .orderBy(asc(sources.sortOrder), asc(sources.createdAt), asc(sources.id))
-      : none,
-    wantMovies
-      ? db
-          .select({ tmdbId: movies.tmdbId, title: movies.title, s: subtitles })
-          .from(subtitles)
-          .innerJoin(movies, eq(movies.id, subtitles.movieId))
-          .orderBy(asc(subtitles.sortOrder), asc(subtitles.createdAt), asc(subtitles.id))
-      : none,
-    wantEpisodes
-      ? db
-          .select({
-            tmdbId: shows.tmdbId,
-            title: shows.name,
-            season: seasons.seasonNumber,
-            episode: episodes.episodeNumber,
-            s: sources,
-          })
-          .from(sources)
-          .innerJoin(episodes, eq(episodes.id, sources.episodeId))
-          .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-          .innerJoin(shows, eq(shows.id, seasons.showId))
-          .orderBy(asc(sources.sortOrder), asc(sources.createdAt), asc(sources.id))
-      : none,
-    wantEpisodes
-      ? db
-          .select({
-            tmdbId: shows.tmdbId,
-            title: shows.name,
-            season: seasons.seasonNumber,
-            episode: episodes.episodeNumber,
-            s: subtitles,
-          })
-          .from(subtitles)
-          .innerJoin(episodes, eq(episodes.id, subtitles.episodeId))
-          .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-          .innerJoin(shows, eq(shows.id, seasons.showId))
-          .orderBy(asc(subtitles.sortOrder), asc(subtitles.createdAt), asc(subtitles.id))
-      : none,
+export async function loadMovieTemplate(id: string): Promise<Template | null> {
+  const [movie] = await db
+    .select({ title: movies.title, tmdbId: movies.tmdbId })
+    .from(movies)
+    .where(eq(movies.id, id));
+  if (!movie) return null;
+  const [src, subs] = await Promise.all([
+    db.select().from(sources).where(eq(sources.movieId, id)).orderBy(asc(sources.sortOrder), asc(sources.createdAt), asc(sources.id)),
+    db.select().from(subtitles).where(eq(subtitles.movieId, id)).orderBy(asc(subtitles.sortOrder), asc(subtitles.createdAt), asc(subtitles.id)),
   ]);
-
-  const items = new Map<string, ExportItem>();
-  const item = (
-    type: ItemType,
-    tmdbId: number,
-    season: number | null,
-    episode: number | null,
-    title: string,
-  ) => {
-    const key = `${type}:${tmdbId}:${season}:${episode}`;
-    let it = items.get(key);
-    if (!it) {
-      const label = type === "episode" ? `${title} S${pad(season!)}E${pad(episode!)}` : title;
-      it = { type, tmdbId, season, episode, title: label, sources: [], subtitles: [] };
-      items.set(key, it);
-    }
-    return it;
+  return {
+    type: "movie",
+    ...movie,
+    ...withPlaceholders({ sources: src.map(sourceOut), subtitles: subs.map(subtitleOut) }),
   };
-  for (const r of mSources) item("movie", r.tmdbId, null, null, r.title).sources.push(sourceOut(r.s));
-  for (const r of mSubs) item("movie", r.tmdbId, null, null, r.title).subtitles.push(subtitleOut(r.s));
-  for (const r of eSources)
-    item("episode", r.tmdbId, r.season, r.episode, r.title).sources.push(sourceOut(r.s));
-  for (const r of eSubs)
-    item("episode", r.tmdbId, r.season, r.episode, r.title).subtitles.push(subtitleOut(r.s));
-
-  return [...items.values()].sort(
-    (a, b) =>
-      a.type.localeCompare(b.type) ||
-      a.tmdbId - b.tmdbId ||
-      (a.season ?? 0) - (b.season ?? 0) ||
-      (a.episode ?? 0) - (b.episode ?? 0),
-  );
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
+/** Every season and episode of the show (hidden ones too) with its current sources and subtitles. */
+export async function loadShowTemplate(id: string): Promise<Template | null> {
+  const [show] = await db.select({ title: shows.name, tmdbId: shows.tmdbId }).from(shows).where(eq(shows.id, id));
+  if (!show) return null;
+  const [seasonRows, episodeRows, srcRows, subRows] = await Promise.all([
+    db.select().from(seasons).where(eq(seasons.showId, id)).orderBy(asc(seasons.seasonNumber)),
+    db
+      .select({ e: episodes })
+      .from(episodes)
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(eq(seasons.showId, id))
+      .orderBy(asc(episodes.episodeNumber)),
+    db
+      .select({ s: sources })
+      .from(sources)
+      .innerJoin(episodes, eq(episodes.id, sources.episodeId))
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(eq(seasons.showId, id))
+      .orderBy(asc(sources.sortOrder), asc(sources.createdAt), asc(sources.id)),
+    db
+      .select({ s: subtitles })
+      .from(subtitles)
+      .innerJoin(episodes, eq(episodes.id, subtitles.episodeId))
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(eq(seasons.showId, id))
+      .orderBy(asc(subtitles.sortOrder), asc(subtitles.createdAt), asc(subtitles.id)),
+  ]);
+
+  const byEpisode = new Map<string, { sources: SourceOut[]; subtitles: SubtitleOut[] }>();
+  const entriesOf = (episodeId: string | null) => {
+    let e = byEpisode.get(episodeId ?? "");
+    if (!e) byEpisode.set(episodeId ?? "", (e = { sources: [], subtitles: [] }));
+    return e;
+  };
+  for (const { s } of srcRows) entriesOf(s.episodeId).sources.push(sourceOut(s));
+  for (const { s } of subRows) entriesOf(s.episodeId).subtitles.push(subtitleOut(s));
+
+  return {
+    type: "show",
+    ...show,
+    seasons: seasonRows.map((s) => ({
+      seasonNumber: s.seasonNumber,
+      name: s.name,
+      isVisible: s.isVisible,
+      episodes: episodeRows
+        .filter(({ e }) => e.seasonId === s.id)
+        .map(({ e }) => ({
+          episodeNumber: e.episodeNumber,
+          name: e.name,
+          isVisible: e.isVisible,
+          ...withPlaceholders(byEpisode.get(e.id) ?? { sources: [], subtitles: [] }),
+        })),
+    })),
+  };
+}
+
+/** `evolix-{slug}-providers.{ext}`, falling back to the TMDB id when the title has no usable characters. */
+export function templateFilename(t: Template, format: FileFormat) {
+  const slug = t.title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/, "");
+  return `evolix-${slug || t.tmdbId}-providers.${format}`;
+}
 
 /** Formula-injection guard: text cells starting with = + - @ tab or CR get a leading single quote. */
 const DANGEROUS = /^[=+\-@\t\r]/;
@@ -167,69 +183,36 @@ function csvCell(v: unknown): string {
   return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 }
 
-export function buildJson(items: ExportItem[]): string {
-  return JSON.stringify(items, null, 2) + "\n";
+export function buildJson(t: Template): string {
+  return JSON.stringify(t, null, 2) + "\n";
 }
 
-export function buildCsv(items: ExportItem[]): string {
+export function buildCsv(t: Template): string {
   const lines = [CSV_COLUMNS.join(",")];
   const push = (cells: Record<string, unknown>) =>
     lines.push(CSV_COLUMNS.map((c) => csvCell(cells[c])).join(","));
-  for (const it of items) {
-    const id = { type: it.type, tmdbId: it.tmdbId, season: it.season, episode: it.episode, title: it.title };
-    for (const s of it.sources) push({ entry: "source", ...id, ...s });
-    for (const s of it.subtitles) push({ entry: "subtitle", ...id, ...s });
+  const rows = (ctx: Record<string, unknown>, e: Entries) => {
+    for (const s of e.sources) push({ entry: "source", ...ctx, ...s });
+    for (const s of e.subtitles) push({ entry: "subtitle", ...ctx, ...s });
+  };
+  if (t.type === "movie") rows({}, t);
+  else {
+    for (const s of t.seasons) {
+      for (const e of s.episodes) {
+        // One column for both levels: an episode in a hidden season is not visible either.
+        const ctx = {
+          seasonNumber: s.seasonNumber,
+          seasonName: s.name,
+          episodeNumber: e.episodeNumber,
+          episodeName: e.name,
+          isVisible: s.isVisible && e.isVisible,
+        };
+        rows(ctx, e);
+      }
+    }
   }
   return "﻿" + lines.join("\r\n") + "\r\n";
 }
-
-/** Small example file served as the downloadable template. */
-export const TEMPLATE_ITEMS: ExportItem[] = [
-  {
-    type: "movie",
-    tmdbId: 603,
-    season: null,
-    episode: null,
-    title: "The Matrix",
-    sources: [
-      {
-        label: "Main server",
-        kind: "hls",
-        url: "https://cdn.example.com/matrix/master.m3u8",
-        quality: "1080p",
-        sortOrder: 0,
-        isActive: true,
-      },
-    ],
-    subtitles: [
-      {
-        label: "English",
-        language: "en",
-        url: "https://cdn.example.com/matrix/en.vtt",
-        format: "vtt",
-        sortOrder: 0,
-      },
-    ],
-  },
-  {
-    type: "episode",
-    tmdbId: 1396,
-    season: 1,
-    episode: 1,
-    title: "Breaking Bad S01E01",
-    sources: [
-      {
-        label: "Embed",
-        kind: "embed",
-        url: "https://player.example.com/embed/bb-s01e01",
-        quality: null,
-        sortOrder: 0,
-        isActive: true,
-      },
-    ],
-    subtitles: [],
-  },
-];
 
 // ------------------------------------------------------------------ parsing
 
@@ -240,12 +223,11 @@ type RawEntry = {
   /** CSV only: line where the record starts. */
   line: number | null;
   entry: EntryKind | null;
-  type: unknown;
-  tmdbId: unknown;
   season: unknown;
   episode: unknown;
-  title: unknown;
   fields: Record<string, unknown>;
+  /** Untouched template placeholder: the URL is empty. */
+  blank?: boolean;
   parseError?: string;
 };
 
@@ -311,8 +293,9 @@ export function parseCsv(input: string): { line: number; cells: string[] }[] {
 }
 
 const blank = (v: unknown) => v === undefined || v === null || v === "";
+const blankUrl = (v: unknown) => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
-function csvToRaw(text: string): RawEntry[] {
+function csvToRaw(text: string, type: ItemType): RawEntry[] {
   const records = parseCsv(text);
   if (records.length === 0) throw new ImportFileError("CSV file is empty");
   const header = records[0].cells.map((h) => h.trim().toLowerCase());
@@ -321,7 +304,8 @@ function csvToRaw(text: string): RawEntry[] {
     const at = header.indexOf(c.toLowerCase());
     if (at >= 0) col.set(c, at);
   }
-  const missing = ["entry", "type", "tmdbId"].filter((c) => !col.has(c));
+  const required = type === "show" ? ["entry", "url", "seasonNumber", "episodeNumber"] : ["entry", "url"];
+  const missing = required.filter((c) => !col.has(c));
   if (missing.length) throw new ImportFileError(`CSV header is missing column(s): ${missing.join(", ")}`);
   if (records.length - 1 > MAX_ENTRIES) {
     throw new ImportFileError(`Too many rows (maximum ${MAX_ENTRIES})`);
@@ -341,12 +325,10 @@ function csvToRaw(text: string): RawEntry[] {
       index: i + 1,
       line: rec.line,
       entry,
-      type: get("type").trim().toLowerCase(),
-      tmdbId: numeric(get("tmdbId")),
-      season: numeric(get("season")),
-      episode: numeric(get("episode")),
-      title: get("title"),
+      season: numeric(get("seasonNumber")),
+      episode: numeric(get("episodeNumber")),
       fields,
+      blank: get("url").trim() === "",
       parseError: entry ? undefined : 'Column "entry" must be "source" or "subtitle"',
     };
   });
@@ -376,44 +358,61 @@ function csvValue(column: string, raw: string): unknown {
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
-function jsonToRaw(text: string): RawEntry[] {
+/** Accepts the shapes the templates produce: a movie object, or a show with seasons[].episodes[]. */
+function jsonToRaw(text: string, type: ItemType): RawEntry[] {
   let data: unknown;
   try {
     data = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
   } catch {
     throw new ImportFileError("File is not valid JSON");
   }
-  if (!Array.isArray(data)) throw new ImportFileError("JSON must be an array of items");
+  if (!isObj(data)) throw new ImportFileError("JSON must be an object like the exported template");
+  if (data.type !== undefined && data.type !== type) {
+    throw new ImportFileError(`This file is a ${String(data.type)} template; it cannot be imported into a ${type}`);
+  }
 
   const out: RawEntry[] = [];
   const add = (e: Omit<RawEntry, "index" | "line">) => {
     if (out.length >= MAX_ENTRIES) throw new ImportFileError(`Too many entries (maximum ${MAX_ENTRIES})`);
     out.push({ index: out.length + 1, line: null, ...e });
   };
-  data.forEach((it, n) => {
-    if (!isObj(it)) {
-      return add({ ...NO_ID, entry: null, parseError: `Item ${n + 1} is not an object` });
-    }
-    const id = { type: it.type, tmdbId: it.tmdbId, season: it.season, episode: it.episode, title: it.title };
+  const bad = (parseError: string, season: unknown = null, episode: unknown = null) =>
+    add({ entry: null, season, episode, fields: {}, parseError });
+
+  /** Reads the `sources` and `subtitles` arrays of a movie or episode object. */
+  const entries = (holder: Record<string, unknown>, where: string, season: unknown, episode: unknown) => {
     for (const [key, entry] of [
       ["sources", "source"],
       ["subtitles", "subtitle"],
     ] as const) {
-      const list = it[key];
+      const list = holder[key];
       if (list === undefined || list === null) continue;
       if (!Array.isArray(list)) {
-        add({ ...id, entry, fields: {}, parseError: `Item ${n + 1}: "${key}" must be an array` });
+        add({ entry, season, episode, fields: {}, parseError: `${where}: "${key}" must be an array` });
         continue;
       }
       for (const f of list) {
-        if (isObj(f)) add({ ...id, entry, fields: f });
-        else add({ ...id, entry, fields: {}, parseError: `Item ${n + 1}: each ${entry} must be an object` });
+        if (isObj(f)) add({ entry, season, episode, fields: f, blank: blankUrl(f.url) });
+        else add({ entry, season, episode, fields: {}, parseError: `${where}: each ${entry} must be an object` });
       }
     }
+  };
+
+  if (type === "movie") {
+    entries(data, "Movie", null, null);
+    return out;
+  }
+  if (!Array.isArray(data.seasons)) throw new ImportFileError('JSON must contain a "seasons" array');
+  data.seasons.forEach((s, si) => {
+    if (!isObj(s)) return bad(`Season entry ${si + 1} is not an object`);
+    if (!Array.isArray(s.episodes)) return bad(`Season entry ${si + 1}: "episodes" must be an array`, s.seasonNumber);
+    s.episodes.forEach((e, ei) => {
+      if (!isObj(e)) return bad(`Season entry ${si + 1}, episode entry ${ei + 1} is not an object`, s.seasonNumber);
+      entries(e, `Season ${String(s.seasonNumber)} episode ${String(e.episodeNumber)}`, s.seasonNumber, e.episodeNumber);
+    });
   });
   return out;
 }
-const NO_ID = { type: null, tmdbId: null, season: null, episode: null, title: null, fields: {} };
 
 // ------------------------------------------------------------------ planning
 
@@ -422,11 +421,8 @@ export type PlanRow = {
   index: number;
   line: number | null;
   entry: EntryKind | null;
-  type: ItemType | null;
-  tmdbId: number | null;
   season: number | null;
   episode: number | null;
-  title: string;
   url: string;
   status: RowStatus;
   message: string;
@@ -436,6 +432,8 @@ export type PlanSummary = {
   new: number;
   duplicates: number;
   errors: number;
+  /** Template placeholders with an empty URL; ignored. */
+  blank: number;
   sourcesNew: number;
   subtitlesNew: number;
 };
@@ -443,6 +441,7 @@ type NewSource = typeof sources.$inferInsert;
 type NewSubtitle = typeof subtitles.$inferInsert;
 export type Plan = {
   summary: PlanSummary;
+  /** Blank placeholders are counted in the summary but not listed. */
   rows: PlanRow[];
   toInsert: { sources: NewSource[]; subtitles: NewSubtitle[] };
 };
@@ -458,22 +457,7 @@ const issues = (e: { issues: { path: PropertyKey[]; message: string }[] }) =>
     })
     .join("; ");
 
-type Identity = { type: ItemType; tmdbId: number; season: number | null; episode: number | null };
 type Valid = { label: string; url: string; sortOrder: number | undefined; data: Record<string, unknown> };
-
-function readIdentity(r: RawEntry): Identity | string {
-  if (r.type !== "movie" && r.type !== "episode") return 'type must be "movie" or "episode"';
-  const posInt = (v: unknown) => typeof v === "number" && Number.isInteger(v);
-  if (!posInt(r.tmdbId) || (r.tmdbId as number) <= 0) return "tmdbId must be a positive integer";
-  if (r.type === "movie") return { type: "movie", tmdbId: r.tmdbId as number, season: null, episode: null };
-  for (const [name, v] of [
-    ["season", r.season],
-    ["episode", r.episode],
-  ] as const) {
-    if (!posInt(v) || (v as number) < 0) return `${name} must be a non-negative integer for episodes`;
-  }
-  return { type: "episode", tmdbId: r.tmdbId as number, season: r.season as number, episode: r.episode as number };
-}
 
 function validateFields(r: RawEntry): Valid | string {
   const f = r.fields;
@@ -511,94 +495,21 @@ function withoutParent<T extends { movieId?: string; episodeId?: string }>(v: T)
   return copy;
 }
 
-type Resolved = { id: string; title: string };
+type Existing = Map<string, { urls: Set<string>; top: number }>;
+/** Everything about the target item the planner needs; all reads happen here. */
+type Context = {
+  type: ItemType;
+  /** Movie: the movie id under key "". Show: episode ids by `season:episode`. */
+  parents: Map<string, string>;
+  seasonNumbers: Set<number>;
+  existing: { source: Existing; subtitle: Existing };
+};
 
-/** Library lookup for all identities at once: movies, shows, then seasons and episodes. */
-async function resolveItems(ids: Identity[]) {
-  const movieTmdb = [...new Set(ids.filter((i) => i.type === "movie").map((i) => i.tmdbId))];
-  const showTmdb = [...new Set(ids.filter((i) => i.type === "episode").map((i) => i.tmdbId))];
-  const found = new Map<string, Resolved>(); // item key -> episode/movie row
-  const missing = new Map<string, string>(); // item key -> reason
-
-  const [movieRows, showRows] = await Promise.all([
-    movieTmdb.length
-      ? db.select({ id: movies.id, tmdbId: movies.tmdbId, title: movies.title }).from(movies).where(inArray(movies.tmdbId, movieTmdb))
-      : [],
-    showTmdb.length
-      ? db.select({ id: shows.id, tmdbId: shows.tmdbId, title: shows.name }).from(shows).where(inArray(shows.tmdbId, showTmdb))
-      : [],
-  ]);
-  const movieBy = new Map(movieRows.map((m) => [m.tmdbId, m]));
-  const showBy = new Map(showRows.map((s) => [s.tmdbId, s]));
-
-  const showIds = showRows.map((s) => s.id);
-  const seasonRows = showIds.length
-    ? await db
-        .select({ id: seasons.id, showId: seasons.showId, n: seasons.seasonNumber })
-        .from(seasons)
-        .where(inArray(seasons.showId, showIds))
-    : [];
-  const seasonBy = new Map(seasonRows.map((s) => [`${s.showId}:${s.n}`, s.id]));
-
-  const epNumbers = [...new Set(ids.filter((i) => i.type === "episode").map((i) => i.episode!))];
-  const episodeRows =
-    seasonRows.length && epNumbers.length
-      ? await db
-          .select({ id: episodes.id, seasonId: episodes.seasonId, n: episodes.episodeNumber })
-          .from(episodes)
-          .where(
-            and(
-              inArray(episodes.seasonId, seasonRows.map((s) => s.id)),
-              inArray(episodes.episodeNumber, epNumbers),
-            ),
-          )
-      : [];
-  const episodeBy = new Map(episodeRows.map((e) => [`${e.seasonId}:${e.n}`, e.id]));
-
-  for (const i of ids) {
-    const key = itemKey(i);
-    if (found.has(key) || missing.has(key)) continue;
-    if (i.type === "movie") {
-      const m = movieBy.get(i.tmdbId);
-      if (m) found.set(key, { id: m.id, title: m.title });
-      else missing.set(key, `Item not found: no movie with TMDB id ${i.tmdbId} in the library`);
-      continue;
-    }
-    const show = showBy.get(i.tmdbId);
-    if (!show) {
-      missing.set(key, `Item not found: no show with TMDB id ${i.tmdbId} in the library`);
-      continue;
-    }
-    const seasonId = seasonBy.get(`${show.id}:${i.season}`);
-    if (!seasonId) {
-      missing.set(key, `Item not found: "${show.title}" has no season ${i.season}`);
-      continue;
-    }
-    const episodeId = episodeBy.get(`${seasonId}:${i.episode}`);
-    if (!episodeId) {
-      missing.set(key, `Item not found: "${show.title}" season ${i.season} has no episode ${i.episode}`);
-      continue;
-    }
-    found.set(key, { id: episodeId, title: show.title });
-  }
-  return { found, missing };
-}
-
-const itemKey = (i: Identity) => `${i.type}:${i.tmdbId}:${i.season}:${i.episode}`;
-
-/** What each resolved item already has: URLs (for duplicate checks) and the last sort order. */
-async function loadExisting(found: Map<string, Resolved>, ids: Identity[]) {
-  const movieIds: string[] = [];
-  const episodeIds: string[] = [];
-  const seen = new Set<string>();
-  for (const i of ids) {
-    const key = itemKey(i);
-    const r = found.get(key);
-    if (!r || seen.has(key)) continue;
-    seen.add(key);
-    (i.type === "movie" ? movieIds : episodeIds).push(r.id);
-  }
-  const existing = { source: new Map<string, { urls: Set<string>; top: number }>(), subtitle: new Map<string, { urls: Set<string>; top: number }>() };
+/** Loads the target's episodes and current providers; null when the movie/show does not exist. */
+async function loadContext(target: Target): Promise<Context | null> {
+  const parents = new Map<string, string>();
+  const seasonNumbers = new Set<number>();
+  const existing = { source: new Map() as Existing, subtitle: new Map() as Existing };
   const take = (kind: EntryKind, parent: string | null, url: string, order: number) => {
     if (!parent) return;
     const m = existing[kind];
@@ -607,80 +518,107 @@ async function loadExisting(found: Map<string, Resolved>, ids: Identity[]) {
     e.top = Math.max(e.top, order);
     m.set(parent, e);
   };
-  const [ms, es, mt, et] = await Promise.all([
-    movieIds.length
-      ? db.select({ p: sources.movieId, url: sources.url, o: sources.sortOrder }).from(sources).where(and(isNotNull(sources.movieId), inArray(sources.movieId, movieIds)))
-      : [],
-    episodeIds.length
-      ? db.select({ p: sources.episodeId, url: sources.url, o: sources.sortOrder }).from(sources).where(and(isNotNull(sources.episodeId), inArray(sources.episodeId, episodeIds)))
-      : [],
-    movieIds.length
-      ? db.select({ p: subtitles.movieId, url: subtitles.url, o: subtitles.sortOrder }).from(subtitles).where(and(isNotNull(subtitles.movieId), inArray(subtitles.movieId, movieIds)))
-      : [],
-    episodeIds.length
-      ? db.select({ p: subtitles.episodeId, url: subtitles.url, o: subtitles.sortOrder }).from(subtitles).where(and(isNotNull(subtitles.episodeId), inArray(subtitles.episodeId, episodeIds)))
-      : [],
+
+  if (target.type === "movie") {
+    const [m] = await db.select({ id: movies.id }).from(movies).where(eq(movies.id, target.id));
+    if (!m) return null;
+    parents.set("", m.id);
+    const [src, subs] = await Promise.all([
+      db.select({ p: sources.movieId, url: sources.url, o: sources.sortOrder }).from(sources).where(eq(sources.movieId, m.id)),
+      db.select({ p: subtitles.movieId, url: subtitles.url, o: subtitles.sortOrder }).from(subtitles).where(eq(subtitles.movieId, m.id)),
+    ]);
+    for (const r of src) take("source", r.p, r.url, r.o);
+    for (const r of subs) take("subtitle", r.p, r.url, r.o);
+    return { type: "movie", parents, seasonNumbers, existing };
+  }
+
+  const [show] = await db.select({ id: shows.id }).from(shows).where(eq(shows.id, target.id));
+  if (!show) return null;
+  const [seasonRows, episodeRows, src, subs] = await Promise.all([
+    db.select({ n: seasons.seasonNumber }).from(seasons).where(eq(seasons.showId, show.id)),
+    db
+      .select({ id: episodes.id, s: seasons.seasonNumber, n: episodes.episodeNumber })
+      .from(episodes)
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(eq(seasons.showId, show.id)),
+    db
+      .select({ p: sources.episodeId, url: sources.url, o: sources.sortOrder })
+      .from(sources)
+      .innerJoin(episodes, eq(episodes.id, sources.episodeId))
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(eq(seasons.showId, show.id)),
+    db
+      .select({ p: subtitles.episodeId, url: subtitles.url, o: subtitles.sortOrder })
+      .from(subtitles)
+      .innerJoin(episodes, eq(episodes.id, subtitles.episodeId))
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(eq(seasons.showId, show.id)),
   ]);
-  for (const r of [...ms, ...es]) take("source", r.p, r.url, r.o);
-  for (const r of [...mt, ...et]) take("subtitle", r.p, r.url, r.o);
-  return existing;
+  for (const s of seasonRows) seasonNumbers.add(s.n);
+  for (const e of episodeRows) parents.set(`${e.s}:${e.n}`, e.id);
+  for (const r of src) take("source", r.p, r.url, r.o);
+  for (const r of subs) take("subtitle", r.p, r.url, r.o);
+  return { type: "show", parents, seasonNumbers, existing };
 }
 
-/** Parse, validate and plan a file. Read-only: shared by preview and commit. */
-export async function planImport(format: FileFormat, text: string): Promise<Plan> {
-  const raw = format === "csv" ? csvToRaw(text) : jsonToRaw(text);
+/** Season/episode numbers of a row, or the error to report. */
+function locate(ctx: Context, r: RawEntry): { key: string; season: number | null; episode: number | null } | string {
+  if (ctx.type === "movie") {
+    if (!blank(r.season) || !blank(r.episode)) return "A movie has no seasons or episodes; leave these empty";
+    return { key: "", season: null, episode: null };
+  }
+  const int = (v: unknown) => typeof v === "number" && Number.isInteger(v) && v >= 0;
+  if (!int(r.season) || !int(r.episode)) return "seasonNumber and episodeNumber must be non-negative integers";
+  const [season, episode] = [r.season as number, r.episode as number];
+  if (!ctx.seasonNumbers.has(season)) return `Season ${season} does not exist in this show`;
+  if (!ctx.parents.has(`${season}:${episode}`)) return `Season ${season} has no episode ${episode}`;
+  return { key: `${season}:${episode}`, season, episode };
+}
 
-  // 1. Per-entry validation without touching the database.
-  type Checked = { r: RawEntry; id?: Identity; v?: Valid; error?: string };
-  const checked: Checked[] = raw.map((r) => {
-    if (r.parseError) return { r, error: r.parseError };
-    const id = readIdentity(r);
-    if (typeof id === "string") return { r, error: id };
-    const v = validateFields(r);
-    if (typeof v === "string") return { r, id, error: v };
-    return { r, id, v };
-  });
+/** Parse, validate and plan a file against the target. Read-only: shared by preview and commit. */
+function planImport(ctx: Context, format: FileFormat, text: string): Plan {
+  const raw = format === "csv" ? csvToRaw(text, ctx.type) : jsonToRaw(text, ctx.type);
 
-  // 2. Batched library lookups.
-  const ids = checked.filter((c) => !c.error).map((c) => c.id!);
-  const { found, missing } = await resolveItems(ids);
-  const existing = await loadExisting(found, ids);
-
-  // 3. Decide per entry, in file order.
   const rows: PlanRow[] = [];
   const toInsert: Plan["toInsert"] = { sources: [], subtitles: [] };
-  const seenInFile = new Map<string, number>(); // item+kind+url -> first index
+  const seenInFile = new Map<string, number>(); // kind+parent+url -> first index
   const nextOrder = new Map<string, number>();
+  let blanks = 0;
 
-  for (const { r, id, v, error } of checked) {
+  for (const r of raw) {
+    if (r.blank) {
+      blanks++;
+      continue;
+    }
     const row: PlanRow = {
       index: r.index,
       line: r.line,
       entry: r.entry,
-      type: id?.type ?? null,
-      tmdbId: id?.tmdbId ?? null,
-      season: id?.season ?? null,
-      episode: id?.episode ?? null,
-      title: typeof r.title === "string" ? r.title : "",
+      season: typeof r.season === "number" ? r.season : null,
+      episode: typeof r.episode === "number" ? r.episode : null,
       url: typeof r.fields.url === "string" ? r.fields.url.trim() : "",
       status: "error",
       message: "",
     };
     rows.push(row);
-    if (error) {
-      row.message = error;
+    if (r.parseError) {
+      row.message = r.parseError;
       continue;
     }
-    const key = itemKey(id!);
-    const item = found.get(key);
-    if (!item) {
-      row.message = missing.get(key) ?? "Item not found";
+    const at = locate(ctx, r);
+    if (typeof at === "string") {
+      row.message = at;
       continue;
     }
-    row.title = item.title;
-    row.url = v!.url;
+    const v = validateFields(r);
+    if (typeof v === "string") {
+      row.message = v;
+      continue;
+    }
+    row.url = v.url;
     const kind = r.entry!;
-    const dupKey = `${kind}|${key}|${v!.url}`;
+    const parent = ctx.parents.get(at.key)!;
+    const dupKey = `${kind}|${parent}|${v.url}`;
     const first = seenInFile.get(dupKey);
     if (first !== undefined) {
       row.status = "duplicate";
@@ -688,24 +626,24 @@ export async function planImport(format: FileFormat, text: string): Promise<Plan
       continue;
     }
     seenInFile.set(dupKey, r.index);
-    const have = existing[kind].get(item.id);
-    if (have?.urls.has(v!.url)) {
+    const have = ctx.existing[kind].get(parent);
+    if (have?.urls.has(v.url)) {
       row.status = "duplicate";
-      row.message = "Already exists on this item";
+      row.message = "Already exists";
       continue;
     }
 
-    let sortOrder = v!.sortOrder;
+    let sortOrder = v.sortOrder;
     if (sortOrder === undefined) {
-      const orderKey = `${kind}|${item.id}`;
+      const orderKey = `${kind}|${parent}`;
       sortOrder = nextOrder.get(orderKey) ?? (have ? have.top + 1 : 0);
       nextOrder.set(orderKey, sortOrder + 1);
     }
-    const parent = id!.type === "movie" ? { movieId: item.id } : { episodeId: item.id };
+    const owner = ctx.type === "movie" ? { movieId: parent } : { episodeId: parent };
     if (kind === "source") {
-      toInsert.sources.push({ ...parent, ...(v!.data as Omit<NewSource, "movieId" | "episodeId">), sortOrder });
+      toInsert.sources.push({ ...owner, ...(v.data as Omit<NewSource, "movieId" | "episodeId">), sortOrder });
     } else {
-      toInsert.subtitles.push({ ...parent, ...(v!.data as Omit<NewSubtitle, "movieId" | "episodeId">), sortOrder });
+      toInsert.subtitles.push({ ...owner, ...(v.data as Omit<NewSubtitle, "movieId" | "episodeId">), sortOrder });
     }
     row.status = "new";
     row.message = "Will be imported";
@@ -716,10 +654,11 @@ export async function planImport(format: FileFormat, text: string): Promise<Plan
     rows,
     toInsert,
     summary: {
-      total: rows.length,
+      total: raw.length,
       new: count("new"),
       duplicates: count("duplicate"),
       errors: count("error"),
+      blank: blanks,
       sourcesNew: toInsert.sources.length,
       subtitlesNew: toInsert.subtitles.length,
     },
@@ -741,8 +680,26 @@ export async function commitPlan(plan: Plan) {
 
 // ------------------------------------------------------------------ request handling
 
-/** Reads the multipart `file` field and plans it; returns the plan or an error response. */
-export async function planFromRequest(req: NextRequest): Promise<{ plan: Plan } | { error: NextResponse }> {
+/** Template download response. */
+export function templateResponse(t: Template, format: FileFormat) {
+  return new NextResponse(format === "csv" ? buildCsv(t) : buildJson(t), {
+    headers: {
+      "Content-Type": format === "csv" ? "text/csv; charset=utf-8" : "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${templateFilename(t, format)}"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+/** Reads the multipart `file` field and plans it for the target; returns the plan or an error response. */
+export async function planFromRequest(
+  req: NextRequest,
+  target: Target,
+  notFound: () => NextResponse,
+): Promise<{ plan: Plan } | { error: NextResponse }> {
+  const ctx = await loadContext(target);
+  if (!ctx) return { error: notFound() };
+
   const declared = Number(req.headers.get("content-length"));
   // Multipart framing adds a little on top of the file itself.
   if (Number.isFinite(declared) && declared > MAX_FILE_BYTES + 64 * 1024) return { error: tooLarge() };
@@ -771,7 +728,7 @@ export async function planFromRequest(req: NextRequest): Promise<{ plan: Plan } 
   if (!format) return { error: fail(400, "UNSUPPORTED_FILE", "Only .csv and .json files are supported") };
 
   try {
-    return { plan: await planImport(format, await file.text()) };
+    return { plan: planImport(ctx, format, await file.text()) };
   } catch (e) {
     if (e instanceof ImportFileError) return { error: fail(e.status, "INVALID_FILE", e.message) };
     throw e;
