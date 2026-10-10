@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark variants only on an explicit .dark class: the app has one fixed dark theme, not an OS-driven one. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Basic neutral styling: grays plus indigo accent; light/dark follows the OS. */
 @layer base {
   body {

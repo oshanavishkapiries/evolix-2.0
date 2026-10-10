@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
+import { Noto_Sans } from "next/font/google";
+import { AppChrome } from "./_components/app-chrome";
 import { BookmarkProvider } from "./_components/bookmarks";
 import { BottomNav } from "./_components/bottom-nav";
-import { ViewerNav } from "./_components/nav";
-import "./viewer.css";
+import { PREFS_SCRIPT } from "./_components/prefs";
+import "./styles/tokens.css";
+import "./styles/shell.css";
+import "./styles/cards.css";
+import "./styles/detail.css";
+import "./styles/components.css";
+import "./styles/motion.css";
+
+const font = Noto_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], display: "swap", variable: "--v-font" });
 
 export const metadata: Metadata = {
   title: { template: "%s | Evolix", default: "Evolix" },
@@ -11,13 +20,14 @@ export const metadata: Metadata = {
 
 export default function ViewerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="viewer">
+    <div className={`viewer ${font.variable}`}>
+      {/* Applies saved sidebar/card-size prefs before first paint. */}
+      <script dangerouslySetInnerHTML={{ __html: PREFS_SCRIPT }} />
       <a href="#main" className="v-skip">Skip to content</a>
-      <ViewerNav />
+      <AppChrome />
       <BookmarkProvider>
-        <main id="main">{children}</main>
+        <main id="main" className="v-main">{children}</main>
       </BookmarkProvider>
-      <footer className="v-footer">Evolix - private family library</footer>
       <BottomNav />
     </div>
   );

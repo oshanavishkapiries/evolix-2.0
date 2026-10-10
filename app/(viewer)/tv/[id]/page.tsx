@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { isUuid, parseNumber } from "@/lib/viewer/ids";
 import { getShowDetail } from "@/lib/viewer/detail";
 import { yearOf } from "@/lib/viewer/format";
-import { detailMetadata, MediaSections } from "../../_components/media-sections";
+import { resumeFor } from "@/lib/viewer/library";
+import { currentUserId } from "@/lib/viewer/user";
+import { DetailHeader, type PlayAction } from "../../_components/detail-header";
+import { detailMetadata } from "../../_components/media-sections";
 import { Seasons } from "../../_components/seasons";
-import { NavMarker } from "../../_components/nav-marker";
-import { TitleHero } from "../../_components/title-hero";
+import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
 // unpublished title is a real HTTP 404 instead of a streamed 200.
@@ -30,31 +32,38 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function ShowPage({ params, searchParams }: Props) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   if (!isUuid(id)) notFound();
-  const show = await getShowDetail(id, seasonOf(sp.season));
+  const [show, userId] = await Promise.all([getShowDetail(id, seasonOf(sp.season)), currentUserId()]);
   if (!show) notFound();
 
   const { first } = show;
+  const resume = userId && first ? await resumeFor(userId, "show", show.id) : null;
+  const code = resume?.label.split(" - ")[0]?.replace(":", " · ") ?? "";
+  const play: PlayAction | null = resume
+    ? { href: resume.href, label: resume.percent > 0 ? `Resume ${code}` : `Continue ${code}`, detail: resume.label, percent: resume.percent }
+    : first
+      ? { href: `/watch/tv/${show.id}/${first.seasonNumber}/${first.episodeNumber}`, label: "Play S" + first.seasonNumber + " · E" + first.episodeNumber }
+      : null;
   const seasonCount = show.seasons.filter((s) => s.seasonNumber > 0).length;
+
   return (
-    <>
-      <NavMarker active="tv" />
-      <TitleHero
-        detail
+    <PageMotion>
+    <div className="v-detail">
+      <DetailHeader
+        kind="show"
+        id={show.id}
         title={show.title}
         tagline={show.tagline}
         overview={show.overview}
         date={show.firstAirDate}
         rating={show.rating}
         genres={show.genres}
-        backdropPath={show.backdropPath}
-        logoPath={show.logoPath}
+        facts={seasonCount ? [`${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}`] : []}
         posterPath={show.posterPath}
-        bookmark={{ kind: "show", id: show.id }}
-        extra={seasonCount ? `${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}` : undefined}
-        playHref={first ? `/watch/tv/${show.id}/${first.seasonNumber}/${first.episodeNumber}` : null}
+        backdropPath={show.backdropPath}
+        play={play}
       />
-      <Seasons show={show} />
-      <MediaSections item={show} />
-    </>
+      <Seasons show={show} resumeHref={resume?.href} />
+    </div>
+    </PageMotion>
   );
 }

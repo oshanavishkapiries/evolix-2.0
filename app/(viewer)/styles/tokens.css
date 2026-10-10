@@ -1,0 +1,78 @@
+/*
+ * Viewer design tokens (Plex-inspired charcoal + Evolix gold). Unlayered on purpose: it must win
+ * over the neutral @layer base/components styles in globals.css. Everything is scoped to .viewer
+ * so the auth and admin pages keep their look. See docs/specs/ui-redesign.md §4.
+ */
+body:has(.viewer) { background: #1f1f1f; }
+
+.viewer {
+  /* Surfaces */
+  --v-bg: #1f1f1f;
+  --v-bar: #161616;
+  --v-side-bg: #1a1a1a;
+  --v-card: #2a2a2a;
+  --v-secondary: #333;
+  --v-muted: #3a3a3a;
+  --v-border: rgb(255 255 255 / .08);
+  /* Text */
+  --v-fg: #fff;
+  --v-fg-dim: #a8a8a8;
+  --v-fg-faint: #767676;
+  /* Accent */
+  --v-primary: #f5a623;
+  --v-primary-hi: #ffb83d;
+  --v-primary-fg: #1a1a1a;
+  --v-danger: #e5484d;
+  /* Layout */
+  --v-top-h: 3.5rem;
+  --v-side-w: 0px;
+  --v-gutter: clamp(1rem, 3vw, 2.5rem);
+  --v-radius: .375rem;
+  /* Card width for the size slider (data-v-size on <html>) */
+  --card-w: clamp(7.5rem, 30vw, 9.5rem);
+  /* Motion */
+  --v-ease: cubic-bezier(.2, .8, .2, 1);
+  --v-dur-1: 120ms;
+  --v-dur-2: 220ms;
+  --v-dur-3: 380ms;
+
+  min-height: 100dvh;
+  background: var(--v-bg);
+  color: var(--v-fg);
+  color-scheme: dark;
+  font-family: var(--v-font), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+@media (min-width: 48rem) {
+  .viewer { --v-side-w: 4rem; --card-w: 9.5rem; }
+  :root[data-v-size="1"] .viewer { --card-w: 7.75rem; }
+  :root[data-v-size="3"] .viewer { --card-w: 11.5rem; }
+  :root[data-v-size="4"] .viewer { --card-w: 13.5rem; }
+}
+@media (min-width: 80rem) {
+  .viewer { --v-side-w: 15rem; }
+  :root[data-v-sidebar="rail"] .viewer { --v-side-w: 4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .viewer { --v-dur-1: 0ms; --v-dur-2: 0ms; --v-dur-3: 0ms; }
+}
+
+/* Base resets inside the viewer */
+.viewer :where(a) { color: inherit; text-decoration: none; }
+.viewer :where(a):hover { text-decoration: none; }
+.viewer :where(main, section, form, details, article) > * + * { margin-top: 0; }
+.viewer :where(h1, h2, h3) { font-weight: 700; line-height: 1.2; }
+.viewer :where(p) { margin: 0; }
+.viewer :where(ul) { list-style: none; margin: 0; padding: 0; }
+.viewer :where(button) {
+  font: inherit; color: inherit; background: none; border-radius: 0; padding: 0; cursor: pointer;
+}
+.viewer :where(button):disabled { opacity: .5; cursor: not-allowed; }
+.viewer :focus-visible { outline: 2px solid var(--v-primary); outline-offset: 2px; }
+.viewer :where(img) { display: block; max-width: 100%; }
+.v-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.v-skip { position: absolute; left: 1rem; top: -4rem; z-index: 100; background: var(--v-primary); color: var(--v-primary-fg) !important; padding: .5rem 1rem; border-radius: var(--v-radius); }
+.v-skip:focus { top: 1rem; }
+/* globals.css paints auth-form alerts/status as boxes; the viewer uses them for live counts */
+.viewer :where(p[role="status"], p[role="alert"]) { border: 0; background: none; padding: 0; border-radius: 0; color: inherit; font-size: inherit; }

@@ -70,13 +70,13 @@ export function BookmarkToggle({ kind, id, title }: { kind: Kind; id: string; ti
   );
 }
 
-/** Labelled button for hero sections. */
+/** Round icon button for the detail-page action row. */
 export function BookmarkButton({ kind, id }: { kind: Kind; id: string }) {
   const { has, toggle } = useContext(BookmarkContext);
   const on = has(kind, id);
   return (
-    <button type="button" className="v-btn v-btn-info" aria-pressed={on} onClick={() => toggle(kind, id)}>
-      <BookmarkIcon size={20} filled={on} /> {on ? "In My List" : "My List"}
+    <button type="button" className="v-round" data-on={on} aria-pressed={on} aria-label={on ? "Remove from My List" : "Add to My List"} title={on ? "In My List" : "Add to My List"} onClick={() => toggle(kind, id)}>
+      <BookmarkIcon size={20} filled={on} />
     </button>
   );
 }

@@ -44,7 +44,7 @@ export function LoginForm() {
           Password <input type="password" name="password" autoComplete="current-password" required />
         </label>
       </p>
-      <button type="submit" disabled={busy}>Log in</button>
+      <button type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign In"}</button>
       {error && <p role="alert">{error}</p>}
       {unverified && (
         <p>

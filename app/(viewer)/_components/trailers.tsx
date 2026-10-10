@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { isValidKey, TYPE_LABELS, type VideoSite, type VideoType } from "@/lib/videos";
+import { CloseIcon, PlayIcon } from "./icons";
+import { ScrollRow } from "./scroll-row";
 
 type Video = { id: string; site: VideoSite; key: string; name: string; type: VideoType };
 
@@ -12,69 +14,68 @@ const embedUrl = (v: Video) =>
 
 const thumbUrl = (v: Video) => (v.site === "youtube" ? `https://i.ytimg.com/vi/${encodeURIComponent(v.key)}/hqdefault.jpg` : null);
 
-function Thumb({ video }: { video: Video }) {
-  const src = thumbUrl(video);
-  return src ? (
-    // eslint-disable-next-line @next/next/no-img-element -- YouTube thumbnail CDN
-    <img src={src} alt="" width={480} height={360} loading="lazy" decoding="async" />
-  ) : null;
-}
-
-/** Click-to-load player (nothing from YouTube/Vimeo is requested until play) plus thumbnails for the rest. */
+/** Row of video cards; playing one opens a modal (nothing from YouTube/Vimeo is requested until then). */
 export function Trailers({ videos }: { videos: Video[] }) {
   const list = videos.filter((v) => isValidKey(v.site, v.key));
-  const [index, setIndex] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  const current = list[index];
-  if (!current) return null;
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [playing, setPlaying] = useState<Video | null>(null);
+  if (!list.length) return null;
+
+  const play = (v: Video) => {
+    setPlaying(v);
+    dialog.current?.showModal();
+  };
 
   return (
-    <section className="v-section" aria-labelledby="videos-h">
-      <h2 id="videos-h">Trailers &amp; videos</h2>
-      <div className="v-video-frame">
-        {loaded ? (
-          <iframe
-            key={current.id}
-            src={embedUrl(current)}
-            title={current.name}
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        ) : (
-          <button type="button" onClick={() => setLoaded(true)} aria-label={`Play ${current.name}`}>
-            <Thumb video={current} />
-            <span className="v-play-badge">
-              <span aria-hidden="true">▶</span>
-            </span>
-          </button>
-        )}
-      </div>
-      <p className="v-muted" style={{ marginTop: ".5rem", fontSize: ".9rem" }}>
-        {TYPE_LABELS[current.type]}: {current.name}
-      </p>
-      {list.length > 1 && (
-        <ul className="v-thumbs">
-          {list.map((v, i) => (
+    <div id="trailers">
+      <ScrollRow label="Trailers and videos" variant="video" head={<h2>Trailers &amp; videos</h2>}>
+        {list.map((v) => {
+          const src = thumbUrl(v);
+          return (
             <li key={v.id}>
-              <button
-                type="button"
-                className="v-thumb"
-                aria-pressed={i === index}
-                onClick={() => {
-                  setIndex(i);
-                  setLoaded(true);
-                }}
-              >
-                <span className="v-thumb-img" style={{ display: "block" }}>
-                  <Thumb video={v} />
+              <button type="button" className="v-video" onClick={() => play(v)} aria-label={`Play ${v.name}`}>
+                <span className="v-video-img">
+                  {src && (
+                    // eslint-disable-next-line @next/next/no-img-element -- YouTube thumbnail CDN
+                    <img src={src} alt="" width={480} height={360} loading="lazy" decoding="async" />
+                  )}
+                  <span className="v-video-tag">{TYPE_LABELS[v.type]}</span>
+                  <span className="v-video-play" aria-hidden="true"><PlayIcon size={22} /></span>
                 </span>
-                <span className="v-thumb-name" style={{ display: "-webkit-box" }}>{v.name}</span>
+                <span className="v-video-name">{v.name}</span>
               </button>
             </li>
-          ))}
-        </ul>
-      )}
-    </section>
+          );
+        })}
+      </ScrollRow>
+      <dialog
+        ref={dialog}
+        className="v-modal"
+        aria-label={playing?.name ?? "Video"}
+        onClose={() => setPlaying(null)}
+        onClick={(e) => {
+          if (e.target === dialog.current) dialog.current?.close();
+        }}
+      >
+        <div className="v-modal-frame">
+          {playing && (
+            <iframe
+              key={playing.id}
+              src={embedUrl(playing)}
+              title={playing.name}
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          )}
+        </div>
+        <div className="v-modal-bar">
+          <span>{playing ? `${TYPE_LABELS[playing.type]}: ${playing.name}` : ""}</span>
+          <button type="button" className="v-bar-icon" aria-label="Close video" onClick={() => dialog.current?.close()}>
+            <CloseIcon size={20} />
+          </button>
+        </div>
+      </dialog>
+    </div>
   );
 }

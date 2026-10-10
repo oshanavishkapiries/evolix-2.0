@@ -2,71 +2,65 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { FilmIcon, HomeIcon, MenuIcon, TvIcon } from "@/app/(viewer)/_components/icons";
+
+const PlusIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+);
 
 const LINKS = [
-  { href: "/admin", label: "Overview", match: (p: string) => p === "/admin" },
-  {
-    href: "/admin/movies",
-    label: "Movies",
-    match: (p: string) => p.startsWith("/admin/movies") && p !== "/admin/movies/new",
-  },
-  {
-    href: "/admin/shows",
-    label: "TV shows",
-    match: (p: string) => p.startsWith("/admin/shows") && p !== "/admin/shows/new",
-  },
-  { href: "/admin/movies/new", label: "New movie", match: (p: string) => p === "/admin/movies/new" },
-  { href: "/admin/shows/new", label: "New show", match: (p: string) => p === "/admin/shows/new" },
+  { href: "/admin", label: "Overview", icon: HomeIcon, match: (p: string) => p === "/admin" },
+  { href: "/admin/movies", label: "Movies", icon: FilmIcon, match: (p: string) => p.startsWith("/admin/movies") && p !== "/admin/movies/new" },
+  { href: "/admin/shows", label: "TV shows", icon: TvIcon, match: (p: string) => p.startsWith("/admin/shows") && p !== "/admin/shows/new" },
+  { href: "/admin/movies/new", label: "New movie", icon: PlusIcon, match: (p: string) => p === "/admin/movies/new" },
+  { href: "/admin/shows/new", label: "New show", icon: PlusIcon, match: (p: string) => p === "/admin/shows/new" },
 ];
 
-const linkClass = (active: boolean) =>
-  `block rounded-md px-3 py-2 text-sm font-medium no-underline hover:no-underline ${
-    active
-      ? "bg-indigo-50 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200"
-      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-  }`;
-
 /** Sidebar on desktop (sticky, full height); collapsible top bar below 768px. */
-export function AdminNav() {
+export function AdminNav({ footer }: { footer?: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
-    <aside className="border-b border-gray-200 bg-white md:sticky md:top-0 md:h-dvh md:w-60 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0 dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex items-center justify-between px-4 py-3 md:block md:px-5 md:py-5">
-        <Link href="/admin" className="text-lg font-semibold text-gray-900 no-underline hover:no-underline dark:text-gray-100">
-          Evolix Admin
+    <aside className="adm-side" data-open={open}>
+      <div className="adm-side-head">
+        <Link href="/admin" className="adm-brand">
+          evolix
         </Link>
-        <button
-          type="button"
-          className="btn-secondary md:hidden"
-          aria-expanded={open}
-          aria-controls="admin-menu"
-          onClick={() => setOpen((o) => !o)}
-        >
-          {open ? "Close menu" : "Menu"}
+        <button type="button" className="adm-menu-btn" aria-expanded={open} aria-controls="admin-menu" aria-label="Toggle menu" onClick={() => setOpen((o) => !o)}>
+          <MenuIcon />
         </button>
       </div>
-      <nav id="admin-menu" aria-label="Admin" className={`${open ? "block" : "hidden"} px-3 pb-4 md:block`}>
-        <ul className="space-y-1">
+      <nav id="admin-menu" aria-label="Admin" className="adm-nav">
+        <ul>
           {LINKS.map((l) => {
             const active = l.match(pathname);
+            const Icon = l.icon;
             return (
               <li key={l.href}>
-                <Link href={l.href} className={linkClass(active)} aria-current={active ? "page" : undefined} onClick={close}>
-                  {l.label}
+                <Link href={l.href} aria-current={active ? "page" : undefined} onClick={close}>
+                  <Icon size={20} />
+                  <span>{l.label}</span>
                 </Link>
               </li>
             );
           })}
         </ul>
-        <hr className="my-3 border-gray-200 dark:border-gray-800" />
-        <a href="/dashboard" className={linkClass(false)}>
-          Back to dashboard
+        <hr />
+        <a href="/dashboard" className="adm-back">
+          <span>← Back to site</span>
         </a>
       </nav>
+      {footer}
     </aside>
   );
 }
