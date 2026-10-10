@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isUuid } from "@/lib/viewer/ids";
 import { getMovieDetail } from "@/lib/viewer/detail";
-import { yearOf } from "@/lib/viewer/format";
-import { detailMetadata, MediaSections } from "../../_components/media-sections";
-import { NavMarker } from "../../_components/nav-marker";
-import { TitleHero } from "../../_components/title-hero";
+import { runtimeText, yearOf } from "@/lib/viewer/format";
+import { resumeFor } from "@/lib/viewer/library";
+import { currentUserId } from "@/lib/viewer/user";
+import { DetailHeader, type PlayAction } from "../../_components/detail-header";
+import { detailMetadata } from "../../_components/media-sections";
+import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
 // unpublished title is a real HTTP 404 instead of a streamed 200.
@@ -21,31 +23,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return detailMetadata(year ? `${movie.title} (${year})` : movie.title, movie.overview, movie.backdropPath);
 }
 
+const left = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m left` : `${m} min left`);
+
 export default async function MoviePage({ params }: Props) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const movie = await getMovieDetail(id);
+  const [movie, userId] = await Promise.all([getMovieDetail(id), currentUserId()]);
   if (!movie) notFound();
+  const resume = userId && movie.playable ? await resumeFor(userId, "movie", movie.id) : null;
+  const href = `/watch/movie/${movie.id}`;
+  const play: PlayAction | null = !movie.playable
+    ? null
+    : resume
+      ? { href, label: "Resume", detail: resume.leftMinutes ? left(resume.leftMinutes) : undefined, percent: resume.percent }
+      : { href, label: "Play" };
 
   return (
-    <>
-      <NavMarker active="movies" />
-      <TitleHero
-        detail
+    <PageMotion>
+    <div className="v-detail">
+      <DetailHeader
+        kind="movie"
+        id={movie.id}
         title={movie.title}
         tagline={movie.tagline}
         overview={movie.overview}
         date={movie.releaseDate}
         rating={movie.rating}
-        runtimeMinutes={movie.runtimeMinutes}
         genres={movie.genres}
-        backdropPath={movie.backdropPath}
-        logoPath={movie.logoPath}
+        facts={[runtimeText(movie.runtimeMinutes)].filter(Boolean)}
         posterPath={movie.posterPath}
-        bookmark={{ kind: "movie", id: movie.id }}
-        playHref={movie.playable ? `/watch/movie/${movie.id}` : null}
+        backdropPath={movie.backdropPath}
+        play={play}
       />
-      <MediaSections item={movie} />
-    </>
+    </div>
+    </PageMotion>
   );
 }

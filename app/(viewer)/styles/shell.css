@@ -1,0 +1,125 @@
+/* App shell: top bar, sidebar (expanded / rail / drawer), phone tab bar. Spec §3.1. */
+
+.v-main { padding: var(--v-top-h) 0 0 var(--v-side-w); min-width: 0; transition: padding-left var(--v-dur-2) var(--v-ease); }
+
+/* Top bar */
+.v-top {
+  position: fixed; inset: 0 0 auto 0; z-index: 60; height: var(--v-top-h);
+  padding-top: env(safe-area-inset-top, 0px);
+  display: flex; align-items: center; gap: .75rem; padding-inline: .5rem var(--v-gutter);
+  background: var(--v-bar); box-shadow: 0 1px 0 var(--v-border);
+}
+.v-top-menu { display: none; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; color: var(--v-fg-dim); transition: background var(--v-dur-1), color var(--v-dur-1); }
+.v-top-menu:hover { background: rgb(255 255 255 / .08); color: var(--v-fg); }
+@media (min-width: 48rem) { .v-top-menu { display: grid; } }
+.v-logo { display: flex; align-items: center; flex: none; padding-left: .5rem; }
+@media (min-width: 48rem) { .v-logo { padding-left: 0; } }
+.v-logo img { height: 1.4rem; width: auto; }
+.v-top-search {
+  display: none; align-items: center; gap: .5rem; flex: 0 1 30rem; margin-left: 1rem;
+  height: 2.1rem; padding: 0 .9rem; border-radius: 999px; background: rgb(255 255 255 / .09);
+  color: var(--v-fg-dim); transition: background var(--v-dur-2), box-shadow var(--v-dur-2);
+}
+.v-top-search:focus-within { background: rgb(255 255 255 / .14); box-shadow: 0 0 0 2px rgb(245 166 35 / .5); }
+.viewer .v-top-search input[type="search"] { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; background: transparent; color: var(--v-fg); font-size: .9rem; outline: none; box-shadow: none; }
+.v-top-search input::placeholder { color: var(--v-fg-faint); }
+@media (min-width: 48rem) { .v-top-search { display: flex; } }
+.v-top-end { margin-left: auto; display: flex; align-items: center; gap: .5rem; }
+.v-top-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; color: var(--v-fg-dim); }
+.v-top-icon:hover { color: var(--v-fg); background: rgb(255 255 255 / .08); }
+@media (min-width: 48rem) { .v-top-icon { display: none; } }
+.v-avatar {
+  display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+  background: #d7b98e !important; color: #3b2a12 !important; font-weight: 700; font-size: .9rem;
+  transition: box-shadow var(--v-dur-1);
+}
+.v-avatar:hover, .v-avatar[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--v-primary); }
+.v-menu { position: relative; }
+.v-menu-panel {
+  position: absolute; right: 0; top: calc(100% + .5rem); min-width: 13rem; padding: .35rem;
+  background: var(--v-card); border: 1px solid var(--v-border); border-radius: .5rem; box-shadow: 0 12px 32px rgb(0 0 0 / .55);
+  transform-origin: top right; animation: v-pop var(--v-dur-2) var(--v-ease);
+}
+.v-menu-panel > * { display: block; width: 100%; text-align: left; padding: .55rem .75rem; border-radius: var(--v-radius); font-size: .9rem; }
+.v-menu-panel > a:hover, .v-menu-panel > button:hover { background: var(--v-muted); }
+.v-menu-email { color: var(--v-fg-faint); font-size: .75rem !important; overflow: hidden; text-overflow: ellipsis; }
+@keyframes v-pop { from { opacity: 0; scale: .96; } }
+
+/* Sidebar */
+.v-side {
+  position: fixed; z-index: 55; top: var(--v-top-h); bottom: 0; left: 0; width: var(--v-side-w);
+  display: none; overflow: hidden auto; padding: .5rem 0; background: var(--v-side-bg);
+  transition: width var(--v-dur-2) var(--v-ease), translate var(--v-dur-2) var(--v-ease);
+  scrollbar-width: none;
+}
+@media (min-width: 48rem) { .v-side { display: block; } }
+.v-side a {
+  position: relative; display: flex; align-items: center; gap: 1rem; height: 2.75rem; padding: 0 1.3rem;
+  color: var(--v-fg-dim); font-size: .95rem; white-space: nowrap; transition: color var(--v-dur-1), background var(--v-dur-1);
+}
+.v-side a:hover { color: var(--v-fg); background: rgb(255 255 255 / .05); }
+.v-side a svg { flex: none; }
+.v-side a span { opacity: 1; transition: opacity var(--v-dur-2); }
+.v-side a::before { content: ""; position: absolute; left: 0; top: .5rem; bottom: .5rem; width: 3px; border-radius: 0 3px 3px 0; background: var(--v-primary); scale: 1 0; transition: scale var(--v-dur-2) var(--v-ease); }
+/* Rail: icons only */
+@media (min-width: 48rem) and (max-width: 79.99rem) { .v-side:not([data-drawer="true"]) a span { opacity: 0; } }
+@media (min-width: 80rem) { :root[data-v-sidebar="rail"] .v-side a span { opacity: 0; } }
+/* Tablet drawer */
+@media (max-width: 79.99rem) {
+  .v-side[data-drawer="true"] { width: 15rem; box-shadow: 8px 0 32px rgb(0 0 0 / .5); }
+}
+@media (max-width: 47.99rem) {
+  .v-side[data-drawer="true"] { display: block; }
+}
+.v-scrim { position: fixed; inset: var(--v-top-h) 0 0 0; z-index: 54; background: rgb(0 0 0 / .5); opacity: 0; pointer-events: none; transition: opacity var(--v-dur-2); }
+.v-scrim[data-open="true"] { opacity: 1; pointer-events: auto; }
+@media (min-width: 80rem) { .v-scrim { display: none; } }
+
+/* Active destination (aria-current set from the pathname) */
+:is(.v-side, .v-bottom) a[aria-current="page"] { color: var(--v-primary); }
+.v-side a[aria-current="page"]::before { scale: 1 1; }
+
+/* Phone tab bar */
+.v-bottom {
+  position: fixed; inset: auto 0 0 0; z-index: 50; display: flex; justify-content: space-around;
+  height: calc(3.75rem + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: rgb(22 22 22 / .96); backdrop-filter: blur(12px); border-top: 1px solid var(--v-border);
+}
+.v-bottom a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; color: var(--v-fg-faint); font-size: .7rem; font-weight: 500; transition: color var(--v-dur-1); }
+.v-bottom a:active svg { scale: .9; }
+@media (min-width: 48rem) { .v-bottom { display: none; } }
+@media (max-width: 47.99rem) { .viewer { padding-bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px)); } }
+
+/* Immersive watch pages: no site chrome. The attribute is set by WatchShell while mounted, because
+   cached (hidden) previous pages keep their DOM and would leave a :has() marker behind. */
+body[data-v-watch] .viewer :is(.v-top, .v-side, .v-scrim, .v-bottom) { display: none; }
+body[data-v-watch] .viewer { padding-bottom: 0; }
+body[data-v-watch] .viewer .v-main { padding: 0; }
+body[data-v-watch] { background: #000; }
+
+/* Page header (spec §3.1): title left, tabs centred, view controls right */
+.v-page { padding: 1rem var(--v-gutter) 4rem; }
+.v-ph { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .5rem 1rem; min-height: 3rem; margin-bottom: 1rem; }
+.v-ph-title { min-width: 0; }
+.v-ph-title h1 { font-size: 1.25rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v-ph-title p { font-size: .75rem; color: var(--v-fg-faint); }
+.v-ph-tabs { display: flex; gap: 1.75rem; }
+.v-ph-tabs a { position: relative; padding: .5rem .25rem; font-weight: 500; font-size: .95rem; color: var(--v-fg-dim); transition: color var(--v-dur-1); }
+.v-ph-tabs a:hover { color: var(--v-fg); }
+.v-ph-tabs a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--v-primary); scale: 0 1; transition: scale var(--v-dur-2) var(--v-ease); }
+.v-ph-tabs a[aria-current="page"] { color: var(--v-primary); }
+.v-ph-tabs a[aria-current="page"]::after { scale: 1 1; }
+.v-ph-controls { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 1rem; }
+@media (max-width: 47.99rem) {
+  .v-ph { grid-template-columns: 1fr; }
+  .v-ph-tabs { gap: 1.25rem; overflow-x: auto; scrollbar-width: none; }
+  .v-ph-controls { display: none; }
+}
+
+/* Account */
+.v-account { display: grid; gap: 1.25rem; max-width: 40rem; }
+.v-panel { background: var(--v-card); border-radius: .5rem; padding: 1.25rem; }
+.v-dl { display: grid; grid-template-columns: max-content 1fr; gap: .6rem 1.5rem; font-size: .9rem; }
+.v-dl dt { color: var(--v-fg-faint); }
+.v-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.v-alert { color: #fca5a5; }

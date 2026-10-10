@@ -10,9 +10,11 @@ import {
   type TypeFilter,
 } from "@/lib/viewer/catalog";
 import { GridSkeleton } from "../_components/skeletons";
-import { NavMarker } from "../_components/nav-marker";
-import { PosterCard } from "../_components/poster-card";
+import { MediaCard } from "../_components/media-card";
+import { PageHeader } from "../_components/page-header";
 import { SearchBar } from "../_components/search-bar";
+import { CardSizeSlider } from "../_components/view-controls";
+import { PageMotion, Reveal, SkeletonOut } from "../_components/motion";
 
 export const metadata: Metadata = { title: "Browse" };
 
@@ -46,13 +48,14 @@ function href(base: Query, patch: Partial<Query>) {
 
 export default function SearchPage({ searchParams }: { searchParams: Promise<Raw> }) {
   return (
+    <PageMotion>
     <div className="v-page">
-      <h1 className="v-sr">Browse</h1>
-      <NavMarker active="search" />
-      <Suspense fallback={<GridSkeleton count={12} />}>
-        <SearchContent searchParams={searchParams} />
+      <PageHeader title="Search" subtitle="Movies & Shows" controls={<CardSizeSlider />} />
+      <Suspense fallback={<SkeletonOut><GridSkeleton count={12} /></SkeletonOut>}>
+        <Reveal><SearchContent searchParams={searchParams} /></Reveal>
       </Suspense>
     </div>
+    </PageMotion>
   );
 }
 
@@ -116,14 +119,14 @@ async function Results({ query }: { query: Query }) {
   }
   return (
     <>
-      <p className="v-muted" style={{ marginBottom: "1rem", fontSize: ".9rem" }} role="status">
+      <p className="v-muted v-grid-bar" role="status" aria-live="polite">
         {total} {total === 1 ? "title" : "titles"}
         {q.length >= MIN_QUERY ? ` for "${q}"` : ""}
       </p>
       <ul className="v-grid">
         {items.map((item) => (
           <li key={`${item.kind}-${item.id}`}>
-            <PosterCard item={item} badge={type === "all"} />
+            <MediaCard item={item} badge={type === "all"} />
           </li>
         ))}
       </ul>

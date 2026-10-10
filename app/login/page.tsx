@@ -1,17 +1,20 @@
+import { AuthShell } from "@/app/_components/auth-shell";
 import { Suspense } from "react";
 import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
-    <main className="auth card">
-      <h1>Log in</h1>
-      <Suspense fallback={<p>Loading...</p>}>
+    <AuthShell
+      title="Log in"
+      subtitle="Welcome back to Evolix"
+      links={[
+        { href: "/forgot-password", label: "Forgot password?" },
+        { href: "/register", label: "New here? Create an account" },
+      ]}
+    >
+      <Suspense fallback={null}>
         <LoginForm />
       </Suspense>
-      <nav className="flex justify-between text-sm">
-        <a href="/register">Register</a>
-        <a href="/forgot-password">Forgot password?</a>
-      </nav>
-    </main>
+    </AuthShell>
   );
 }
