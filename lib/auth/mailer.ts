@@ -1,7 +1,7 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "@/lib/env";
 
-let transporter: nodemailer.Transporter | undefined;
+let transporter: Transporter | undefined;
 
 export function getTransporter() {
   transporter ??= nodemailer.createTransport({
