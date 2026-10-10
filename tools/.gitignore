@@ -5,3 +5,4 @@
 downloads/
 subtitles/
 *.log
+__pycache__
