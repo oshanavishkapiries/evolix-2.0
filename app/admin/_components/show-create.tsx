@@ -3,10 +3,13 @@
 import { FormEvent, useState } from "react";
 import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { navigate } from "@/lib/client/api";
-import { EntityFields, FormValues, SHOW_DEFS, fromForm, toForm } from "./fields";
-import { SearchPicker } from "./search-picker";
+import { EntityFields, FormValues, SHOW_DEFS, fromForm, toForm, withoutImages } from "./fields";
 import { ImagePicker, SeasonImagePicker, selectionFromValues, valuesWithSelection } from "./image-picker";
+import { SearchPicker } from "./search-picker";
+import { Switch } from "./switch";
+import { useToast } from "./toast";
 import { PrefillVideos, defaultPicks, pickedVideos } from "./videos-section";
+import { StepIndicator, WizardBar } from "./wizard-steps";
 import { EMPTY_CANDIDATES, type ImageCandidates } from "@/lib/images";
 import type { VideoPrefill } from "@/lib/videos";
 
@@ -14,6 +17,7 @@ type Episode = { episodeNumber: number; name: string; isVisible: boolean } & Rec
 type Season = { seasonNumber: number; name: string; isVisible: boolean; episodes: Episode[] } & Record<string, unknown>;
 
 export function ShowCreate() {
+  const toast = useToast();
   const [tmdbId, setTmdbId] = useState<number | null>(null);
   const [values, setValues] = useState<FormValues>({});
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -22,18 +26,19 @@ export function ShowCreate() {
   const [images, setImages] = useState<ImageCandidates>(EMPTY_CANDIDATES);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [published, setPublished] = useState(false);
-  const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const step = saving ? 3 : tmdbId === null ? 1 : 2;
+  const detailDefs = withoutImages(SHOW_DEFS);
 
   async function select(id: number) {
-    setError("");
-    setStatus("Loading show, seasons and episodes from TMDB (this can take a moment)...");
+    setLoading(true);
     const res = await adminApi<{ show: Record<string, unknown> & { seasons: Season[]; warnings: string[]; videos: VideoPrefill[]; images: ImageCandidates } }>(
       "GET",
       `/api/admin/tmdb/tv/${id}`,
     );
-    setStatus("");
-    if (!res.ok) return setError(errorText(res));
+    setLoading(false);
+    if (!res.ok) return toast.error(errorText(res));
     setTmdbId(id);
     setValues(toForm(res.show, SHOW_DEFS));
     setSeasons(res.show.seasons);
@@ -41,17 +46,16 @@ export function ShowCreate() {
     setVideos(res.show.videos ?? []);
     setPicked(defaultPicks(res.show.videos ?? []));
     setImages(res.show.images ?? EMPTY_CANDIDATES);
+    setPublished(false);
   }
 
-  const setSeason = (i: number, fn: (s: Season) => Season) =>
-    setSeasons((all) => all.map((s, idx) => (idx === i ? fn(s) : s)));
+  const setSeason = (i: number, fn: (s: Season) => Season) => setSeasons((all) => all.map((s, idx) => (idx === i ? fn(s) : s)));
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const parsed = fromForm(values, SHOW_DEFS);
-    if ("error" in parsed) return setError(parsed.error);
-    setError("");
-    setStatus("Saving...");
+    if ("error" in parsed) return toast.error(parsed.error);
+    setSaving(true);
     const res = await adminApi<{ id: string }>("POST", "/api/admin/shows", {
       ...parsed.data,
       tmdbId,
@@ -60,35 +64,54 @@ export function ShowCreate() {
       videos: pickedVideos(videos, picked),
     });
     if (!res.ok) {
-      setStatus("");
-      return setError(errorText(res));
+      setSaving(false);
+      return toast.error(errorText(res));
     }
     navigate(`/admin/shows/${res.id}`);
   }
 
   return (
-    <>
-      <SearchPicker type="tv" onSelect={select} />
-      {status && <p role="status">{status}</p>}
-      {error && <p role="alert">{error}</p>}
+    <div className="space-y-6">
+      <StepIndicator current={step} />
+      <div hidden={tmdbId !== null}>
+        <SearchPicker type="tv" onSelect={select} busy={loading} />
+        {loading && (
+          <p className="mt-3 flex items-center gap-2 text-sm" role="status">
+            <span className="spinner" aria-hidden="true" /> Loading show, seasons and episodes from TMDB (this can take a moment)...
+          </p>
+        )}
+      </div>
       {tmdbId !== null && (
-        <form onSubmit={onSubmit}>
-          <fieldset>
-            <legend>Show details (TMDB {tmdbId})</legend>
-            {tmdbImage(values.posterPath) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={tmdbImage(values.posterPath)!} alt="Poster" width={150} className="mb-4 w-36 rounded-md" />
-            )}
-            <EntityFields defs={SHOW_DEFS} values={values} onChange={setValues} />
-            <p>
-              <label>
-                Published{" "}
-                <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />
-              </label>
-            </p>
-          </fieldset>
-          <fieldset>
-            <legend>Seasons and episodes (uncheck to hide)</legend>
+        <form onSubmit={onSubmit} aria-label="Review show" className="space-y-6">
+          <section className="card space-y-4">
+            <h2 className="text-base">Details (TMDB {tmdbId})</h2>
+            <div className="flex flex-wrap items-start gap-4">
+              {tmdbImage(values.posterPath) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={tmdbImage(values.posterPath)!} alt="Poster" width={150} className="w-28 rounded-md" />
+              )}
+              <div className="min-w-0 flex-1">
+                <Switch
+                  checked={published}
+                  label="Publish immediately"
+                  onLabel="Publish immediately"
+                  offLabel="Save as draft"
+                  onToggle={async (n) => {
+                    setPublished(n);
+                    return true;
+                  }}
+                />
+              </div>
+            </div>
+            <EntityFields defs={detailDefs} values={values} onChange={setValues} />
+          </section>
+          <section className="card space-y-3">
+            <h2 className="text-base">Images</h2>
+            <ImagePicker candidates={images} value={selectionFromValues(values)} onChange={(sel) => setValues((v) => valuesWithSelection(v, sel))} />
+          </section>
+          <section className="card space-y-3">
+            <h2 className="text-base">Seasons and episodes</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Untick a season or an episode to import it hidden.</p>
             {warnings.map((w) => (
               <p role="alert" key={w}>
                 {w}
@@ -99,11 +122,7 @@ export function ShowCreate() {
               <details key={s.seasonNumber}>
                 <summary>
                   <label>
-                    <input
-                      type="checkbox"
-                      checked={s.isVisible}
-                      onChange={(e) => setSeason(i, (x) => ({ ...x, isVisible: e.target.checked }))}
-                    />{" "}
+                    <input type="checkbox" checked={s.isVisible} onChange={(e) => setSeason(i, (x) => ({ ...x, isVisible: e.target.checked }))} />
                     Season {s.seasonNumber}: {s.name} ({s.episodes.length} episodes)
                   </label>
                 </summary>
@@ -116,7 +135,7 @@ export function ShowCreate() {
                   )}
                   <div className="min-w-0 flex-1">
                     <SeasonImagePicker
-                      tmdbId={tmdbId!}
+                      tmdbId={tmdbId}
                       seasonNumber={s.seasonNumber}
                       value={typeof s.posterPath === "string" ? s.posterPath : null}
                       onChange={(p) => setSeason(i, (x) => ({ ...x, posterPath: p }))}
@@ -136,7 +155,7 @@ export function ShowCreate() {
                               episodes: x.episodes.map((y, k) => (k === j ? { ...y, isVisible: e.target.checked } : y)),
                             }))
                           }
-                        />{" "}
+                        />
                         E{ep.episodeNumber}: {ep.name}
                       </label>
                     </li>
@@ -144,19 +163,11 @@ export function ShowCreate() {
                 </ul>
               </details>
             ))}
-          </fieldset>
-          <fieldset>
-            <legend>Images</legend>
-            <ImagePicker
-              candidates={images}
-              value={selectionFromValues(values)}
-              onChange={(sel) => setValues((v) => valuesWithSelection(v, sel))}
-            />
-          </fieldset>
+          </section>
           <PrefillVideos videos={videos} picked={picked} onChange={setPicked} />
-          <button type="submit">Save show</button>
+          <WizardBar saving={saving} saveLabel="Save show" onBack={() => setTmdbId(null)} />
         </form>
       )}
-    </>
+    </div>
   );
 }
