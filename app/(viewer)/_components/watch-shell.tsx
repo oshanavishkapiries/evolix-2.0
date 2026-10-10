@@ -43,6 +43,7 @@ export function WatchShell({
     timer.current = setTimeout(() => setIdle(true), IDLE_MS);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.setAttribute("data-v-watch", "");
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || document.fullscreenElement) return;
       if (panel) setPanel(null);
@@ -60,6 +61,7 @@ export function WatchShell({
     window.addEventListener("hashchange", onHash);
     return () => {
       document.body.style.overflow = prev;
+      document.body.removeAttribute("data-v-watch");
       clearTimeout(timer.current);
       window.removeEventListener(WATCH_PANEL_EVENT, onPanel);
       window.removeEventListener("keydown", onKey);

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
-import { NavMarker } from "./nav-marker";
 import { EmbedFrame } from "./embed-frame";
 import { WatchPlayer } from "./watch-player";
 import { WatchShell } from "./watch-shell";
@@ -63,7 +62,6 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
       sources={sourcesPanel}
       episodes={nav || side ? <>{side}{nav}</> : undefined}
     >
-      <NavMarker active="watch" />
       {!selected ? (
         <div className="v-player-msg" role="status">
           <strong>No sources available yet</strong>

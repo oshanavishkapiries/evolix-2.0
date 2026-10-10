@@ -97,11 +97,12 @@
 @media (min-width: 48rem) { .v-bottom { display: none; } }
 @media (max-width: 47.99rem) { .viewer { padding-bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px)); } }
 
-/* Immersive watch pages: no site chrome */
-.viewer:has([data-nav="watch"]) :is(.v-top, .v-side, .v-scrim, .v-bottom) { display: none; }
-.viewer:has([data-nav="watch"]) { padding-bottom: 0; }
-.viewer:has([data-nav="watch"]) .v-main { padding: 0; }
-body:has(.viewer [data-nav="watch"]) { background: #000; }
+/* Immersive watch pages: no site chrome. The attribute is set by WatchShell while mounted, because
+   cached (hidden) previous pages keep their DOM and would leave a :has() marker behind. */
+body[data-v-watch] .viewer :is(.v-top, .v-side, .v-scrim, .v-bottom) { display: none; }
+body[data-v-watch] .viewer { padding-bottom: 0; }
+body[data-v-watch] .viewer .v-main { padding: 0; }
+body[data-v-watch] { background: #000; }
 
 /* Page header (spec §3.1): title left, tabs centred, view controls right */
 .v-page { padding: 1rem var(--v-gutter) 4rem; }
