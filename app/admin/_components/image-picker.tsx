@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
 import { pickImages } from "@/lib/cms/image-pick";
 import {
@@ -11,8 +11,7 @@ import {
   type ImageSelection,
 } from "@/lib/images";
 import type { FormValues } from "./fields";
-
-const ALL = ["posterPath", "backdropPath", "logoPath", "galleryBackdrops"] as const;
+import { SaveBar, useDirtyForm } from "./form-kit";
 
 /** Reads the picker selection out of the entity form values. */
 export function selectionFromValues(v: FormValues): ImageSelection {
@@ -38,8 +37,6 @@ export function valuesWithSelection(v: FormValues, sel: ImageSelection): FormVal
     galleryBackdrops: sel.galleryBackdrops.join(", "),
   };
 }
-
-export const IMAGE_KEYS = ALL;
 
 function Meta({ c }: { c: ImageCandidate }) {
   return (
@@ -248,74 +245,81 @@ export function ImagePicker({
   );
 }
 
-/** Edit-page section: loads candidates live from TMDB, then saves via PATCH. */
+/** Images tab: loads candidates live from TMDB; Save stays disabled until the selection changed. */
 export function ChooseImages({
   kind,
   tmdbId,
-  values,
-  onValues,
+  initial,
   onSave,
 }: {
   kind: "movie" | "tv";
   tmdbId: number;
-  values: FormValues;
-  onValues: (next: FormValues) => void;
+  initial: ImageSelection;
   /** Persists the selection (PATCH); resolves true on success. */
   onSave: (sel: ImageSelection) => Promise<boolean>;
 }) {
   const [candidates, setCandidates] = useState<ImageCandidates | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const form = useDirtyForm(valuesWithSelection({}, initial));
 
-  const load = useCallback(async () => {
-    setError("");
-    setBusy(true);
-    const res = await adminApi<ImageCandidates>("GET", `/api/admin/tmdb/${kind}/${tmdbId}/images`);
-    setBusy(false);
-    if (!res.ok) return setError(errorText(res));
-    setCandidates({ posters: res.posters, backdrops: res.backdrops, logos: res.logos });
-  }, [kind, tmdbId]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await adminApi<ImageCandidates>("GET", `/api/admin/tmdb/${kind}/${tmdbId}/images`);
+      if (cancelled) return;
+      if (!res.ok) return setError(errorText(res));
+      setError("");
+      setCandidates({ posters: res.posters, backdrops: res.backdrops, logos: res.logos });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, tmdbId, attempt]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    if (await onSave(selectionFromValues(form.values))) form.markSaved(form.values);
+    setSaving(false);
+  }
 
   return (
-    <details
-      className="card"
-      onToggle={(e) => {
-        if ((e.currentTarget as HTMLDetailsElement).open && !candidates && !busy) void load();
-      }}
-    >
-      <summary>Choose images</summary>
-      {busy && <p role="status">Loading images from TMDB...</p>}
+    <form onSubmit={submit}>
       {error && (
         <p role="alert">
           {error}{" "}
-          <button type="button" className="btn-secondary" onClick={load}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setCandidates(null);
+              setError("");
+              setAttempt((a) => a + 1);
+            }}
+          >
             Retry
           </button>
         </p>
       )}
-      {candidates && (
-        <>
-          <ImagePicker
-            candidates={candidates}
-            value={selectionFromValues(values)}
-            onChange={(sel) => onValues(valuesWithSelection(values, sel))}
-          />
-          <p>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                await onSave(selectionFromValues(values));
-                setBusy(false);
-              }}
-            >
-              Save images
-            </button>
+      {!candidates && !error && (
+        <div className="space-y-3" aria-busy="true">
+          <p className="flex items-center gap-2 text-sm">
+            <span className="spinner" aria-hidden="true" /> Loading images from TMDB...
           </p>
-        </>
+          <div className="skeleton h-48" />
+        </div>
       )}
-    </details>
+      {candidates && (
+        <ImagePicker
+          candidates={candidates}
+          value={selectionFromValues(form.values)}
+          onChange={(sel) => form.setValues(valuesWithSelection(form.values, sel))}
+        />
+      )}
+      <SaveBar dirty={form.dirty} saving={saving} onDiscard={form.discard} label="Save images" />
+    </form>
   );
 }
 

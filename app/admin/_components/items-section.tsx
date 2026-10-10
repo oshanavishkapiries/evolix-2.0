@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
+import { useConfirm } from "./confirm-dialog";
 import { EntityFields, FieldDef, FormValues, fromForm, toForm } from "./fields";
 
 type Item = Record<string, unknown> & { id: string };
@@ -31,7 +32,9 @@ function Section({
   defs,
   parent,
   summary,
+  noun,
 }: {
+  noun: string;
   title: string;
   endpoint: string;
   listKey: string;
@@ -39,6 +42,7 @@ function Section({
   parent: Parent;
   summary: (i: Item) => string;
 }) {
+  const confirm = useConfirm();
   const query = new URLSearchParams(parent).toString();
   const [items, setItems] = useState<Item[] | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -79,7 +83,7 @@ function Section({
   }
 
   async function remove(id: string) {
-    if (!window.confirm("Delete this item?")) return;
+    if (!(await confirm({ title: `Delete this ${noun}?`, body: "This cannot be undone." }))) return;
     const res = await adminApi("DELETE", `${endpoint}/${id}`);
     if (!res.ok) return setError(errorText(res));
     if (editing === id) reset();
@@ -90,9 +94,14 @@ function Section({
     <section className="card">
       <h3>{title}</h3>
       {items === null ? (
-        <p>Loading...</p>
+        <div className="space-y-2" aria-busy="true">
+          <div className="skeleton h-10" />
+          <div className="skeleton h-10" />
+        </div>
       ) : items.length === 0 ? (
-        <p>None yet.</p>
+        <p className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm dark:border-gray-700">
+          No {title.toLowerCase()} yet - add the first one below.
+        </p>
       ) : (
         <ul className="rows">
           {items.map((i) => (
@@ -139,28 +148,34 @@ function Section({
   );
 }
 
-/** Sources + subtitles management for a movie or an episode. */
-export function MediaManager({ parent }: { parent: Parent }) {
+/** Sources of a movie or episode. */
+export function SourcesSection({ parent }: { parent: Parent }) {
   return (
-    <>
-      <Section
-        title="Sources"
-        endpoint="/api/admin/sources"
-        listKey="sources"
-        defs={SOURCE_DEFS}
-        parent={parent}
-        summary={(i) =>
-          `[${i.sortOrder}] ${i.label} (${i.kind}${i.quality ? `, ${i.quality}` : ""}${i.isActive ? "" : ", inactive"}) ${i.url}`
-        }
-      />
-      <Section
-        title="Subtitles"
-        endpoint="/api/admin/subtitles"
-        listKey="subtitles"
-        defs={SUBTITLE_DEFS}
-        parent={parent}
-        summary={(i) => `[${i.sortOrder}] ${i.label} (${i.language}, ${i.format}) ${i.url}`}
-      />
-    </>
+    <Section
+      title="Sources"
+      noun="source"
+      endpoint="/api/admin/sources"
+      listKey="sources"
+      defs={SOURCE_DEFS}
+      parent={parent}
+      summary={(i) =>
+        `[${i.sortOrder}] ${i.label} (${i.kind}${i.quality ? `, ${i.quality}` : ""}${i.isActive ? "" : ", inactive"}) ${i.url}`
+      }
+    />
+  );
+}
+
+/** Subtitles of a movie or episode. */
+export function SubtitlesSection({ parent }: { parent: Parent }) {
+  return (
+    <Section
+      title="Subtitles"
+      noun="subtitle"
+      endpoint="/api/admin/subtitles"
+      listKey="subtitles"
+      defs={SUBTITLE_DEFS}
+      parent={parent}
+      summary={(i) => `[${i.sortOrder}] ${i.label} (${i.language}, ${i.format}) ${i.url}`}
+    />
   );
 }

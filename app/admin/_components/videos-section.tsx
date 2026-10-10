@@ -11,6 +11,9 @@ import {
   listVideos,
   updateVideo,
 } from "@/lib/client/admin";
+import { useConfirm } from "./confirm-dialog";
+import { Switch } from "./switch";
+import { useToast } from "./toast";
 import {
   TYPE_LABELS,
   VIDEO_SITES,
@@ -131,12 +134,13 @@ const EMPTY: Form = { input: "", site: "youtube", name: "", type: "trailer", off
 
 /** Videos management (list, reorder, add, edit, delete, TMDB import) for a movie or a show. */
 export function VideosSection({ parent }: { parent: VideoParent }) {
+  const confirm = useConfirm();
+  const toast = useToast();
   const parentKey = JSON.stringify(parent);
   const [items, setItems] = useState<AdminVideo[] | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<Form>(EMPTY);
   const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -161,7 +165,6 @@ export function VideosSection({ parent }: { parent: VideoParent }) {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    setStatus("");
     const language = form.language.trim().toLowerCase();
     const common = {
       name: form.name.trim(),
@@ -208,7 +211,7 @@ export function VideosSection({ parent }: { parent: VideoParent }) {
   }
 
   async function remove(v: AdminVideo) {
-    if (!window.confirm(`Delete the video "${v.name}"?`)) return;
+    if (!(await confirm({ title: "Delete video?", body: `"${v.name}" will be removed from the list.` }))) return;
     const res = await deleteVideo(v.id);
     if (!res.ok) return setError(errorText(res));
     if (editing === v.id) reset();
@@ -220,7 +223,6 @@ export function VideosSection({ parent }: { parent: VideoParent }) {
     const other = index + dir;
     if (other < 0 || other >= items.length) return;
     setError("");
-    setStatus("");
     const next = [...items];
     [next[index], next[other]] = [next[other], next[index]];
     // Renumber by position so equal or gapped sort orders still swap correctly.
@@ -235,12 +237,11 @@ export function VideosSection({ parent }: { parent: VideoParent }) {
 
   async function importFromTmdb() {
     setError("");
-    setStatus("");
     setBusy(true);
     const res = await importTmdbVideos(parent);
     setBusy(false);
     if (!res.ok) return setError(errorText(res));
-    setStatus(`Added ${res.added}, skipped ${res.skipped}`);
+    toast.success(`Added ${res.added}, skipped ${res.skipped}`);
     await load();
   }
 
@@ -252,17 +253,36 @@ export function VideosSection({ parent }: { parent: VideoParent }) {
           Load videos from TMDB
         </button>
       </p>
-      <p role="status">{status}</p>
       {items === null ? (
-        <p>Loading...</p>
+        <div className="space-y-2" aria-busy="true">
+          <div className="skeleton h-12" />
+          <div className="skeleton h-12" />
+        </div>
       ) : items.length === 0 ? (
-        <p>None yet.</p>
+        <p className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm dark:border-gray-700">
+          No videos yet - load from TMDB or add one below.
+        </p>
       ) : (
         <ul className="rows">
           {items.map((v, i) => (
             <li key={v.id}>
               <VideoSummary v={v} hidden={!v.isVisible} />
               <span className="toolbar">
+                <Switch
+                  checked={v.isVisible}
+                  label={`Visible: ${v.name}`}
+                  onLabel="Visible"
+                  offLabel="Hidden"
+                  onToggle={async (next) => {
+                    const res = await updateVideo(v.id, { isVisible: next });
+                    if (!res.ok) {
+                      setError(errorText(res));
+                      return false;
+                    }
+                    setItems((all) => all?.map((x) => (x.id === v.id ? { ...x, isVisible: next } : x)) ?? all);
+                    return true;
+                  }}
+                />
                 <button type="button" className="btn-secondary" disabled={busy || i === 0} onClick={() => move(i, -1)}>
                   Up<span className="sr-only"> {v.name}</span>
                 </button>

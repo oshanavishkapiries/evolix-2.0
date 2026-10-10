@@ -165,3 +165,8 @@ export const EPISODE_DEFS: FieldDef[] = [
   { key: "runtimeMinutes", label: "Runtime (minutes)", kind: "int" },
   { key: "stillPath", label: "Still path", kind: "path" },
 ];
+
+const IMAGE_KEYS = ["posterPath", "backdropPath", "logoPath", "galleryBackdrops"];
+/** Text fields only: the image paths are edited on the Images tab. */
+export const withoutImages = (defs: FieldDef[]) => defs.filter((d) => !IMAGE_KEYS.includes(d.key));
+export const onlyImages = (defs: FieldDef[]) => defs.filter((d) => IMAGE_KEYS.includes(d.key));
