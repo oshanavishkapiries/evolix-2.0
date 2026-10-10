@@ -15,6 +15,7 @@ export type Card = {
   title: string;
   date: string | null;
   posterPath: string | null;
+  backdropPath: string | null;
   rating: number | null;
 };
 
@@ -24,7 +25,7 @@ export type TypeFilter = "all" | CardKind;
 export const SEARCH_PAGE_SIZE = 24;
 export const MIN_QUERY = 2;
 
-type Filters = { q?: string; genre?: string };
+type Filters = { q?: string; genre?: string; withBackdrop?: boolean };
 
 /** Same output columns for movies and shows so the two can be UNIONed. */
 function cardQuery(kind: CardKind, f: Filters) {
@@ -34,7 +35,7 @@ function cardQuery(kind: CardKind, f: Filters) {
       : { table: shows, title: shows.name, original: shows.originalName, date: shows.firstAirDate };
   const { table } = t;
   return {
-    where: whereFor(table.isPublished, table.genres, [t.title, t.original], f),
+    where: whereFor(table.isPublished, table.genres, table.backdropPath, [t.title, t.original], f),
     select: () =>
       db
         .select({
@@ -44,6 +45,7 @@ function cardQuery(kind: CardKind, f: Filters) {
           sortTitle: sql<string>`lower(${t.title})`.as("sort_title"),
           date: sql<string | null>`${t.date}`.as("date"),
           posterPath: sql<string | null>`${table.posterPath}`.as("poster_path"),
+          backdropPath: sql<string | null>`${table.backdropPath}`.as("backdrop_path"),
           rating: sql<number | null>`${table.rating}`.as("rating"),
           createdAt: sql<Date>`${table.createdAt}`.as("created_at"),
         })
@@ -51,8 +53,9 @@ function cardQuery(kind: CardKind, f: Filters) {
   };
 }
 
-function whereFor(published: AnyColumn, genres: AnyColumn, textColumns: AnyColumn[], f: Filters): SQL | undefined {
+function whereFor(published: AnyColumn, genres: AnyColumn, backdrop: AnyColumn, textColumns: AnyColumn[], f: Filters): SQL | undefined {
   const parts: (SQL | undefined)[] = [eq(published, true)];
+  if (f.withBackdrop) parts.push(sql`${backdrop} is not null`);
   const q = f.q?.trim();
   if (q && q.length >= MIN_QUERY) {
     const pattern = `%${escapeLike(q)}%`;
@@ -104,21 +107,24 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
 
   const [items, total] = await Promise.all([rows, counts()]);
   return {
-    items: items.map(({ kind, id, title, date, posterPath, rating }) => ({ kind, id, title, date, posterPath, rating })),
+    items: items.map(({ kind, id, title, date, posterPath, backdropPath, rating }) => ({ kind, id, title, date, posterPath, backdropPath, rating })),
     total,
   };
 }
 
 export const listLatest = (kind: CardKind, limit = 20) => browse({ type: kind, limit }).then((r) => r.items);
 
+/** Home "Featured" row: newest titles that have a backdrop (curation can replace this later). */
+export const listFeatured = (limit = 10) => browse({ withBackdrop: true, limit }).then((r) => r.items);
+
 /** Genres shared by at least `minItems` published titles, most populated first. */
-export async function listGenres(minItems = 4, limit = 4): Promise<string[]> {
+export async function listGenres(minItems = 4, limit = 4, kind?: CardKind): Promise<string[]> {
+  const parts = [
+    kind !== "show" && sql`select unnest(genres) as g from movies where is_published`,
+    kind !== "movie" && sql`select unnest(genres) as g from shows where is_published`,
+  ].filter((p): p is SQL => Boolean(p));
   const res = await db.execute(sql`
-    select g as genre from (
-      select unnest(genres) as g from movies where is_published
-      union all
-      select unnest(genres) as g from shows where is_published
-    ) t
+    select g as genre from (${sql.join(parts, sql` union all `)}) t
     where g <> ''
     group by g
     having count(*) >= ${minItems}

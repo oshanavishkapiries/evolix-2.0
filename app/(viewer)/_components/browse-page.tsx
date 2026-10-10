@@ -4,7 +4,7 @@ import { browse, SEARCH_PAGE_SIZE, SORTS, type Sort } from "@/lib/viewer/catalog
 import type { CardKind } from "@/lib/viewer/ids";
 import { GridSkeleton } from "./skeletons";
 import { NavMarker } from "./nav-marker";
-import { PosterCard } from "./poster-card";
+import { MediaCard } from "./media-card";
 
 type Raw = Record<string, string | string[] | undefined>;
 
@@ -84,7 +84,7 @@ async function Content({ kind, basePath, searchParams }: { kind: CardKind; baseP
         <ul className="v-grid">
           {items.map((item) => (
             <li key={item.id}>
-              <PosterCard item={item} />
+              <MediaCard item={item} />
             </li>
           ))}
         </ul>

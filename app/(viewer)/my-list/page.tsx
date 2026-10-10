@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { currentUserId } from "@/lib/viewer/user";
 import { listBookmarks } from "@/lib/viewer/library";
 import { NavMarker } from "../_components/nav-marker";
-import { PosterCard } from "../_components/poster-card";
+import { MediaCard } from "../_components/media-card";
 import { GridSkeleton } from "../_components/skeletons";
 
 export const metadata: Metadata = { title: "My List" };
@@ -37,7 +37,7 @@ async function Items() {
     <ul className="v-grid">
       {items.map((item) => (
         <li key={`${item.kind}-${item.id}`}>
-          <PosterCard item={item} badge />
+          <MediaCard item={item} badge />
         </li>
       ))}
     </ul>
