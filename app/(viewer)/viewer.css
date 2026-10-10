@@ -1,42 +1,4 @@
-/*
- * Viewer theme (Netflix/Plex-like dark + gold). Unlayered on purpose: it must win over the
- * neutral @layer base/components styles in globals.css, and everything is scoped to .viewer
- * so the auth and admin pages keep their look.
- */
-body:has(.viewer) { background: #0a0a0f; }
-
-.viewer {
-  --v-bg: #0a0a0f;
-  --v-card: #12121a;
-  --v-secondary: #1e1e2e;
-  --v-muted: #252538;
-  --v-fg: #fff;
-  --v-fg-dim: #b3b3b3;
-  --v-fg-faint: #808080;
-  --v-primary: #f5a623;
-  --v-primary-fg: #000;
-  --v-border: #2a2a3e;
-  --v-nav-h: 4rem;
-  --v-gutter: clamp(1rem, 4vw, 3rem);
-  min-height: 100dvh;
-  background: var(--v-bg);
-  color: var(--v-fg);
-  color-scheme: dark;
-}
-.viewer :where(a) { color: inherit; text-decoration: none; }
-.viewer :where(a):hover { text-decoration: none; }
-.viewer :where(main, section, form, details, article) > * + * { margin-top: 0; }
-.viewer :where(h1, h2, h3) { font-weight: 700; line-height: 1.2; }
-.viewer :where(p) { margin: 0; }
-.viewer :where(button) {
-  font: inherit; color: inherit; background: none; border-radius: 0; padding: 0; cursor: pointer;
-}
-.viewer :where(button):disabled { opacity: .5; cursor: not-allowed; }
-.viewer :focus-visible { outline: 2px solid var(--v-primary); outline-offset: 2px; }
-.viewer :where(img) { display: block; max-width: 100%; }
-.v-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.v-skip { position: absolute; left: 1rem; top: -4rem; z-index: 100; background: var(--v-primary); color: var(--v-primary-fg) !important; padding: .5rem 1rem; border-radius: .375rem; }
-.v-skip:focus { top: 1rem; }
+/* Viewer components (cards, rows, detail, watch). Tokens: styles/tokens.css; shell: styles/shell.css. */
 
 /* Buttons */
 .v-btn {
@@ -52,78 +14,15 @@ body:has(.viewer) { background: #0a0a0f; }
 .v-btn-play:hover { background: rgb(255 255 255 / .8); }
 .v-btn-info { background: rgb(107 114 128 / .7); padding: .75rem 1.75rem; }
 .v-btn-info:hover { background: rgb(107 114 128 / .5); }
+.v-btn-danger { background: rgb(229 72 77 / .18); color: #ffb4b6; }
+.v-btn-danger:hover { background: rgb(229 72 77 / .3); }
 .v-btn-sm { padding: .4rem .9rem; font-size: .875rem; }
 .v-btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
 
-/* Nav */
-.v-nav {
-  position: fixed; inset: 0 0 auto 0; z-index: 50; height: var(--v-nav-h);
-  display: flex; align-items: center; gap: 1.25rem; padding: 0 var(--v-gutter);
-  background: linear-gradient(to bottom, rgb(10 10 15 / .92), transparent);
-  transition: background-color .25s;
-}
-.v-nav[data-solid="true"] { background: rgb(10 10 15 / .96); box-shadow: 0 1px 0 var(--v-border); }
-.v-logo { display: flex; align-items: center; flex: none; }
-.v-logo img { height: 1.5rem; width: auto; }
-.v-nav-links { display: none; gap: 1.5rem; font-size: .9rem; font-weight: 500; margin-left: .75rem; }
-@media (min-width: 1024px) { .v-nav-links { display: flex; } }
-.v-nav-links a { color: #d1d5db; padding: .25rem 0; transition: color .15s; }
-.v-nav-links a:hover { color: var(--v-fg); }
-/* Active link: pages render a <span data-nav="..."> marker (keeps the nav free of dynamic hooks) */
-.viewer:has([data-nav="dashboard"]) :is(.v-nav-links, .v-bottom) a[data-key="dashboard"],
-.viewer:has([data-nav="movies"]) :is(.v-nav-links, .v-bottom) a[data-key="movies"],
-.viewer:has([data-nav="tv"]) :is(.v-nav-links, .v-bottom) a[data-key="tv"],
-.viewer:has([data-nav="my-list"]) :is(.v-nav-links, .v-bottom) a[data-key="my-list"],
-.viewer:has([data-nav="search"]) :is(.v-nav-links, .v-bottom) a[data-key="search"] { color: var(--v-fg); }
-.viewer:has([data-nav="dashboard"]) .v-bottom a[data-key="dashboard"],
-.viewer:has([data-nav="movies"]) .v-bottom a[data-key="movies"],
-.viewer:has([data-nav="tv"]) .v-bottom a[data-key="tv"],
-.viewer:has([data-nav="my-list"]) .v-bottom a[data-key="my-list"],
-.viewer:has([data-nav="search"]) .v-bottom a[data-key="search"] { color: var(--v-primary); }
-/* The top search box is replaced by the Search tab on small screens */
-@media (max-width: 1023px) { .v-nav-search { display: none; } }
-
-/* Bottom tab bar (mobile/tablet) */
-.v-bottom {
-  position: fixed; inset: auto 0 0 0; z-index: 50; display: flex; justify-content: space-around;
-  height: calc(4rem + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: rgb(10 10 15 / .95); backdrop-filter: blur(12px); border-top: 1px solid var(--v-border);
-}
-.v-bottom a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; color: #9ca3af; font-size: .72rem; font-weight: 500; transition: color .15s; }
-.v-bottom a:hover { color: var(--v-fg); }
-@media (min-width: 1024px) { .v-bottom { display: none; } }
-@media (max-width: 1023px) { .viewer { padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); } }
-/* Immersive watch pages: no site chrome */
-.viewer:has([data-nav="watch"]) :is(.v-nav, .v-bottom, .v-footer) { display: none; }
-.viewer:has([data-nav="watch"]) { padding-bottom: 0; }
-
-.v-nav-end { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
-.v-nav-search { position: relative; }
-.viewer .v-nav-search input[type="search"] {
-  margin: 0; width: 9rem; padding: .4rem .75rem; border-radius: 999px; font-size: .9rem;
-  background: rgb(18 18 26 / .85); color: var(--v-fg); border: 1px solid var(--v-border);
-  transition: width .2s;
-}
-.viewer .v-nav-search input[type="search"]:focus { width: 14rem; }
-.v-icon-btn { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 999px; background: rgb(18 18 26 / .85) !important; border: 1px solid var(--v-border) !important; }
-.v-menu { position: relative; }
-.v-menu-panel {
-  position: absolute; right: 0; top: calc(100% + .5rem); min-width: 12rem; padding: .35rem;
-  background: var(--v-card); border: 1px solid var(--v-border); border-radius: .5rem; box-shadow: 0 10px 30px rgb(0 0 0 / .6);
-}
-.v-menu-panel > * { display: block; width: 100%; text-align: left; padding: .5rem .75rem; border-radius: .375rem; font-size: .9rem; }
-.v-menu-panel > a:hover, .v-menu-panel > button:hover { background: var(--v-muted); }
-.v-menu-email { color: var(--v-fg-faint); font-size: .75rem !important; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 640px) {
-  .v-nav { gap: .75rem; }
-}
-
 /* Pages */
-.v-page { padding: calc(var(--v-nav-h) + 1.5rem) var(--v-gutter) 4rem; max-width: 96rem; margin: 0 auto; }
 .v-section { padding: 0 var(--v-gutter); margin-top: 2rem; }
 .v-section > h2, .v-row-head h2 { font-size: 1.25rem; margin-bottom: .75rem; }
 .v-muted { color: var(--v-fg-dim); }
-.v-footer { padding: 2rem var(--v-gutter); color: var(--v-fg-faint); font-size: .8rem; text-align: center; }
 
 /* Hero */
 .v-hero { position: relative; min-height: clamp(30rem, 80vh, 50rem); display: flex; align-items: flex-end; overflow: hidden; background: var(--v-card); }
@@ -311,8 +210,6 @@ body:has(.viewer) { background: #0a0a0f; }
 .v-ep:hover .v-ep-title { color: var(--v-primary); }
 @media (hover: none) { .v-ep-play { display: none; } }
 
-/* Immersive watch page */
-body:has(.viewer [data-nav="watch"]) { background: #000; }
 
 /* Bookmarks + continue watching */
 .v-card-bm { position: absolute; top: .4rem; right: .4rem; z-index: 12; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: rgb(0 0 0 / .65); color: #fff; opacity: 0; transition: opacity .2s, background .15s, color .15s; }

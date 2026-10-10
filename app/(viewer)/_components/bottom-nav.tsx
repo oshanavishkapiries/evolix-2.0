@@ -4,7 +4,7 @@ import { NAV_ITEMS } from "./nav-items";
 
 const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon, search: SearchIcon };
 
-/** Mobile/tablet tab bar (the top links are hidden below the lg breakpoint). */
+/** Phone tab bar (tablet and desktop use the sidebar). */
 export function BottomNav() {
   return (
     <nav className="v-bottom" aria-label="Main">

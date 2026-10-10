@@ -4,8 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
-import { NAV_ITEMS } from "./nav-items";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
+import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
+import { SIDEBAR_ITEMS } from "./nav-items";
+import { PREF_SIDEBAR, savePref } from "./prefs";
+
+const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon };
+const DESKTOP = "(min-width: 80rem)";
 
 function NavSearch() {
   const router = useRouter();
@@ -22,7 +27,7 @@ function NavSearch() {
   return (
     <form
       role="search"
-      className="v-nav-search"
+      className="v-top-search"
       onSubmit={(e) => {
         e.preventDefault();
         const q = value.trim();
@@ -32,13 +37,14 @@ function NavSearch() {
         router.push(`/search?q=${encodeURIComponent(q)}`);
       }}
     >
+      <SearchIcon size={16} />
       <label className="v-sr" htmlFor="nav-search">Search titles</label>
       <input
         id="nav-search"
         type="search"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Search"
+        placeholder="Search movies and shows"
         autoComplete="off"
         enterKeyHint="search"
       />
@@ -81,18 +87,16 @@ function UserMenu() {
     navigate("/login");
   }
 
+  const initial = me?.email ? me.email[0].toUpperCase() : null;
   return (
     <div className="v-menu" ref={root}>
-      <button type="button" className="v-icon-btn" aria-haspopup="menu" aria-expanded={open} aria-label="Account menu" onClick={toggle}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
-        </svg>
+      <button type="button" className="v-avatar" aria-haspopup="menu" aria-expanded={open} aria-label="Account menu" onClick={toggle}>
+        {initial ?? <UserIcon size={16} />}
       </button>
       {open && (
         <div className="v-menu-panel" role="menu">
           {me?.email && <p className="v-menu-email">{me.email}</p>}
-          <a href="/account" role="menuitem">Account</a>
+          <Link href="/account" role="menuitem" onClick={() => setOpen(false)}>Account</Link>
           {me?.isAdmin && <a href="/admin" role="menuitem">Admin</a>}
           <button type="button" role="menuitem" onClick={logout}>Log out</button>
         </div>
@@ -101,33 +105,59 @@ function UserMenu() {
   );
 }
 
-export function ViewerNav() {
-  const [solid, setSolid] = useState(false);
+/** Top bar + left sidebar. Desktop: hamburger toggles expanded/rail (remembered). Tablet: opens a drawer. */
+export function AppChrome() {
+  const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setSolid(window.scrollY > 40);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    if (!drawer) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawer]);
+
+  function toggle() {
+    if (!window.matchMedia(DESKTOP).matches) return setDrawer((d) => !d);
+    const d = document.documentElement;
+    const next = d.dataset.vSidebar === "rail" ? "expanded" : "rail";
+    d.dataset.vSidebar = next;
+    savePref(PREF_SIDEBAR, next);
+  }
 
   return (
-    <header className="v-nav" data-solid={solid}>
-      <Link href="/dashboard" className="v-logo" aria-label="Evolix home">
-        {/* eslint-disable-next-line @next/next/no-img-element -- static SVG logo */}
-        <img src="/svg/evolix.svg" alt="Evolix" width={100} height={29} />
-      </Link>
-      <nav aria-label="Main" className="v-nav-links">
-        {NAV_ITEMS.filter((n) => n.key !== "search").map((n) => (
-          <Link key={n.key} href={n.href} data-key={n.key}>
-            {n.label}
-          </Link>
-        ))}
-      </nav>
-      <div className="v-nav-end">
+    <>
+      <header className="v-top">
+        <button type="button" className="v-top-menu" aria-label="Toggle navigation" aria-expanded={drawer} onClick={toggle}>
+          <MenuIcon />
+        </button>
+        <Link href="/dashboard" className="v-logo" aria-label="Evolix home">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static SVG logo */}
+          <img src="/svg/evolix.svg" alt="Evolix" width={100} height={29} />
+        </Link>
         <NavSearch />
-        <UserMenu />
-      </div>
-    </header>
+        <div className="v-top-end">
+          <Link href="/search" className="v-top-icon" aria-label="Search">
+            <SearchIcon size={20} />
+          </Link>
+          <UserMenu />
+        </div>
+      </header>
+      <nav className="v-side" aria-label="Main" data-drawer={drawer}>
+        <ul>
+          {SIDEBAR_ITEMS.map((n) => {
+            const Icon = ICONS[n.key];
+            return (
+              <li key={n.key}>
+                <Link href={n.href} data-key={n.key} title={n.label} onClick={() => setDrawer(false)}>
+                  <Icon size={22} />
+                  <span>{n.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+      <div className="v-scrim" data-open={drawer} onClick={() => setDrawer(false)} aria-hidden="true" />
+    </>
   );
 }

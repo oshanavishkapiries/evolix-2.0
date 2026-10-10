@@ -44,28 +44,25 @@ export function DashboardView() {
   }
 
   return (
-    <>
-      {error && <p role="alert">{error}</p>}
+    <div className="v-account">
+      {error && <p role="alert" className="v-alert">{error}</p>}
       {user ? (
-        <dl className="card">
+        <dl className="v-panel v-dl">
           <dt>Email</dt>
           <dd>{user.email}</dd>
-          <dt>ID</dt>
-          <dd>{user.id}</dd>
-          <dt>Verified</dt>
-          <dd>{user.emailVerifiedAt ?? "Not verified"}</dd>
+          <dt>Account ID</dt>
+          <dd><code>{user.id}</code></dd>
+          <dt>Email verified</dt>
+          <dd>{user.emailVerifiedAt ? new Date(user.emailVerifiedAt).toLocaleDateString() : "Not verified"}</dd>
         </dl>
       ) : (
-        !error && <p>Loading...</p>
+        !error && <div className="v-panel v-skel" style={{ height: "9rem" }} aria-busy="true" aria-label="Loading profile" />
       )}
-      <p className="toolbar">
-        <a href="/dashboard">Back to library</a>
-        {isAdmin && <a href="/admin">Admin</a>}
-      </p>
-      <div className="toolbar">
-        <button type="button" className="btn-secondary" onClick={logout}>Log out</button>
-        <button type="button" className="btn-danger" onClick={logoutAll}>Log out of all devices</button>
+      <div className="v-actions">
+        {isAdmin && <a href="/admin" className="v-btn">Admin</a>}
+        <button type="button" className="v-btn" onClick={logout}>Log out</button>
+        <button type="button" className="v-btn v-btn-danger" onClick={logoutAll}>Log out of all devices</button>
       </div>
-    </>
+    </div>
   );
 }
