@@ -5,26 +5,15 @@ import "vidstack/player/styles/default/layouts/video.css";
 import { MediaPlayer, MediaProvider, Track, type MediaProviderAdapter } from "@vidstack/react";
 import { defaultLayoutIcons, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
 import { isHLSProvider } from "vidstack";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  pixeldrainId,
+  pixeldrainInfoUrl,
+  playbackCandidates,
+  typeFromName,
+  type PlayerType,
+} from "@/lib/viewer/providers";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
-
-const MIME_BY_EXT: Record<string, string> = {
-  mp4: "video/mp4",
-  m4v: "video/mp4",
-  webm: "video/webm",
-  ogv: "video/ogg",
-  ogg: "video/ogg",
-  mov: "video/mp4",
-  mkv: "video/webm",
-};
-
-/** Explicit type so extension-less direct URLs still play; HLS is always m3u8. */
-function sourceType(kind: WatchSource["kind"], url: string) {
-  if (kind === "hls") return "application/x-mpegurl" as const;
-  const ext = new URL(url).pathname.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "m3u8") return "application/x-mpegurl" as const;
-  return (MIME_BY_EXT[ext] ?? "video/mp4") as "video/mp4";
-}
 
 const isEnglish = (lang: string) => /^en(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "english";
 
@@ -38,6 +27,26 @@ export default function PlayerImpl({
   subtitles: WatchSubtitle[];
 }) {
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [hint, setHint] = useState<PlayerType | null>(null);
+  const pdId = pixeldrainId(source.url);
+
+  // Pixeldrain links carry no extension; ask its info API for the real file type (best effort).
+  useEffect(() => {
+    if (!pdId) return;
+    const ctrl = new AbortController();
+    fetch(pixeldrainInfoUrl(pdId), { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((info: { name?: string; mime_type?: string } | null) => {
+        const t = info?.name ? typeFromName(info.name) : null;
+        if (t) setHint(t);
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [pdId]);
+
+  const candidates = playbackCandidates(source.kind, source.url, hint);
+  const current = candidates[Math.min(attempt, candidates.length - 1)];
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
   const defaultSub = subtitles.find((s) => isEnglish(s.language))?.id;
 
@@ -58,13 +67,17 @@ export default function PlayerImpl({
   return (
     <MediaPlayer
       title={title}
-      src={{ src: source.url, type: sourceType(source.kind, source.url) }}
+      key={`${current.type}`}
+      src={current}
       playsInline
       onProviderChange={(provider: MediaProviderAdapter | null) => {
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
         if (isHLSProvider(provider)) provider.library = () => import("hls.js");
       }}
-      onError={() => setFailed(true)}
+      onError={() => {
+        if (attempt + 1 < candidates.length) setAttempt(attempt + 1);
+        else setFailed(true);
+      }}
     >
       <MediaProvider>
         {subtitles.map((s) => (

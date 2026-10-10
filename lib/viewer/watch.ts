@@ -1,6 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/db";
+import { normalizeSource } from "@/lib/viewer/providers";
 import { episodes, movies, seasons, shows, sources, subtitles } from "@/db/schema";
 
 export type WatchSource = {
@@ -18,12 +19,12 @@ export type WatchSubtitle = {
   url: string;
 };
 
-const activeSources = (where: ReturnType<typeof eq>) =>
-  db
+const activeSources = async (where: ReturnType<typeof eq>): Promise<WatchSource[]> =>
+  (await db
     .select({ id: sources.id, label: sources.label, kind: sources.kind, quality: sources.quality, url: sources.url })
     .from(sources)
     .where(and(where, eq(sources.isActive, true)))
-    .orderBy(asc(sources.sortOrder), asc(sources.createdAt));
+    .orderBy(asc(sources.sortOrder), asc(sources.createdAt))).map(normalizeSource);
 
 const subtitleRows = (where: ReturnType<typeof eq>) =>
   db
