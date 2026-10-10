@@ -9,7 +9,8 @@ body:has(.a-screen) { background: #2a313b; }
     radial-gradient(80% 60% at 100% 100%, rgb(245 166 35 / .08), transparent 60%),
     linear-gradient(160deg, #2f3844, #232a33 70%);
 }
-.a-logo { display: block; }
+.a-logo { display: flex; align-items: center; gap: .75rem; }
+.a-logo .a-logo-mark { height: 2.75rem; width: 2.75rem; border-radius: 9px; }
 .a-logo img { height: 2.75rem; width: auto; }
 .a-card {
   width: 100%; max-width: 38rem; padding: clamp(1.75rem, 5vw, 3rem) clamp(1.25rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.5rem);
