@@ -2,10 +2,10 @@ import { RegisterForm } from "./register-form";
 
 export default function RegisterPage() {
   return (
-    <main>
+    <main className="auth card">
       <h1>Register</h1>
       <RegisterForm />
-      <p>
+      <p className="text-sm">
         <a href="/login">Already have an account? Log in</a>
       </p>
     </main>

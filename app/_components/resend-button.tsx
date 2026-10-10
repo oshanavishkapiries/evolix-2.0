@@ -38,8 +38,8 @@ export function ResendButton({
   }
 
   return (
-    <div>
-      <button type="button" onClick={resend} disabled={busy || seconds > 0 || !email}>
+    <div className="mt-4">
+      <button type="button" className="btn-secondary w-full" onClick={resend} disabled={busy || seconds > 0 || !email}>
         {seconds > 0 ? `Resend code (${seconds}s)` : "Resend code"}
       </button>
       {message && <p role="status">{message}</p>}

@@ -3,12 +3,12 @@ import { VerifyEmailForm } from "./verify-email-form";
 
 export default function VerifyEmailPage() {
   return (
-    <main>
+    <main className="auth card">
       <h1>Verify your email</h1>
       <Suspense fallback={<p>Loading...</p>}>
         <VerifyEmailForm />
       </Suspense>
-      <p>
+      <p className="text-sm">
         <a href="/login">Back to log in</a>
       </p>
     </main>
