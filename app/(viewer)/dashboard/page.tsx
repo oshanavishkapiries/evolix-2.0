@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { browse, listFeatured, listGenres, listLatest } from "@/lib/viewer/catalog";
-import { NavMarker } from "../_components/nav-marker";
 import { currentUserId } from "@/lib/viewer/user";
 import { continueWatching, listBookmarks } from "@/lib/viewer/library";
 import { ContinueRow } from "../_components/continue-row";
@@ -17,7 +16,6 @@ export default function HomePage() {
   return (
     <PageMotion>
     <div className="v-page v-page-rows">
-      <NavMarker active="dashboard" />
       <PageHeader title="Home" />
       <Suspense fallback={<SkeletonOut><LibrarySkeleton /></SkeletonOut>}>
         <Reveal><HomeContent /></Reveal>

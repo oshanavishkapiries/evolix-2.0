@@ -8,7 +8,6 @@ import { currentUserId } from "@/lib/viewer/user";
 import { DetailHeader, type PlayAction } from "../../_components/detail-header";
 import { detailMetadata, MediaSections } from "../../_components/media-sections";
 import { Seasons } from "../../_components/seasons";
-import { NavMarker } from "../../_components/nav-marker";
 import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
@@ -49,7 +48,6 @@ export default async function ShowPage({ params, searchParams }: Props) {
   return (
     <PageMotion>
     <div className="v-detail">
-      <NavMarker active="tv" />
       <DetailHeader
         kind="show"
         id={show.id}

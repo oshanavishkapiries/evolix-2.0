@@ -7,7 +7,6 @@ import { resumeFor } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { DetailHeader, type PlayAction } from "../../_components/detail-header";
 import { detailMetadata, MediaSections } from "../../_components/media-sections";
-import { NavMarker } from "../../_components/nav-marker";
 import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
@@ -42,7 +41,6 @@ export default async function MoviePage({ params }: Props) {
   return (
     <PageMotion>
     <div className="v-detail">
-      <NavMarker active="movies" />
       <DetailHeader
         kind="movie"
         id={movie.id}
