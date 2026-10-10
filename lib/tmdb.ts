@@ -1,6 +1,7 @@
 // Server-only TMDB client. The API key never leaves the server.
 import { env } from "@/lib/env";
 import type { CastMember } from "@/db/schema";
+import { isValidKey, type VideoPrefill, type VideoSite, type VideoType } from "@/lib/videos";
 
 const BASE = "https://api.themoviedb.org/3";
 const SEASON_CONCURRENCY = 4;
@@ -55,6 +56,59 @@ function cast(credits: Raw | undefined): CastMember[] {
   }));
 }
 
+const TMDB_TYPES: Record<string, VideoType> = {
+  trailer: "trailer",
+  teaser: "teaser",
+  clip: "clip",
+  featurette: "featurette",
+  "behind the scenes": "behind_the_scenes",
+  bloopers: "bloopers",
+  "opening credits": "opening_credits",
+};
+const TMDB_SITES: Record<string, VideoSite> = { youtube: "youtube", vimeo: "vimeo" };
+const VIDEO_LIMIT = 50;
+
+/** Maps TMDB's `videos` block: YouTube/Vimeo only, deduped, trailers/official/newest first. */
+function mapVideos(block: Raw | undefined): VideoPrefill[] {
+  const list: Raw[] = Array.isArray(block?.results) ? block.results : [];
+  const seen = new Set<string>();
+  const items: Omit<VideoPrefill, "sortOrder">[] = [];
+  for (const v of list) {
+    const site = TMDB_SITES[str(v.site).toLowerCase()];
+    const key = str(v.key).trim();
+    if (!site || !isValidKey(site, key) || seen.has(`${site}:${key}`)) continue;
+    seen.add(`${site}:${key}`);
+    const published = typeof v.published_at === "string" && !Number.isNaN(Date.parse(v.published_at));
+    items.push({
+      site,
+      key,
+      name: str(v.name).trim().slice(0, 300) || key,
+      type: TMDB_TYPES[str(v.type).toLowerCase()] ?? "other",
+      official: v.official === true,
+      language: /^[a-z]{2}$/i.test(str(v.iso_639_1)) ? str(v.iso_639_1).toLowerCase() : null,
+      publishedAt: published ? new Date(v.published_at).toISOString() : null,
+    });
+  }
+  const time = (x: { publishedAt: string | null }) => (x.publishedAt ? Date.parse(x.publishedAt) : 0);
+  items.sort(
+    (a, b) =>
+      Number(b.type === "trailer") - Number(a.type === "trailer") ||
+      Number(b.official) - Number(a.official) ||
+      time(b) - time(a),
+  );
+  return items.slice(0, VIDEO_LIMIT).map((v, i) => ({ ...v, sortOrder: i }));
+}
+
+// `include_video_language` makes English (and untagged) videos come back even
+// when the title's own language differs from the request language.
+const DETAIL_PARAMS = { append_to_response: "credits,videos", include_video_language: "en,null" };
+
+/** Videos for an already-stored title (used by the import endpoint). */
+export async function getTmdbVideos(kind: "movie" | "tv", tmdbId: number): Promise<VideoPrefill[]> {
+  const data = await tmdb<Raw>(`/${kind}/${tmdbId}/videos`, { include_video_language: "en,null" });
+  return mapVideos(data);
+}
+
 const year = (d: unknown) => (typeof d === "string" && d.length >= 4 ? Number(d.slice(0, 4)) || null : null);
 
 export type SearchResult = {
@@ -97,10 +151,11 @@ export type MoviePrefill = {
   posterPath: string | null;
   backdropPath: string | null;
   cast: CastMember[];
+  videos: VideoPrefill[];
 };
 
 export async function getMovieDetails(tmdbId: number): Promise<MoviePrefill> {
-  const m = await tmdb<Raw>(`/movie/${tmdbId}`, { append_to_response: "credits" });
+  const m = await tmdb<Raw>(`/movie/${tmdbId}`, DETAIL_PARAMS);
   return {
     tmdbId: m.id,
     title: str(m.title),
@@ -117,6 +172,7 @@ export async function getMovieDetails(tmdbId: number): Promise<MoviePrefill> {
     posterPath: strOrNull(m.poster_path),
     backdropPath: strOrNull(m.backdrop_path),
     cast: cast(m.credits),
+    videos: mapVideos(m.videos),
   };
 }
 
@@ -156,6 +212,7 @@ export type ShowPrefill = {
   posterPath: string | null;
   backdropPath: string | null;
   cast: CastMember[];
+  videos: VideoPrefill[];
   seasons: SeasonPrefill[];
   /** Season numbers whose episodes could not be loaded from TMDB. */
   warnings: string[];
@@ -175,7 +232,7 @@ function mapEpisode(e: Raw): EpisodePrefill {
 }
 
 export async function getShowDetails(tmdbId: number): Promise<ShowPrefill> {
-  const s = await tmdb<Raw>(`/tv/${tmdbId}`, { append_to_response: "credits" });
+  const s = await tmdb<Raw>(`/tv/${tmdbId}`, DETAIL_PARAMS);
   const rawSeasons: Raw[] = Array.isArray(s.seasons) ? s.seasons : [];
   const warnings: string[] = [];
   const seasons: SeasonPrefill[] = rawSeasons.map((r) => ({
@@ -220,6 +277,7 @@ export async function getShowDetails(tmdbId: number): Promise<ShowPrefill> {
     posterPath: strOrNull(s.poster_path),
     backdropPath: strOrNull(s.backdrop_path),
     cast: cast(s.credits),
+    videos: mapVideos(s.videos),
     seasons,
     warnings: warnings.sort(),
   };
