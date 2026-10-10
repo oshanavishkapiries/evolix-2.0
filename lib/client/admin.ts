@@ -1,0 +1,38 @@
+import { fetchWithRefresh } from "./api";
+
+export type AdminResult<T = Record<string, unknown>> = {
+  ok: boolean;
+  status: number;
+  message?: string;
+  issues?: { path: string; message: string }[];
+} & T;
+
+/** JSON call to the admin API (refreshes the session on 401). */
+export async function adminApi<T = Record<string, unknown>>(
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<AdminResult<T>> {
+  try {
+    const res = await fetchWithRefresh(path, {
+      method,
+      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    let data: Record<string, unknown> = {};
+    try {
+      data = await res.json();
+    } catch {}
+    return { ...(data as T), ok: res.ok, status: res.status } as AdminResult<T>;
+  } catch {
+    return { ok: false, status: 0, message: "Network error" } as AdminResult<T>;
+  }
+}
+
+export function errorText(res: AdminResult): string {
+  const issues = res.issues?.map((i) => `${i.path || "body"}: ${i.message}`).join("; ");
+  return [res.message ?? `Request failed (${res.status})`, issues].filter(Boolean).join(" - ");
+}
+
+export const tmdbImage = (path: unknown, size = "w185") =>
+  typeof path === "string" && path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
