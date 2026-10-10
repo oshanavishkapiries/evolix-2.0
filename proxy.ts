@@ -5,7 +5,7 @@ import { checkAdminToken } from "@/lib/auth/admin";
 import { verifyAccessToken } from "@/lib/auth/tokens";
 import { titleRouteVisible } from "@/lib/viewer/exists";
 
-const PROTECTED = ["/dashboard", "/admin", "/library", "/search", "/movie", "/tv", "/watch"];
+const PROTECTED = ["/dashboard", "/account", "/admin", "/search", "/movie", "/tv", "/watch"];
 const VIEWER_TITLES = ["/movie", "/tv", "/watch"];
 const GUEST_ONLY = ["/login", "/register"];
 const matches = (path: string, bases: string[]) =>
@@ -37,7 +37,7 @@ export async function proxy(req: NextRequest) {
     // Pages stream (status is fixed at 200), so unknown/unpublished titles are 404'd here.
     return NextResponse.rewrite(new URL("/not-available", req.url));
   }
-  if (pathname === "/" && valid) return NextResponse.redirect(new URL("/library", req.url));
+  if (pathname === "/" && valid) return NextResponse.redirect(new URL("/dashboard", req.url));
   if (matches(pathname, GUEST_ONLY) && valid) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
@@ -49,7 +49,7 @@ export const config = {
     "/",
     "/dashboard/:path*",
     "/admin/:path*",
-    "/library/:path*",
+    "/account/:path*",
     "/search/:path*",
     "/movie/:path*",
     "/tv/:path*",

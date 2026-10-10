@@ -59,7 +59,7 @@ export function DashboardView() {
         !error && <p>Loading...</p>
       )}
       <p className="toolbar">
-        <a href="/library">Library</a>
+        <a href="/dashboard">Back to library</a>
         {isAdmin && <a href="/admin">Admin</a>}
       </p>
       <div className="toolbar">

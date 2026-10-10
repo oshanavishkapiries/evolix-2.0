@@ -7,13 +7,13 @@ import { LibrarySkeleton } from "../_components/skeletons";
 import { TitleHero } from "../_components/title-hero";
 import { detailHref } from "@/lib/viewer/format";
 
-export const metadata: Metadata = { title: "Library" };
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default function LibraryPage() {
   return (
     <>
-      <h1 className="v-sr">Library</h1>
-      <span data-nav="library" hidden />
+      <h1 className="v-sr">Dashboard</h1>
+      <span data-nav="dashboard" hidden />
       <Suspense fallback={<LibrarySkeleton />}>
         <LibraryContent />
       </Suspense>

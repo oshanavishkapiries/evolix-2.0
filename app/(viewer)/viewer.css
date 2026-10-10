@@ -64,7 +64,7 @@ body:has(.viewer) { background: #0a0a0f; }
 .v-nav-links a { color: var(--v-fg-dim); padding: .25rem 0; border-bottom: 2px solid transparent; }
 .v-nav-links a:hover { color: var(--v-fg); }
 /* Active link: pages render a <span data-nav="library|search"> marker (keeps the nav free of dynamic hooks) */
-.viewer:has([data-nav="library"]) .v-nav-links a[href="/library"],
+.viewer:has([data-nav="dashboard"]) .v-nav-links a[href="/dashboard"],
 .viewer:has([data-nav="search"]) .v-nav-links a[href="/search"] { color: var(--v-fg); border-color: var(--v-primary); }
 .v-nav-end { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
 .v-nav-search { position: relative; }

@@ -91,7 +91,7 @@ function UserMenu() {
       {open && (
         <div className="v-menu-panel" role="menu">
           {me?.email && <p className="v-menu-email">{me.email}</p>}
-          <a href="/dashboard" role="menuitem">Dashboard</a>
+          <a href="/account" role="menuitem">Account</a>
           {me?.isAdmin && <a href="/admin" role="menuitem">Admin</a>}
           <button type="button" role="menuitem" onClick={logout}>Log out</button>
         </div>
@@ -112,9 +112,9 @@ export function ViewerNav() {
 
   return (
     <header className="v-nav" data-solid={solid}>
-      <Link href="/library" className="v-wordmark" aria-label="Evolix home">EVOLIX</Link>
+      <Link href="/dashboard" className="v-wordmark" aria-label="Evolix home">EVOLIX</Link>
       <nav aria-label="Main" className="v-nav-links">
-        <Link href="/library">Home</Link>
+        <Link href="/dashboard">Home</Link>
         <Link href="/search">Browse</Link>
       </nav>
       <div className="v-nav-end">

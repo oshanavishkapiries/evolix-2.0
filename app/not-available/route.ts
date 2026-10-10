@@ -10,7 +10,7 @@ h1{margin:0;font-size:1.75rem}p{margin:0;color:#b3b3b3}
 a{background:#f5a623;color:#000;text-decoration:none;font-weight:600;padding:.65rem 1.4rem;border-radius:.375rem}
 a:focus-visible{outline:2px solid #f5a623;outline-offset:2px}
 </style></head><body><main>
-<h1>Not found</h1><p>This title does not exist or is not available.</p><p><a href="/library">Back to library</a></p>
+<h1>Not found</h1><p>This title does not exist or is not available.</p><p><a href="/dashboard">Back to library</a></p>
 </main></body></html>`;
 
 export function GET() {
