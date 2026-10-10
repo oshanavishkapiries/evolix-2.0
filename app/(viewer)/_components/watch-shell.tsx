@@ -145,7 +145,14 @@ function Panel({ id, title, open, peeking, onClose, children }: { id: string; ti
   // Bring the playing episode into view when the panel opens.
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => body.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 150);
+    // Scroll the list itself: scrollIntoView would also scroll the clipped, off-screen-panel overflow of .v-watch.
+    const t = setTimeout(() => {
+      const box = body.current;
+      const cur = box?.querySelector<HTMLElement>('[aria-current="true"]');
+      if (!box || !cur) return;
+      const top = cur.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+      box.scrollTo({ top: top - box.clientHeight / 2 + cur.clientHeight / 2, behavior: "smooth" });
+    }, 150);
     return () => clearTimeout(t);
   }, [open]);
   return (
