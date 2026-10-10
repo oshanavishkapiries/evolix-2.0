@@ -36,3 +36,32 @@ export function errorText(res: AdminResult): string {
 
 export const tmdbImage = (path: unknown, size = "w185") =>
   typeof path === "string" && path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+
+// ---- videos
+
+import type { VideoSite, VideoType } from "@/lib/videos";
+
+export type AdminVideo = {
+  id: string;
+  site: VideoSite;
+  key: string;
+  name: string;
+  type: VideoType;
+  official: boolean;
+  language: string | null;
+  publishedAt: string | null;
+  sortOrder: number;
+  isVisible: boolean;
+};
+export type VideoParent = { movieId: string } | { showId: string };
+export type VideoFields = Partial<Omit<AdminVideo, "id" | "publishedAt">>;
+
+export const listVideos = (parent: VideoParent) =>
+  adminApi<{ videos: AdminVideo[] }>("GET", `/api/admin/videos?${new URLSearchParams(parent)}`);
+export const createVideo = (parent: VideoParent, fields: VideoFields) =>
+  adminApi<{ video: AdminVideo }>("POST", "/api/admin/videos", { ...parent, ...fields });
+export const updateVideo = (id: string, fields: VideoFields) =>
+  adminApi<{ video: AdminVideo }>("PATCH", `/api/admin/videos/${id}`, fields);
+export const deleteVideo = (id: string) => adminApi("DELETE", `/api/admin/videos/${id}`);
+export const importTmdbVideos = (parent: VideoParent) =>
+  adminApi<{ added: number; skipped: number }>("POST", "/api/admin/videos/import-from-tmdb", parent);

@@ -5,6 +5,7 @@ import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { navigate } from "@/lib/client/api";
 import { EntityFields, FormValues, MOVIE_DEFS, fromForm, toForm } from "./fields";
 import { MediaManager } from "./items-section";
+import { VideosSection } from "./videos-section";
 
 export function MovieEditor({ id }: { id: string }) {
   const [movie, setMovie] = useState<Record<string, unknown> | null>(null);
@@ -42,7 +43,7 @@ export function MovieEditor({ id }: { id: string }) {
   }
 
   async function remove() {
-    if (!window.confirm("Delete this movie and all its sources and subtitles?")) return;
+    if (!window.confirm("Delete this movie and all its sources, subtitles and videos?")) return;
     const res = await adminApi("DELETE", `/api/admin/movies/${id}`);
     if (!res.ok) return setError(errorText(res));
     navigate("/admin");
@@ -77,6 +78,7 @@ export function MovieEditor({ id }: { id: string }) {
           <button type="submit">Save changes</button>
         </fieldset>
       </form>
+      <VideosSection parent={{ movieId: id }} />
       <MediaManager parent={{ movieId: id }} />
     </>
   );

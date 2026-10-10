@@ -5,10 +5,13 @@ import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { navigate } from "@/lib/client/api";
 import { EntityFields, FormValues, MOVIE_DEFS, fromForm, toForm } from "./fields";
 import { SearchPicker } from "./search-picker";
+import { PrefillVideos } from "./videos-section";
+import type { VideoPrefill } from "@/lib/videos";
 
 export function MovieCreate() {
   const [tmdbId, setTmdbId] = useState<number | null>(null);
   const [values, setValues] = useState<FormValues>({});
+  const [videos, setVideos] = useState<VideoPrefill[]>([]);
   const [published, setPublished] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -16,11 +19,12 @@ export function MovieCreate() {
   async function select(id: number) {
     setError("");
     setStatus("Loading details from TMDB...");
-    const res = await adminApi<{ movie: Record<string, unknown> }>("GET", `/api/admin/tmdb/movie/${id}`);
+    const res = await adminApi<{ movie: Record<string, unknown> & { videos: VideoPrefill[] } }>("GET", `/api/admin/tmdb/movie/${id}`);
     setStatus("");
     if (!res.ok) return setError(errorText(res));
     setTmdbId(id);
     setValues(toForm(res.movie, MOVIE_DEFS));
+    setVideos(res.movie.videos ?? []);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -33,6 +37,7 @@ export function MovieCreate() {
       ...parsed.data,
       tmdbId,
       isPublished: published,
+      videos,
     });
     if (!res.ok) {
       setStatus("");
@@ -61,8 +66,9 @@ export function MovieCreate() {
                 <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />
               </label>
             </p>
-            <button type="submit">Save movie</button>
           </fieldset>
+          <PrefillVideos videos={videos} onChange={setVideos} />
+          <button type="submit">Save movie</button>
         </form>
       )}
     </>

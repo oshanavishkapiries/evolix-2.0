@@ -5,6 +5,8 @@ import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { navigate } from "@/lib/client/api";
 import { EntityFields, FormValues, SHOW_DEFS, fromForm, toForm } from "./fields";
 import { SearchPicker } from "./search-picker";
+import { PrefillVideos } from "./videos-section";
+import type { VideoPrefill } from "@/lib/videos";
 
 type Episode = { episodeNumber: number; name: string; isVisible: boolean } & Record<string, unknown>;
 type Season = { seasonNumber: number; name: string; isVisible: boolean; episodes: Episode[] } & Record<string, unknown>;
@@ -13,6 +15,7 @@ export function ShowCreate() {
   const [tmdbId, setTmdbId] = useState<number | null>(null);
   const [values, setValues] = useState<FormValues>({});
   const [seasons, setSeasons] = useState<Season[]>([]);
+  const [videos, setVideos] = useState<VideoPrefill[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [published, setPublished] = useState(false);
   const [error, setError] = useState("");
@@ -21,7 +24,7 @@ export function ShowCreate() {
   async function select(id: number) {
     setError("");
     setStatus("Loading show, seasons and episodes from TMDB (this can take a moment)...");
-    const res = await adminApi<{ show: Record<string, unknown> & { seasons: Season[]; warnings: string[] } }>(
+    const res = await adminApi<{ show: Record<string, unknown> & { seasons: Season[]; warnings: string[]; videos: VideoPrefill[] } }>(
       "GET",
       `/api/admin/tmdb/tv/${id}`,
     );
@@ -31,6 +34,7 @@ export function ShowCreate() {
     setValues(toForm(res.show, SHOW_DEFS));
     setSeasons(res.show.seasons);
     setWarnings(res.show.warnings);
+    setVideos(res.show.videos ?? []);
   }
 
   const setSeason = (i: number, fn: (s: Season) => Season) =>
@@ -47,6 +51,7 @@ export function ShowCreate() {
       tmdbId,
       isPublished: published,
       seasons,
+      videos,
     });
     if (!res.ok) {
       setStatus("");
@@ -118,6 +123,7 @@ export function ShowCreate() {
               </details>
             ))}
           </fieldset>
+          <PrefillVideos videos={videos} onChange={setVideos} />
           <button type="submit">Save show</button>
         </form>
       )}

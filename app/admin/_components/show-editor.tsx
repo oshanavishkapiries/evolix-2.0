@@ -14,6 +14,7 @@ import {
   toForm,
 } from "./fields";
 import { MediaManager } from "./items-section";
+import { VideosSection } from "./videos-section";
 
 type Rec = Record<string, unknown> & { id: string; isVisible?: boolean };
 type Season = Rec & { seasonNumber: number; name: string; episodes: Rec[] };
@@ -134,7 +135,7 @@ export function ShowEditor({ id }: { id: string }) {
   }
 
   async function remove() {
-    if (!window.confirm("Delete this show with all seasons, episodes, sources and subtitles?")) return;
+    if (!window.confirm("Delete this show with all seasons, episodes, sources, subtitles and videos?")) return;
     const res = await adminApi("DELETE", `/api/admin/shows/${id}`);
     if (!res.ok) return setError(errorText(res));
     navigate("/admin");
@@ -172,6 +173,7 @@ export function ShowEditor({ id }: { id: string }) {
           <button type="submit">Save changes</button>
         </fieldset>
       </form>
+      <VideosSection parent={{ showId: id }} />
       <section>
         <h2>Seasons</h2>
         {show.seasons.length === 0 && <p>No seasons.</p>}
