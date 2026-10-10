@@ -20,12 +20,24 @@ import {
   VideoType,
   isValidKey,
   parseVideoUrl,
+  rankVideos,
   videoWatchUrl,
 } from "@/lib/videos";
 
 type Meta = Pick<AdminVideo, "site" | "key" | "name" | "type" | "official" | "language">;
 
-function VideoSummary({ v, hidden }: { v: Meta; hidden?: boolean }) {
+function WatchLink({ v }: { v: Meta }) {
+  return (
+    <>
+      {" "}
+      <a href={videoWatchUrl(v.site, v.key)} target="_blank" rel="noopener noreferrer">
+        Open<span className="sr-only"> {v.name} on {v.site} (new tab)</span>
+      </a>
+    </>
+  );
+}
+
+function VideoSummary({ v, hidden, link = true }: { v: Meta; hidden?: boolean; link?: boolean }) {
   return (
     <span className="min-w-0 text-sm">
       <strong className="break-words">{v.name}</strong>{" "}
@@ -35,42 +47,72 @@ function VideoSummary({ v, hidden }: { v: Meta; hidden?: boolean }) {
       <span>
         {v.site}
         {v.language ? `, ${v.language}` : ""}
-      </span>{" "}
-      <a href={videoWatchUrl(v.site, v.key)} target="_blank" rel="noopener noreferrer">
-        Open<span className="sr-only"> {v.name} on {v.site} (new tab)</span>
-      </a>
+      </span>
+      {link && <WatchLink v={v} />}
     </span>
   );
 }
 
-/** New-flow list: TMDB videos that will be saved with the title; rows can be removed. */
+export const videoId = (v: { site: string; key: string }) => `${v.site}:${v.key}`;
+
+/** Ids of the default selection (top 5 by rank). */
+export const defaultPicks = (videos: VideoPrefill[]) => new Set(rankVideos(videos).map(videoId));
+
+/** Videos to save: only the checked ones, best first, renumbered. */
+export const pickedVideos = (videos: VideoPrefill[], picked: Set<string>) =>
+  videos
+    .filter((v) => picked.has(videoId(v)))
+    .map((v, i) => ({ ...v, sortOrder: i }));
+
+/** New-flow list: every TMDB video with a checkbox; only checked ones are saved. */
 export function PrefillVideos({
   videos,
+  picked,
   onChange,
 }: {
   videos: VideoPrefill[];
-  onChange: (next: VideoPrefill[]) => void;
+  picked: Set<string>;
+  onChange: (next: Set<string>) => void;
 }) {
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(picked);
+    if (on) next.add(id);
+    else next.delete(id);
+    onChange(next);
+  };
   return (
     <fieldset>
-      <legend>Videos ({videos.length})</legend>
+      <legend>Videos ({videos.length} found)</legend>
       {videos.length === 0 ? (
         <p>No YouTube or Vimeo videos found on TMDB.</p>
       ) : (
-        <ul className="rows">
-          {videos.map((v) => (
-            <li key={`${v.site}:${v.key}`}>
-              <VideoSummary v={v} />
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => onChange(videos.filter((x) => x !== v))}
-              >
-                Remove<span className="sr-only"> {v.name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="toolbar">
+            <span aria-live="polite">
+              <strong>{picked.size} selected</strong>
+            </span>
+            <button type="button" className="btn-secondary" onClick={() => onChange(defaultPicks(videos))}>
+              Select top 5
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => onChange(new Set())}>
+              Clear selection
+            </button>
+          </p>
+          <ul className="rows">
+            {videos.map((v) => {
+              const id = videoId(v);
+              return (
+                <li key={id}>
+                  <label className="min-w-0">
+                    <input type="checkbox" checked={picked.has(id)} onChange={(e) => toggle(id, e.target.checked)} />
+                    <VideoSummary v={v} link={false} />
+                  </label>
+                  <WatchLink v={v} />
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </fieldset>
   );
