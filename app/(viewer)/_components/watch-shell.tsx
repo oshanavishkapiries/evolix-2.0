@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BackIcon } from "./icons";
+import { BackIcon, CloseIcon, EpisodesIcon, SourcesIcon } from "./icons";
+import { WATCH_PANEL_EVENT, type WatchPanelKey } from "./watch-panel-events";
 
-type PanelKey = "sources" | "episodes";
+type PanelKey = WatchPanelKey;
 const IDLE_MS = 3000;
 
 /** Full-screen player shell: close button, auto-hiding top bar and slide-over panels. */
@@ -53,11 +54,14 @@ export function WatchShell({
       history.replaceState(null, "", location.pathname + location.search);
       setPanel("sources");
     };
+    const onPanel = (e: Event) => setPanel((e as CustomEvent<PanelKey>).detail);
+    window.addEventListener(WATCH_PANEL_EVENT, onPanel);
     window.addEventListener("keydown", onKey);
     window.addEventListener("hashchange", onHash);
     return () => {
       document.body.style.overflow = prev;
       clearTimeout(timer.current);
+      window.removeEventListener(WATCH_PANEL_EVENT, onPanel);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("hashchange", onHash);
     };
@@ -75,31 +79,51 @@ export function WatchShell({
           <BackIcon size={22} />
         </Link>
         <h1>{title}</h1>
-        <div className="v-watch-actions">
-          {episodes && (
-            <button type="button" className="v-bar-btn" aria-expanded={panel === "episodes"} onClick={() => toggle("episodes")}>
-              Episodes
-            </button>
-          )}
-          {sources && (
-            <button type="button" className="v-bar-btn" aria-expanded={panel === "sources"} onClick={() => toggle("sources")}>
-              Sources
-            </button>
-          )}
-          <Link href={backHref} className="v-bar-close" aria-label="Close player">✕</Link>
-        </div>
+        {embed && (
+          <div className="v-watch-actions">
+            {episodes && (
+              <button type="button" className="v-bar-icon" aria-label="Episodes" onClick={() => toggle("episodes")}>
+                <EpisodesIcon size={22} />
+              </button>
+            )}
+            {sources && (
+              <button type="button" className="v-bar-icon" aria-label="Sources" onClick={() => toggle("sources")}>
+                <SourcesIcon size={22} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
+      <div className="v-watch-scrim" data-open={panel !== null} onClick={() => setPanel(null)} aria-hidden />
+
       {sources && (
-        <aside id="sources" className="v-watch-panel" data-open={panel === "sources"} aria-hidden={panel !== "sources"} inert={panel !== "sources"}>
-          {sources}
-        </aside>
+        <Panel id="sources" title="Sources" open={panel === "sources"} onClose={() => setPanel(null)}>{sources}</Panel>
       )}
       {episodes && (
-        <aside className="v-watch-panel" data-open={panel === "episodes"} aria-hidden={panel !== "episodes"} inert={panel !== "episodes"}>
-          {episodes}
-        </aside>
+        <Panel id="episodes" title="Episodes" open={panel === "episodes"} onClose={() => setPanel(null)}>{episodes}</Panel>
       )}
     </div>
+  );
+}
+
+function Panel({ id, title, open, onClose, children }: { id: string; title: string; open: boolean; onClose: () => void; children: React.ReactNode }) {
+  const body = useRef<HTMLDivElement>(null);
+  // Bring the playing episode into view when the panel opens.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => body.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 150);
+    return () => clearTimeout(t);
+  }, [open]);
+  return (
+    <aside id={id} className="v-watch-panel" data-open={open} aria-hidden={!open} inert={!open} aria-label={title}>
+      <header className="v-panel-head">
+        <h2>{title}</h2>
+        <button type="button" className="v-bar-icon" aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>
+          <CloseIcon size={20} />
+        </button>
+      </header>
+      <div className="v-panel-body" ref={body}>{children}</div>
+    </aside>
   );
 }

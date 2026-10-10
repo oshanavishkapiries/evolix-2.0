@@ -47,3 +47,12 @@ export const FilmPlayIcon = ({ size = 20, className }: P) => (
 export const UserIcon = ({ size = 18, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg>
 );
+export const EpisodesIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M7 20h10M9 8h6M9 12h6" /></svg>
+);
+export const SourcesIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" /></svg>
+);
+export const CloseIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="M6 6l12 12M18 6 6 18" /></svg>
+);
