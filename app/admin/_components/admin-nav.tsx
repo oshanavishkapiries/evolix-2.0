@@ -18,6 +18,7 @@ const LINKS = [
   },
   { href: "/admin/movies/new", label: "New movie", match: (p: string) => p === "/admin/movies/new" },
   { href: "/admin/shows/new", label: "New show", match: (p: string) => p === "/admin/shows/new" },
+  { href: "/admin/import-export", label: "Import / Export", match: (p: string) => p === "/admin/import-export" },
 ];
 
 const linkClass = (active: boolean) =>
