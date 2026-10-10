@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { imageUrl } from "@/lib/images";
 import { PlayIcon } from "./icons";
+import { Swap } from "./motion";
 import { dateText, runtimeText } from "@/lib/viewer/format";
 import type { ShowDetail } from "@/lib/viewer/detail";
 
@@ -97,8 +98,9 @@ export function Seasons({ show }: { show: ShowDetail }) {
           {selected.airDate && <span className="v-muted" style={{ fontSize: ".85rem" }}>{dateText(selected.airDate)}</span>}
         </div>
         {selected.overview && <p className="v-muted v-season-overview">{selected.overview}</p>}
+        <Swap k={selected.id}>
         {episodes.length ? (
-          <ul className="v-episodes" key={selected.id}>
+          <ul className="v-episodes">
             {episodes.map((ep) => (
               <li key={ep.id}>
                 <EpisodeRow showId={show.id} seasonNumber={selected.seasonNumber} ep={ep} />
@@ -108,6 +110,7 @@ export function Seasons({ show }: { show: ShowDetail }) {
         ) : (
           <p className="v-muted">No episodes in this season yet.</p>
         )}
+        </Swap>
       </section>
     </>
   );

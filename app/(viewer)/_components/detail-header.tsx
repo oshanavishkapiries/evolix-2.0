@@ -39,7 +39,7 @@ export function DetailHeader(p: Props) {
       <div className="v-detail-head">
         {poster ? (
           // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-          <img className="v-detail-poster" src={poster} alt={`Poster for ${p.title}`} width={500} height={750} decoding="async" fetchPriority="high" />
+          <img className="v-detail-poster" src={poster} alt={`Poster for ${p.title}`} width={500} height={750} decoding="async" fetchPriority="high" style={{ viewTransitionName: `poster-${p.id}` }} />
         ) : (
           <div className="v-detail-poster v-card-ph">{p.title}</div>
         )}
