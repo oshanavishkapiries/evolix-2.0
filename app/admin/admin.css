@@ -23,7 +23,6 @@ body:has(.adm) { background: #1f1f1f; }
 .adm-side { position: sticky; top: 0; z-index: 30; height: 100dvh; width: 15rem; flex: none; display: flex; flex-direction: column; overflow-y: auto; background: var(--a-bar); border-right: 1px solid #2c2c2c; }
 .adm-side-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.25rem; }
 .adm-brand { font-size: 1.35rem; font-weight: 700; letter-spacing: -.02em; color: var(--a-gold) !important; text-decoration: none !important; }
-.adm-brand span { margin-left: .2rem; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #9a9a9a; }
 .adm-menu-btn { display: none; place-items: center; width: 2.5rem; height: 2.5rem; padding: 0; border-radius: 50%; background: transparent; color: #fff; }
 .adm-menu-btn:hover { background: rgb(255 255 255 / .1); }
 .adm-nav { flex: 1; padding: 0 .75rem 1rem; }
@@ -79,8 +78,10 @@ body:has(.adm) { background: #1f1f1f; }
 .adm .data-table tbody tr:hover { background: rgb(255 255 255 / .03); }
 .adm .rows > li { transition: background-color .15s; }
 .adm .rows > li:hover { background: rgb(255 255 255 / .03); }
-.adm .badge { font-weight: 700; letter-spacing: .02em; }
-.adm .badge-off { background: #3a3a3a; color: #b3b3b3; }
+.adm .badge { padding: .15rem .6rem; font-size: .72rem; font-weight: 700; letter-spacing: .02em; line-height: 1.4; }
+.adm .badge-on { background: rgb(80 200 110 / .16); color: #7fe095; }
+.adm .badge-off { background: rgb(255 255 255 / .09); color: #b3b3b3; }
+.adm .tile-meta .badge { background: rgb(255 255 255 / .12); color: #e6e6e6; }
 .adm .tabs { border-color: #333; }
 .adm .tab { color: #9a9a9a; transition: color .15s, border-color .15s; }
 .adm .tab:hover { color: #fff; border-color: #666; }
