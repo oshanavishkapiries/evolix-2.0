@@ -10,6 +10,7 @@ import { PageHeader } from "../_components/page-header";
 import { GridSkeleton } from "../_components/skeletons";
 import { CardSizeSlider, ViewToggle } from "../_components/view-controls";
 import { resolveView, viewCookie } from "../_components/view-prefs";
+import { PageMotion, Reveal, SkeletonOut } from "../_components/motion";
 
 export const metadata: Metadata = { title: "My List" };
 
@@ -17,12 +18,14 @@ type Props = { searchParams: Promise<{ view?: string | string[] }> };
 
 export default function MyListPage({ searchParams }: Props) {
   return (
+    <PageMotion>
     <div className="v-page v-page-rows">
       <NavMarker active="my-list" />
-      <Suspense fallback={<><PageHeader title="My List" /><div className="v-page-pad"><GridSkeleton count={12} /></div></>}>
-        <Items searchParams={searchParams} />
+      <Suspense fallback={<SkeletonOut><PageHeader title="My List" /><div className="v-page-pad"><GridSkeleton count={12} /></div></SkeletonOut>}>
+        <Reveal><Items searchParams={searchParams} /></Reveal>
       </Suspense>
     </div>
+    </PageMotion>
   );
 }
 

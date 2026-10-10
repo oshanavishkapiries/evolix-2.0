@@ -1,0 +1,36 @@
+/* View transitions (spec §6). Classes are assigned by <ViewTransition> in _components/motion.tsx. */
+
+/* Keep the chrome still while content moves */
+.v-top { view-transition-name: v-top; }
+.v-side { view-transition-name: v-side; }
+.v-bottom { view-transition-name: v-bottom; }
+::view-transition-group(v-top), ::view-transition-group(v-side), ::view-transition-group(v-bottom) { animation: none; z-index: 100; }
+::view-transition-old(v-top), ::view-transition-old(v-side), ::view-transition-old(v-bottom) { display: none; }
+::view-transition-new(v-top), ::view-transition-new(v-side), ::view-transition-new(v-bottom) { animation: none; }
+/* Clicks during a transition reach the live page */
+::view-transition { pointer-events: none; }
+
+@keyframes v-vt-fade-in { from { opacity: 0; } }
+@keyframes v-vt-fade-out { to { opacity: 0; } }
+@keyframes v-vt-up { from { translate: 0 10px; } }
+@keyframes v-vt-down { to { translate: 0 8px; } }
+
+/* 6.1 Route change: quick exit, gentle arrival */
+::view-transition-old(.v-page-out) { animation: 120ms ease-in both v-vt-fade-out; }
+::view-transition-new(.v-page-in) { animation: 260ms cubic-bezier(.2, .8, .2, 1) 80ms both v-vt-fade-in, 320ms cubic-bezier(.2, .8, .2, 1) 80ms both v-vt-up; }
+
+/* 6.2 Poster morph into the detail page (names are set per title, the class is shared) */
+.v-detail-poster { view-transition-class: v-morph; }
+::view-transition-group(*.v-morph) { animation-duration: 380ms; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+
+/* 6.3 Skeleton hands over to content */
+::view-transition-old(.v-skel-out) { animation: 150ms ease-in both v-vt-fade-out, 150ms ease-in both v-vt-down; }
+::view-transition-new(.v-reveal) { animation: 260ms cubic-bezier(.2, .8, .2, 1) 100ms both v-vt-fade-in, 300ms cubic-bezier(.2, .8, .2, 1) 100ms both v-vt-up; }
+
+/* 6.12 Same-route swap (season change) */
+::view-transition-old(.v-swap-out) { animation: 120ms ease-in both v-vt-fade-out; }
+::view-transition-new(.v-swap-in) { animation: 220ms ease-out 80ms both v-vt-fade-in; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*), ::view-transition-new(*), ::view-transition-group(*) { animation-duration: 0s !important; animation-delay: 0s !important; }
+}

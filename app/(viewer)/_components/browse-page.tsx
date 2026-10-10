@@ -10,6 +10,7 @@ import { PageHeader } from "./page-header";
 import { GridSkeleton, RowSkeleton } from "./skeletons";
 import { CardSizeSlider, ViewToggle } from "./view-controls";
 import { resolveView, viewCookie } from "./view-prefs";
+import { PageMotion, Reveal, SkeletonOut } from "./motion";
 
 type Raw = Record<string, string | string[] | undefined>;
 
@@ -29,12 +30,14 @@ type Query = ReturnType<typeof parse>;
 /** Movies / TV page: Browse (rows or grid) and Genres tabs. */
 export function BrowsePage({ kind, basePath, heading, searchParams }: { kind: CardKind; basePath: string; heading: string; searchParams: Promise<Raw> }) {
   return (
+    <PageMotion>
     <div className="v-page v-page-rows">
       <NavMarker active={kind === "movie" ? "movies" : "tv"} />
-      <Suspense fallback={<><PageHeader title={heading} /><RowSkeleton /><RowSkeleton /></>}>
-        <Content kind={kind} basePath={basePath} heading={heading} searchParams={searchParams} />
+      <Suspense fallback={<SkeletonOut><PageHeader title={heading} /><RowSkeleton /><RowSkeleton /></SkeletonOut>}>
+        <Reveal><Content kind={kind} basePath={basePath} heading={heading} searchParams={searchParams} /></Reveal>
       </Suspense>
     </div>
+    </PageMotion>
   );
 }
 

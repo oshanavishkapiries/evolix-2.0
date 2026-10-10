@@ -15,6 +15,7 @@ import { MediaCard } from "../_components/media-card";
 import { PageHeader } from "../_components/page-header";
 import { SearchBar } from "../_components/search-bar";
 import { CardSizeSlider } from "../_components/view-controls";
+import { PageMotion, Reveal, SkeletonOut } from "../_components/motion";
 
 export const metadata: Metadata = { title: "Browse" };
 
@@ -48,13 +49,15 @@ function href(base: Query, patch: Partial<Query>) {
 
 export default function SearchPage({ searchParams }: { searchParams: Promise<Raw> }) {
   return (
+    <PageMotion>
     <div className="v-page">
       <NavMarker active="search" />
       <PageHeader title="Search" subtitle="Movies & Shows" controls={<CardSizeSlider />} />
-      <Suspense fallback={<GridSkeleton count={12} />}>
-        <SearchContent searchParams={searchParams} />
+      <Suspense fallback={<SkeletonOut><GridSkeleton count={12} /></SkeletonOut>}>
+        <Reveal><SearchContent searchParams={searchParams} /></Reveal>
       </Suspense>
     </div>
+    </PageMotion>
   );
 }
 

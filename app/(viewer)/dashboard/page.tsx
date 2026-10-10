@@ -9,18 +9,21 @@ import { ContinueRow } from "../_components/continue-row";
 import { HubRow } from "../_components/hub-row";
 import { PageHeader } from "../_components/page-header";
 import { LibrarySkeleton } from "../_components/skeletons";
+import { PageMotion, Reveal, SkeletonOut } from "../_components/motion";
 
 export const metadata: Metadata = { title: "Home" };
 
 export default function HomePage() {
   return (
+    <PageMotion>
     <div className="v-page v-page-rows">
       <NavMarker active="dashboard" />
       <PageHeader title="Home" />
-      <Suspense fallback={<LibrarySkeleton />}>
-        <HomeContent />
+      <Suspense fallback={<SkeletonOut><LibrarySkeleton /></SkeletonOut>}>
+        <Reveal><HomeContent /></Reveal>
       </Suspense>
     </div>
+    </PageMotion>
   );
 }
 

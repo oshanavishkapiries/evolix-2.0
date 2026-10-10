@@ -9,6 +9,7 @@ import { DetailHeader, type PlayAction } from "../../_components/detail-header";
 import { detailMetadata, MediaSections } from "../../_components/media-sections";
 import { Seasons } from "../../_components/seasons";
 import { NavMarker } from "../../_components/nav-marker";
+import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
 // unpublished title is a real HTTP 404 instead of a streamed 200.
@@ -46,6 +47,7 @@ export default async function ShowPage({ params, searchParams }: Props) {
   const seasonCount = show.seasons.filter((s) => s.seasonNumber > 0).length;
 
   return (
+    <PageMotion>
     <div className="v-detail">
       <NavMarker active="tv" />
       <DetailHeader
@@ -66,5 +68,6 @@ export default async function ShowPage({ params, searchParams }: Props) {
       <Seasons show={show} />
       <MediaSections item={show} />
     </div>
+    </PageMotion>
   );
 }

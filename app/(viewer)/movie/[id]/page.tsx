@@ -8,6 +8,7 @@ import { currentUserId } from "@/lib/viewer/user";
 import { DetailHeader, type PlayAction } from "../../_components/detail-header";
 import { detailMetadata, MediaSections } from "../../_components/media-sections";
 import { NavMarker } from "../../_components/nav-marker";
+import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
 // unpublished title is a real HTTP 404 instead of a streamed 200.
@@ -39,6 +40,7 @@ export default async function MoviePage({ params }: Props) {
       : { href, label: "Play" };
 
   return (
+    <PageMotion>
     <div className="v-detail">
       <NavMarker active="movies" />
       <DetailHeader
@@ -58,5 +60,6 @@ export default async function MoviePage({ params }: Props) {
       />
       <MediaSections item={movie} />
     </div>
+    </PageMotion>
   );
 }
