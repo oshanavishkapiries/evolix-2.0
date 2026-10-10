@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ACCESS_COOKIE } from "@/lib/auth/http";
+import { checkAdminToken } from "@/lib/auth/admin";
 import { verifyAccessToken } from "@/lib/auth/tokens";
 
 const PROTECTED = ["/dashboard", "/admin"];
@@ -19,6 +20,16 @@ export async function proxy(req: NextRequest) {
     const url = new URL("/api/auth/refresh-redirect", req.url);
     url.searchParams.set("next", pathname + search);
     return NextResponse.redirect(url);
+  }
+  if (matches(pathname, ["/admin"])) {
+    // Real HTTP redirects for non-admins (the layout guard remains as defense in depth).
+    const admin = await checkAdminToken(token);
+    if (admin.status === "forbidden") return NextResponse.redirect(new URL("/dashboard", req.url));
+    if (admin.status === "unauthenticated") {
+      const url = new URL("/api/auth/refresh-redirect", req.url);
+      url.searchParams.set("next", pathname + search);
+      return NextResponse.redirect(url);
+    }
   }
   if (matches(pathname, GUEST_ONLY) && valid) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
