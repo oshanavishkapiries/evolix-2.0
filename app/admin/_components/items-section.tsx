@@ -87,29 +87,32 @@ function Section({
   }
 
   return (
-    <section>
+    <section className="card">
       <h3>{title}</h3>
       {items === null ? (
         <p>Loading...</p>
       ) : items.length === 0 ? (
         <p>None yet.</p>
       ) : (
-        <ul>
+        <ul className="rows">
           {items.map((i) => (
             <li key={i.id}>
-              {summary(i)}{" "}
+              <span className="min-w-0 break-all text-sm">{summary(i)}</span>
+              <span className="toolbar">
               <button
                 type="button"
+                className="btn-secondary"
                 onClick={() => {
                   setEditing(i.id);
                   setValues(toForm(i, defs));
                 }}
               >
                 Edit
-              </button>{" "}
-              <button type="button" onClick={() => remove(i.id)}>
+              </button>
+              <button type="button" className="btn-danger" onClick={() => remove(i.id)}>
                 Delete
               </button>
+              </span>
             </li>
           ))}
         </ul>
@@ -124,7 +127,7 @@ function Section({
           {editing && (
             <>
               {" "}
-              <button type="button" onClick={reset}>
+              <button type="button" className="btn-secondary" onClick={reset}>
                 Cancel edit
               </button>
             </>

@@ -71,9 +71,9 @@ export function EntityFields({
 }) {
   const set = (key: string, v: string | boolean) => onChange({ ...values, [key]: v });
   return (
-    <>
+    <div className="fields">
       {defs.map((d) => (
-        <p key={d.key}>
+        <p key={d.key} className={d.kind === "textarea" || d.kind === "json" ? "wide" : undefined}>
           <label>
             {d.label}{" "}
             {d.kind === "bool" ? (
@@ -85,7 +85,6 @@ export function EntityFields({
             ) : d.kind === "textarea" || d.kind === "json" ? (
               <textarea
                 rows={d.kind === "json" ? 6 : 4}
-                cols={60}
                 value={String(values[d.key] ?? "")}
                 onChange={(e) => set(d.key, e.target.value)}
               />
@@ -108,7 +107,7 @@ export function EntityFields({
           </label>
         </p>
       ))}
-    </>
+    </div>
   );
 }
 

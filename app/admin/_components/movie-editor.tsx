@@ -56,12 +56,13 @@ export function MovieEditor({ id }: { id: string }) {
       <h1>{String(movie.title)}</h1>
       {error && <p role="alert">{error}</p>}
       {status && <p role="status">{status}</p>}
-      <p>
-        State: {published ? "published" : "draft"}{" "}
-        <button type="button" onClick={() => patch({ isPublished: !published }, published ? "Unpublished." : "Published.")}>
+      <p className="toolbar">
+        State:{" "}
+        <span className={`badge ${published ? "badge-on" : "badge-off"}`}>{published ? "published" : "draft"}</span>
+        <button type="button" className="btn-secondary" onClick={() => patch({ isPublished: !published }, published ? "Unpublished." : "Published.")}>
           {published ? "Unpublish" : "Publish"}
         </button>{" "}
-        <button type="button" onClick={remove}>
+        <button type="button" className="btn-danger" onClick={remove}>
           Delete movie
         </button>
       </p>
@@ -70,7 +71,7 @@ export function MovieEditor({ id }: { id: string }) {
           <legend>Movie details (TMDB {String(movie.tmdbId)})</legend>
           {tmdbImage(movie.posterPath) && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={tmdbImage(movie.posterPath)!} alt="Poster" width={150} />
+            <img src={tmdbImage(movie.posterPath)!} alt="Poster" width={150} className="mb-4 w-36 rounded-md" />
           )}
           <EntityFields defs={MOVIE_DEFS} values={values} onChange={setValues} />
           <button type="submit">Save changes</button>

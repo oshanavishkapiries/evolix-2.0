@@ -71,16 +71,16 @@ function NodeEditor({
   }
 
   return (
-    <details>
+    <details className="bg-white dark:bg-gray-900">
       <summary>
         {label} - {visible ? "visible" : "hidden"}
       </summary>
-      <p>
+      <p className="toolbar">
         <label>
           Visible{" "}
           <input type="checkbox" checked={visible} onChange={(e) => toggle(e.target.checked)} />
         </label>{" "}
-        <button type="button" onClick={remove}>
+        <button type="button" className="btn-danger" onClick={remove}>
           Delete
         </button>
       </p>
@@ -147,15 +147,17 @@ export function ShowEditor({ id }: { id: string }) {
       <h1>{show.name}</h1>
       {error && <p role="alert">{error}</p>}
       {status && <p role="status">{status}</p>}
-      <p>
-        State: {show.isPublished ? "published" : "draft"}{" "}
+      <p className="toolbar">
+        State:{" "}
+        <span className={`badge ${show.isPublished ? "badge-on" : "badge-off"}`}>{show.isPublished ? "published" : "draft"}</span>
         <button
           type="button"
+          className="btn-secondary"
           onClick={() => patch({ isPublished: !show.isPublished }, show.isPublished ? "Unpublished." : "Published.")}
         >
           {show.isPublished ? "Unpublish" : "Publish"}
         </button>{" "}
-        <button type="button" onClick={remove}>
+        <button type="button" className="btn-danger" onClick={remove}>
           Delete show
         </button>
       </p>
@@ -164,7 +166,7 @@ export function ShowEditor({ id }: { id: string }) {
           <legend>Show details (TMDB {show.tmdbId})</legend>
           {tmdbImage(show.posterPath) && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={tmdbImage(show.posterPath)!} alt="Poster" width={150} />
+            <img src={tmdbImage(show.posterPath)!} alt="Poster" width={150} className="mb-4 w-36 rounded-md" />
           )}
           <EntityFields defs={SHOW_DEFS} values={values} onChange={setValues} />
           <button type="submit">Save changes</button>

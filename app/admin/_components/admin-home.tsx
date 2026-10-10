@@ -46,11 +46,15 @@ export function AdminHome() {
         ) : movies.length === 0 ? (
           <p>No movies yet.</p>
         ) : (
-          <ul>
+          <ul className="rows">
             {movies.map((m) => (
               <li key={m.id}>
-                <a href={`/admin/movies/${m.id}`}>{m.title}</a> ({year(m.releaseDate)}) -{" "}
-                {m.isPublished ? "published" : "draft"}
+                <span>
+                  <a href={`/admin/movies/${m.id}`}>{m.title}</a> ({year(m.releaseDate)}){" "}
+                </span>
+                <span className={`badge ${m.isPublished ? "badge-on" : "badge-off"}`}>
+                  {m.isPublished ? "published" : "draft"}
+                </span>
               </li>
             ))}
           </ul>
@@ -66,11 +70,15 @@ export function AdminHome() {
         ) : shows.length === 0 ? (
           <p>No shows yet.</p>
         ) : (
-          <ul>
+          <ul className="rows">
             {shows.map((s) => (
               <li key={s.id}>
-                <a href={`/admin/shows/${s.id}`}>{s.name}</a> ({year(s.firstAirDate)}) -{" "}
-                {s.isPublished ? "published" : "draft"}
+                <span>
+                  <a href={`/admin/shows/${s.id}`}>{s.name}</a> ({year(s.firstAirDate)}){" "}
+                </span>
+                <span className={`badge ${s.isPublished ? "badge-on" : "badge-off"}`}>
+                  {s.isPublished ? "published" : "draft"}
+                </span>
               </li>
             ))}
           </ul>

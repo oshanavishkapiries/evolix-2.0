@@ -66,7 +66,7 @@ export function ShowCreate() {
             <legend>Show details (TMDB {tmdbId})</legend>
             {tmdbImage(values.posterPath) && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={tmdbImage(values.posterPath)!} alt="Poster" width={150} />
+              <img src={tmdbImage(values.posterPath)!} alt="Poster" width={150} className="mb-4 w-36 rounded-md" />
             )}
             <EntityFields defs={SHOW_DEFS} values={values} onChange={setValues} />
             <p>
@@ -96,7 +96,7 @@ export function ShowCreate() {
                     Season {s.seasonNumber}: {s.name} ({s.episodes.length} episodes)
                   </label>
                 </summary>
-                <ul>
+                <ul className="mt-2 space-y-1 pl-6">
                   {s.episodes.map((ep, j) => (
                     <li key={ep.episodeNumber}>
                       <label>

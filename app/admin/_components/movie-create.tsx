@@ -52,7 +52,7 @@ export function MovieCreate() {
             <legend>Movie details (TMDB {tmdbId})</legend>
             {tmdbImage(values.posterPath) && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={tmdbImage(values.posterPath)!} alt="Poster" width={150} />
+              <img src={tmdbImage(values.posterPath)!} alt="Poster" width={150} className="mb-4 w-36 rounded-md" />
             )}
             <EntityFields defs={MOVIE_DEFS} values={values} onChange={setValues} />
             <p>
