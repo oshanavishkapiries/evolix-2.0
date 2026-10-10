@@ -5,12 +5,13 @@ import { json } from "@/lib/auth/http";
 import { adminRoute, isUuid, notFound, parsePatch } from "@/lib/cms/api";
 import { getMovie } from "@/lib/cms/movies";
 import { moviePatch } from "@/lib/cms/schemas";
+import { listVideos } from "@/lib/cms/videos";
 
 type P = { id: string };
 
 export const GET = adminRoute<P>(async (_req, { id }) => {
   const movie = isUuid(id) ? await getMovie(id) : null;
-  return movie ? json(200, { movie }) : notFound("Movie");
+  return movie ? json(200, { movie: { ...movie, videos: await listVideos({ movieId: id }) } }) : notFound("Movie");
 });
 
 export const PATCH = adminRoute<P>(async (req, { id }) => {

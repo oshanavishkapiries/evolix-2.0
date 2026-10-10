@@ -2,8 +2,9 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { z } from "zod";
 import { db } from "@/db";
-import { episodes, seasons, shows } from "@/db/schema";
+import { episodes, seasons, shows, videos } from "@/db/schema";
 import type { showCreate } from "./schemas";
+import { listVideos, videoRows } from "./videos";
 
 export async function listShows() {
   return db
@@ -51,6 +52,7 @@ export async function getShowTree(id: string) {
     : [];
   return {
     ...show,
+    videos: await listVideos({ showId: id }),
     seasons: seasonRows.map((s) => ({
       ...s,
       episodes: episodeRows.filter((e) => e.seasonId === s.id),
@@ -60,7 +62,7 @@ export async function getShowTree(id: string) {
 
 /** Inserts show + seasons + episodes in one atomic HTTP batch. */
 export async function createShowTree(input: z.infer<typeof showCreate>) {
-  const { seasons: seasonInput, ...showFields } = input;
+  const { seasons: seasonInput, videos: videoInput, ...showFields } = input;
   const showId = randomUUID();
 
   const seasonRows = seasonInput.map((s) => ({
@@ -83,6 +85,8 @@ export async function createShowTree(input: z.infer<typeof showCreate>) {
   for (let i = 0; i < episodeRows.length; i += 1000) {
     stmts.push(db.insert(episodes).values(episodeRows.slice(i, i + 1000)) as never);
   }
+  const videoValues = videoRows({ showId }, videoInput);
+  if (videoValues.length) stmts.push(db.insert(videos).values(videoValues).onConflictDoNothing() as never);
   await db.batch(stmts as [(typeof stmts)[0], ...(typeof stmts)[0][]]);
   return showId;
 }

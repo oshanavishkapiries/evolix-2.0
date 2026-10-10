@@ -1,6 +1,10 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { movies } from "@/db/schema";
+import { randomUUID } from "node:crypto";
+import type { z } from "zod";
+import { movies, videos } from "@/db/schema";
+import type { movieCreate } from "./schemas";
+import { videoRows } from "./videos";
 
 export async function listMovies() {
   return db
@@ -28,4 +32,18 @@ export async function findMovieIdByTmdb(tmdbId: number) {
     .where(eq(movies.tmdbId, tmdbId))
     .limit(1);
   return row?.id ?? null;
+}
+
+/** Inserts a movie and its videos in one atomic HTTP batch; returns the movie row. */
+export async function createMovieWithVideos(input: z.infer<typeof movieCreate>) {
+  const { videos: videoInput, ...fields } = input;
+  const id = randomUUID();
+  const rows = videoRows({ movieId: id }, videoInput);
+  const insertMovie = db.insert(movies).values({ ...fields, id }).returning();
+  if (!rows.length) return (await insertMovie)[0];
+  const [movieRows] = await db.batch([
+    insertMovie,
+    db.insert(videos).values(rows).onConflictDoNothing(),
+  ]);
+  return movieRows[0];
 }
