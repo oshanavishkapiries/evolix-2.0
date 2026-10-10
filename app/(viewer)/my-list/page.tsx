@@ -3,43 +3,78 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { currentUserId } from "@/lib/viewer/user";
 import { listBookmarks } from "@/lib/viewer/library";
-import { NavMarker } from "../_components/nav-marker";
+import { HubRow } from "../_components/hub-row";
 import { MediaCard } from "../_components/media-card";
+import { NavMarker } from "../_components/nav-marker";
+import { PageHeader } from "../_components/page-header";
 import { GridSkeleton } from "../_components/skeletons";
+import { CardSizeSlider, ViewToggle } from "../_components/view-controls";
+import { resolveView, viewCookie } from "../_components/view-prefs";
 
 export const metadata: Metadata = { title: "My List" };
 
-export default function MyListPage() {
+type Props = { searchParams: Promise<{ view?: string | string[] }> };
+
+export default function MyListPage({ searchParams }: Props) {
   return (
-    <div className="v-page">
+    <div className="v-page v-page-rows">
       <NavMarker active="my-list" />
-      <h1 className="v-page-title">My List</h1>
-      <Suspense fallback={<GridSkeleton count={12} />}>
-        <Items />
+      <Suspense fallback={<><PageHeader title="My List" /><div className="v-page-pad"><GridSkeleton count={12} /></div></>}>
+        <Items searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function Items() {
-  const userId = await currentUserId();
+async function Items({ searchParams }: Props) {
+  const sp = await searchParams;
+  const [userId, view] = await Promise.all([currentUserId(), resolveView("my-list", Array.isArray(sp.view) ? sp.view[0] : sp.view, "grid")]);
   const items = userId ? await listBookmarks(userId) : [];
+  const header = (
+    <PageHeader
+      title="My List"
+      subtitle={`${items.length} ${items.length === 1 ? "title" : "titles"}`}
+      controls={
+        <>
+          <CardSizeSlider />
+          <ViewToggle cookie={viewCookie("my-list")} current={view} rowsHref="/my-list?view=rows" gridHref="/my-list?view=grid" />
+        </>
+      }
+    />
+  );
   if (!items.length) {
     return (
-      <div className="v-empty" style={{ minHeight: "40dvh" }}>
-        <h2>Your list is empty</h2>
-        <p className="v-muted">Use the bookmark button on any movie or show to save it here.</p>
-        <Link href="/dashboard" className="v-btn">Browse the library</Link>
-      </div>
+      <>
+        {header}
+        <div className="v-page-pad">
+          <div className="v-panel v-empty-box">
+            <h2>Your list is empty</h2>
+            <p className="v-muted">Use the bookmark button on any movie or show to save it here.</p>
+            <Link href="/dashboard" className="v-btn v-btn-primary">Browse the library</Link>
+          </div>
+        </div>
+      </>
+    );
+  }
+  if (view === "rows") {
+    return (
+      <>
+        {header}
+        <HubRow title="Movies" subtitle="Saved for later" items={items.filter((i) => i.kind === "movie")} />
+        <HubRow title="TV Shows" subtitle="Saved for later" items={items.filter((i) => i.kind === "show")} />
+      </>
     );
   }
   return (
-    <ul className="v-grid">
-      {items.map((item) => (
-        <li key={`${item.kind}-${item.id}`}>
-          <MediaCard item={item} badge />
-        </li>
-      ))}
-    </ul>
+    <>
+      {header}
+      <ul className="v-grid v-page-pad">
+        {items.map((item) => (
+          <li key={`${item.kind}-${item.id}`}>
+            <MediaCard item={item} badge />
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

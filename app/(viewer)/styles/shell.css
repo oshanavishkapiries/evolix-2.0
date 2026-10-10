@@ -115,7 +115,7 @@ body:has(.viewer [data-nav="watch"]) { background: #000; }
 .v-ph-tabs a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--v-primary); scale: 0 1; transition: scale var(--v-dur-2) var(--v-ease); }
 .v-ph-tabs a[aria-current="page"] { color: var(--v-primary); }
 .v-ph-tabs a[aria-current="page"]::after { scale: 1 1; }
-.v-ph-controls { justify-self: end; display: flex; align-items: center; gap: 1rem; }
+.v-ph-controls { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 1rem; }
 @media (max-width: 47.99rem) {
   .v-ph { grid-template-columns: 1fr; }
   .v-ph-tabs { gap: 1.25rem; overflow-x: auto; scrollbar-width: none; }

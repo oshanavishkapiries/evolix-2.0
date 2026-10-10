@@ -85,3 +85,37 @@
 /* Grid (My List, Search, grid mode); follows the card-size slider */
 .v-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr)); gap: 1.5rem clamp(.75rem, 1.5vw, 1.5rem); }
 @media (max-width: 47.99rem) { .v-grid { grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); } }
+
+/* Page bits used by Movies / TV / My List / Search (spec §5.2–5.4) */
+.v-page-pad { padding-inline: var(--v-gutter); }
+.v-grid-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; font-size: .85rem; }
+.v-more { position: relative; }
+.v-more > summary { list-style: none; cursor: pointer; padding: .35rem .8rem; border-radius: 999px; background: rgb(255 255 255 / .07); font-size: .85rem; font-weight: 500; transition: background var(--v-dur-1); }
+.v-more > summary::-webkit-details-marker { display: none; }
+.v-more > summary:hover { background: rgb(255 255 255 / .12); }
+.v-more > ul { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 30; min-width: 11rem; padding: .35rem; background: var(--v-card); border: 1px solid var(--v-border); border-radius: .5rem; box-shadow: 0 12px 32px rgb(0 0 0 / .55); transform-origin: top right; animation: v-pop var(--v-dur-2) var(--v-ease); }
+.v-more > ul a { display: block; padding: .5rem .75rem; border-radius: var(--v-radius); font-size: .88rem; }
+.v-more > ul a:hover { background: var(--v-muted); }
+.v-more > ul a[aria-current="true"] { color: var(--v-primary); }
+.v-empty-box { display: grid; justify-items: start; gap: .75rem; max-width: 34rem; padding: 1.5rem; }
+.v-empty-box h2 { font-size: 1.1rem; }
+
+/* Header view controls */
+.v-size input[type="range"] { width: 4.5rem; accent-color: var(--v-fg-dim); cursor: pointer; margin: 0; }
+.v-view-toggle { display: flex; gap: .15rem; }
+.v-view-toggle button { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: var(--v-radius); color: var(--v-fg-faint); transition: color var(--v-dur-1), background var(--v-dur-1); }
+.v-view-toggle button:hover { color: var(--v-fg); background: rgb(255 255 255 / .07); }
+.v-view-toggle button[aria-pressed="true"] { color: var(--v-fg); }
+
+/* Genre tiles (Q19) */
+.v-genres { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--card-w) * 1.6), 1fr)); gap: 1rem; }
+.v-genre { position: relative; display: grid; align-content: end; aspect-ratio: 16/9; padding: .85rem 1rem; border-radius: .5rem; overflow: hidden; background: linear-gradient(135deg, #3a3a3a, #232323); isolation: isolate; transition: box-shadow var(--v-dur-2) var(--v-ease); }
+.v-genre img { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; transition: scale var(--v-dur-3) var(--v-ease); }
+.v-genre::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgb(0 0 0 / .85), rgb(0 0 0 / .15) 70%); }
+.v-genre-name { font-weight: 700; font-size: 1.1rem; }
+.v-genre-count { font-size: .75rem; color: var(--v-fg-dim); }
+@media (hover: hover) {
+  .v-genre:hover { box-shadow: 0 0 0 2px var(--v-primary); }
+  .v-genre:hover img { scale: 1.05; }
+}
+@media (max-width: 47.99rem) { .v-genres { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .75rem; } }
