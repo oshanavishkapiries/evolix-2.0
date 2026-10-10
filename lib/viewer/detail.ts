@@ -99,6 +99,7 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
         posterPath: seasons.posterPath,
         // Table-qualified by hand: drizzle drops the table name on single-table selects.
         episodeCount: sql<number>`(select count(*)::int from episodes e where e.season_id = ${seasons}.id and e.is_visible)`,
+        firstEpisode: sql<number | null>`(select min(e.episode_number) from episodes e where e.season_id = ${seasons}.id and e.is_visible)`,
       })
       .from(seasons)
       .where(and(eq(seasons.showId, id), eq(seasons.isVisible, true)))
