@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { ACCESS_COOKIE } from "@/lib/auth/http";
 import { verifyAccessToken } from "@/lib/auth/tokens";
 
-const PROTECTED = ["/dashboard"];
+const PROTECTED = ["/dashboard", "/admin"];
 const GUEST_ONLY = ["/login", "/register"];
 const matches = (path: string, bases: string[]) =>
   bases.some((b) => path === b || path.startsWith(`${b}/`));
@@ -26,4 +26,4 @@ export async function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/dashboard/:path*", "/login", "/register"] };
+export const config = { matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/register"] };

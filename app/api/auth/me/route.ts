@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { fail, json } from "@/lib/auth/http";
+import { isAdminEmail } from "@/lib/auth/admin";
 import { authenticate } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
@@ -15,5 +16,8 @@ export async function GET(req: NextRequest) {
     .where(eq(users.id, auth.userId))
     .limit(1);
   if (!user) return fail(401, "UNAUTHORIZED", "Not authenticated");
-  return json(200, { user });
+  return json(200, {
+    user,
+    isAdmin: Boolean(user.emailVerifiedAt) && isAdminEmail(user.email),
+  });
 }

@@ -7,6 +7,7 @@ type User = { id: string; email: string; emailVerifiedAt: string | null };
 
 export function DashboardView() {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -16,7 +17,10 @@ export function DashboardView() {
         const res = await fetchWithRefresh("/api/auth/me");
         if (cancelled || res.status === 401) return; // 401 already redirected to /login
         const body = await res.json();
-        if (res.ok) setUser(body.user);
+        if (res.ok) {
+          setUser(body.user);
+          setIsAdmin(body.isAdmin === true);
+        }
         else setError(body.message ?? "Could not load profile");
       } catch {
         if (!cancelled) setError("Could not load profile");
@@ -53,6 +57,11 @@ export function DashboardView() {
         </dl>
       ) : (
         !error && <p>Loading...</p>
+      )}
+      {isAdmin && (
+        <p>
+          <a href="/admin">Admin</a>
+        </p>
       )}
       <button type="button" onClick={logout}>Log out</button>{" "}
       <button type="button" onClick={logoutAll}>Log out of all devices</button>
