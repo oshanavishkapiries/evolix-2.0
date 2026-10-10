@@ -58,11 +58,10 @@ export function DashboardView() {
       ) : (
         !error && <p>Loading...</p>
       )}
-      {isAdmin && (
-        <p>
-          <a href="/admin">Admin</a>
-        </p>
-      )}
+      <p className="toolbar">
+        <a href="/library">Library</a>
+        {isAdmin && <a href="/admin">Admin</a>}
+      </p>
       <div className="toolbar">
         <button type="button" className="btn-secondary" onClick={logout}>Log out</button>
         <button type="button" className="btn-danger" onClick={logoutAll}>Log out of all devices</button>

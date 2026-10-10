@@ -3,8 +3,10 @@ import type { NextRequest } from "next/server";
 import { ACCESS_COOKIE } from "@/lib/auth/http";
 import { checkAdminToken } from "@/lib/auth/admin";
 import { verifyAccessToken } from "@/lib/auth/tokens";
+import { titleRouteVisible } from "@/lib/viewer/exists";
 
-const PROTECTED = ["/dashboard", "/admin"];
+const PROTECTED = ["/dashboard", "/admin", "/library", "/search", "/movie", "/tv", "/watch"];
+const VIEWER_TITLES = ["/movie", "/tv", "/watch"];
 const GUEST_ONLY = ["/login", "/register"];
 const matches = (path: string, bases: string[]) =>
   bases.some((b) => path === b || path.startsWith(`${b}/`));
@@ -31,10 +33,28 @@ export async function proxy(req: NextRequest) {
       return NextResponse.redirect(url);
     }
   }
+  if (valid && matches(pathname, VIEWER_TITLES) && (await titleRouteVisible(pathname)) === false) {
+    // Pages stream (status is fixed at 200), so unknown/unpublished titles are 404'd here.
+    return NextResponse.rewrite(new URL("/not-available", req.url));
+  }
+  if (pathname === "/" && valid) return NextResponse.redirect(new URL("/library", req.url));
   if (matches(pathname, GUEST_ONLY) && valid) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/register"] };
+export const config = {
+  matcher: [
+    "/",
+    "/dashboard/:path*",
+    "/admin/:path*",
+    "/library/:path*",
+    "/search/:path*",
+    "/movie/:path*",
+    "/tv/:path*",
+    "/watch/:path*",
+    "/login",
+    "/register",
+  ],
+};
