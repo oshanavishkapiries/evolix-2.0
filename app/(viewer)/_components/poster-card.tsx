@@ -2,6 +2,7 @@ import Link from "next/link";
 import { imageUrl } from "@/lib/images";
 import { detailHref, ratingText, yearOf } from "@/lib/viewer/format";
 import type { Card } from "@/lib/viewer/catalog";
+import { PlayIcon } from "./icons";
 
 export function PosterCard({ item, badge = false }: { item: Card; badge?: boolean }) {
   const src = imageUrl(item.posterPath, "w342");
@@ -17,12 +18,17 @@ export function PosterCard({ item, badge = false }: { item: Card; badge?: boolea
           <span className="v-card-ph">{item.title}</span>
         )}
         {badge && <span className="v-card-badge">{item.kind === "movie" ? "Movie" : "Show"}</span>}
+        <span className="v-card-hover" aria-hidden="true">
+          <span className="v-card-play"><PlayIcon size={24} /></span>
+        </span>
+        <span className="v-card-info">
+          <span className="v-card-title">{item.title}</span>
+          <span className="v-card-sub">
+            {year && <span>{year}</span>}
+            {rating && <span aria-label={`Rated ${rating}`}>★ {rating}</span>}
+          </span>
+        </span>
       </div>
-      <p className="v-card-title">{item.title}</p>
-      <p className="v-card-sub">
-        {year && <span>{year}</span>}
-        {rating && <span aria-label={`Rated ${rating}`}>★ {rating}</span>}
-      </p>
     </Link>
   );
 }

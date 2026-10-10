@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { browse, getHero, listGenres, listLatest } from "@/lib/viewer/catalog";
+import { NavMarker } from "../_components/nav-marker";
 import { ContentRow } from "../_components/content-row";
 import { LibrarySkeleton } from "../_components/skeletons";
 import { TitleHero } from "../_components/title-hero";
@@ -13,7 +14,7 @@ export default function LibraryPage() {
   return (
     <>
       <h1 className="v-sr">Dashboard</h1>
-      <span data-nav="dashboard" hidden />
+      <NavMarker active="dashboard" />
       <Suspense fallback={<LibrarySkeleton />}>
         <LibraryContent />
       </Suspense>
@@ -52,8 +53,8 @@ async function LibraryContent() {
       ) : (
         <div style={{ height: "var(--v-nav-h)" }} />
       )}
-      <ContentRow title="Recently added movies" items={movies} href="/search?type=movie" />
-      <ContentRow title="Recently added shows" items={shows} href="/search?type=show" />
+      <ContentRow title="Recently added movies" items={movies} href="/movies" />
+      <ContentRow title="Recently added shows" items={shows} href="/tv" />
       {genreRows.map((r) => (
         <ContentRow key={r.genre} title={r.genre} items={r.items} href={`/search?genre=${encodeURIComponent(r.genre)}`} badge />
       ))}

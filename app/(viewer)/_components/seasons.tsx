@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { imageUrl } from "@/lib/images";
+import { PlayIcon } from "./icons";
+import { SeasonSelect } from "./season-select";
 import { dateText, runtimeText } from "@/lib/viewer/format";
 import type { ShowDetail } from "@/lib/viewer/detail";
 
@@ -42,6 +44,7 @@ export function EpisodeRow({
           // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
           <img src={still} alt="" width={300} height={169} loading="lazy" decoding="async" />
         )}
+        <span className="v-ep-play" aria-hidden="true"><span><PlayIcon size={22} /></span></span>
       </span>
       <span>
         <span className="v-ep-title" style={{ display: "block" }}>{title}</span>
@@ -66,22 +69,16 @@ export function Seasons({ show }: { show: ShowDetail }) {
   const label = (s: (typeof seasons)[number]) => (s.seasonNumber === 0 ? "Specials" : `Season ${s.seasonNumber}`);
   return (
     <section className="v-section" aria-labelledby="seasons-h">
-      <h2 id="seasons-h">Episodes</h2>
-      {seasons.length > 1 && (
-        <nav className="v-tabs" aria-label="Seasons">
-          {seasons.map((s) => (
-            <Link
-              key={s.id}
-              href={`/tv/${show.id}?season=${s.seasonNumber}`}
-              aria-current={s.id === selected.id}
-              replace
-              scroll={false}
-            >
-              {label(s)}
-            </Link>
-          ))}
-        </nav>
-      )}
+      <div className="v-season-head">
+        <h2 id="seasons-h">Episodes</h2>
+        {seasons.length > 1 && (
+          <SeasonSelect
+            showId={show.id}
+            selectedId={selected.id}
+            options={seasons.map((x) => ({ id: x.id, number: x.seasonNumber, label: label(x) }))}
+          />
+        )}
+      </div>
       <div className="v-season-info">
         {poster && (
           // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN

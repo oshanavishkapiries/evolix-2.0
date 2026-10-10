@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { imageUrl } from "@/lib/images";
+import { InfoIcon, PlayIcon } from "./icons";
 import { ratingText, runtimeText, yearOf } from "@/lib/viewer/format";
 
 export type HeroProps = {
@@ -68,15 +69,15 @@ export function TitleHero(p: HeroProps) {
           {p.overview && <p className={`v-overview${p.detail ? " v-overview-full" : ""}`}>{p.overview}</p>}
           <div className="v-actions">
             {p.playHref ? (
-              <Link href={p.playHref} className="v-btn v-btn-primary" prefetch={false}>
-                ▶ {p.playLabel ?? "Play"}
+              <Link href={p.playHref} className="v-btn v-btn-play" prefetch={false}>
+                <PlayIcon size={20} /> {p.playLabel ?? "Play"}
               </Link>
             ) : (
               <span className="v-btn" aria-disabled="true">Not available yet</span>
             )}
             {p.infoHref && (
-              <Link href={p.infoHref} className="v-btn">
-                More info
+              <Link href={p.infoHref} className="v-btn v-btn-info">
+                <InfoIcon size={20} /> More info
               </Link>
             )}
           </div>

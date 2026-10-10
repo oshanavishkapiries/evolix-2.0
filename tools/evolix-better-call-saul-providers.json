@@ -1,0 +1,1712 @@
+{
+  "type": "show",
+  "title": "Better Call Saul",
+  "tmdbId": 60059,
+  "seasons": [
+    {
+      "seasonNumber": 0,
+      "name": "Specials",
+      "isVisible": false,
+      "episodes": [
+        {
+          "episodeNumber": 1,
+          "name": "Day One",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 2,
+          "name": "In the Studio",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 3,
+          "name": "A Look at the Series",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 4,
+          "name": "Characters of Better Call Saul",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 5,
+          "name": "No Picnic",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 6,
+          "name": "American Greed: James McGill",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seasonNumber": 1,
+      "name": "Season 1",
+      "isVisible": true,
+      "episodes": [
+        {
+          "episodeNumber": 1,
+          "name": "Uno",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/sLP9Zkuv",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/AogKyZ8G",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 2,
+          "name": "Mijo",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/8z3ckQWJ",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/5GtgHPKU",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 3,
+          "name": "Nacho",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/BwV8a8rQ",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/ctSGHFGC",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 4,
+          "name": "Hero",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/wqqVWNMH",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/wNreVerB",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 5,
+          "name": "Alpine Shepherd Boy",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/o679dFgk",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/TvhnTY5P",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 6,
+          "name": "Five-O",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/zyzrKna7",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/s1USjx4Y",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 7,
+          "name": "Bingo",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/RpXVtfBE",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/V9uEryS6",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 8,
+          "name": "RICO",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/RCX3KRkS",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/SS4yjQcg",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 9,
+          "name": "Pimento",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/r1fy8Btd",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/8LpJs3SS",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "episodeNumber": 10,
+          "name": "Marco",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "Pixeldrain (720p)",
+              "kind": "direct",
+              "url": "https://pixeldrain.com/api/file/oPTssVhN",
+              "quality": "720p",
+              "sortOrder": 1,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "Sinhala",
+              "language": "sin",
+              "url": "https://pixeldrain.com/api/file/GmUtEKzB",
+              "format": "srt",
+              "sortOrder": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seasonNumber": 2,
+      "name": "Season 2",
+      "isVisible": false,
+      "episodes": [
+        {
+          "episodeNumber": 1,
+          "name": "Switch",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 2,
+          "name": "Cobbler",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 3,
+          "name": "Amarillo",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 4,
+          "name": "Gloves Off",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 5,
+          "name": "Rebecca",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 6,
+          "name": "Bali Ha'i",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 7,
+          "name": "Inflatable",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 8,
+          "name": "Fifi",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 9,
+          "name": "Nailed",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 10,
+          "name": "Klick",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seasonNumber": 3,
+      "name": "Season 3",
+      "isVisible": false,
+      "episodes": [
+        {
+          "episodeNumber": 1,
+          "name": "Mabel",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 2,
+          "name": "Witness",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 3,
+          "name": "Sunk Costs",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 4,
+          "name": "Sabrosito",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 5,
+          "name": "Chicanery",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 6,
+          "name": "Off Brand",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 7,
+          "name": "Expenses",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 8,
+          "name": "Slip",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 9,
+          "name": "Fall",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 10,
+          "name": "Lantern",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seasonNumber": 4,
+      "name": "Season 4",
+      "isVisible": false,
+      "episodes": [
+        {
+          "episodeNumber": 1,
+          "name": "Smoke",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 2,
+          "name": "Breathe",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 3,
+          "name": "Something Beautiful",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 4,
+          "name": "Talk",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 5,
+          "name": "Quite a Ride",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 6,
+          "name": "Piñata",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 7,
+          "name": "Something Stupid",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 8,
+          "name": "Coushatta",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 9,
+          "name": "Wiedersehen",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 10,
+          "name": "Winner",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seasonNumber": 5,
+      "name": "Season 5",
+      "isVisible": false,
+      "episodes": [
+        {
+          "episodeNumber": 1,
+          "name": "Magic Man",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 2,
+          "name": "50% Off",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 3,
+          "name": "The Guy for This",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 4,
+          "name": "Namaste",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 5,
+          "name": "Dedicado a Max",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 6,
+          "name": "Wexler v. Goodman",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 7,
+          "name": "JMM",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 8,
+          "name": "Bagman",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 9,
+          "name": "Bad Choice Road",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 10,
+          "name": "Something Unforgivable",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seasonNumber": 6,
+      "name": "Season 6",
+      "isVisible": false,
+      "episodes": [
+        {
+          "episodeNumber": 1,
+          "name": "Wine and Roses",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 2,
+          "name": "Carrot and Stick",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 3,
+          "name": "Rock and Hard Place",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 4,
+          "name": "Hit and Run",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 5,
+          "name": "Black and Blue",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 6,
+          "name": "Axe and Grind",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 7,
+          "name": "Plan and Execution",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 8,
+          "name": "Point and Shoot",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 9,
+          "name": "Fun and Games",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 10,
+          "name": "Nippy",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 11,
+          "name": "Breaking Bad",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 12,
+          "name": "Waterworks",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        },
+        {
+          "episodeNumber": 13,
+          "name": "Saul Gone",
+          "isVisible": true,
+          "sources": [
+            {
+              "label": "",
+              "kind": "direct",
+              "url": "",
+              "quality": null,
+              "sortOrder": null,
+              "isActive": true
+            }
+          ],
+          "subtitles": [
+            {
+              "label": "",
+              "language": "",
+              "url": "",
+              "format": "vtt",
+              "sortOrder": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

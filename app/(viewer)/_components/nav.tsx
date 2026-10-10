@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
+import { NAV_ITEMS } from "./nav-items";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
 
 function NavSearch() {
@@ -112,10 +113,16 @@ export function ViewerNav() {
 
   return (
     <header className="v-nav" data-solid={solid}>
-      <Link href="/dashboard" className="v-wordmark" aria-label="Evolix home">EVOLIX</Link>
+      <Link href="/dashboard" className="v-logo" aria-label="Evolix home">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static SVG logo */}
+        <img src="/svg/evolix.svg" alt="Evolix" width={100} height={29} />
+      </Link>
       <nav aria-label="Main" className="v-nav-links">
-        <Link href="/dashboard">Home</Link>
-        <Link href="/search">Browse</Link>
+        {NAV_ITEMS.filter((n) => n.key !== "search").map((n) => (
+          <Link key={n.key} href={n.href} data-key={n.key}>
+            {n.label}
+          </Link>
+        ))}
       </nav>
       <div className="v-nav-end">
         <NavSearch />

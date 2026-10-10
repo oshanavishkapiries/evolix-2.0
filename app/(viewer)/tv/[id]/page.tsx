@@ -5,6 +5,7 @@ import { getShowDetail } from "@/lib/viewer/detail";
 import { yearOf } from "@/lib/viewer/format";
 import { detailMetadata, MediaSections } from "../../_components/media-sections";
 import { Seasons } from "../../_components/seasons";
+import { NavMarker } from "../../_components/nav-marker";
 import { TitleHero } from "../../_components/title-hero";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
@@ -36,6 +37,7 @@ export default async function ShowPage({ params, searchParams }: Props) {
   const seasonCount = show.seasons.filter((s) => s.seasonNumber > 0).length;
   return (
     <>
+      <NavMarker active="tv" />
       <TitleHero
         detail
         title={show.title}

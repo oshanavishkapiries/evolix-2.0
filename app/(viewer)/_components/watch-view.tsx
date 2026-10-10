@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
+import { BackIcon } from "./icons";
+import { NavMarker } from "./nav-marker";
 import { EmbedFrame } from "./embed-frame";
 import { WatchPlayer } from "./watch-player";
 
@@ -24,8 +26,9 @@ type Props = {
 export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side }: Props) {
   return (
     <div className="v-watch">
+      <NavMarker active="watch" />
       <div className="v-watch-head">
-        <Link href={backHref} className="v-back">← {backLabel}</Link>
+        <Link href={backHref} className="v-back"><BackIcon /> {backLabel}</Link>
         <h1>{heading}</h1>
         {sub && <span className="v-muted">{sub}</span>}
       </div>

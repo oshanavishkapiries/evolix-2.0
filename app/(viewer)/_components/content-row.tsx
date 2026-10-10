@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Card } from "@/lib/viewer/catalog";
 import { PosterCard } from "./poster-card";
+import { ScrollRow } from "./scroll-row";
 
 /** Horizontal scroll-snap row of poster cards (links, so it is keyboard accessible). */
 export function ContentRow({ title, items, href, badge }: { title: string; items: Card[]; href?: string; badge?: boolean }) {
@@ -11,13 +12,13 @@ export function ContentRow({ title, items, href, badge }: { title: string; items
         <h2>{title}</h2>
         {href && <Link href={href}>See all</Link>}
       </div>
-      <ul className="v-scroller">
+      <ScrollRow label={title}>
         {items.map((item) => (
           <li key={`${item.kind}-${item.id}`}>
             <PosterCard item={item} badge={badge} />
           </li>
         ))}
-      </ul>
+      </ScrollRow>
     </section>
   );
 }

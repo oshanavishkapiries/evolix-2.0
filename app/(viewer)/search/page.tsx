@@ -10,6 +10,7 @@ import {
   type TypeFilter,
 } from "@/lib/viewer/catalog";
 import { GridSkeleton } from "../_components/skeletons";
+import { NavMarker } from "../_components/nav-marker";
 import { PosterCard } from "../_components/poster-card";
 import { SearchBar } from "../_components/search-bar";
 
@@ -47,7 +48,7 @@ export default function SearchPage({ searchParams }: { searchParams: Promise<Raw
   return (
     <div className="v-page">
       <h1 className="v-sr">Browse</h1>
-      <span data-nav="search" hidden />
+      <NavMarker active="search" />
       <Suspense fallback={<GridSkeleton count={12} />}>
         <SearchContent searchParams={searchParams} />
       </Suspense>
