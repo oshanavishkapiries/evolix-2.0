@@ -75,3 +75,5 @@ body:has(.viewer) { background: #1f1f1f; }
 .v-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .v-skip { position: absolute; left: 1rem; top: -4rem; z-index: 100; background: var(--v-primary); color: var(--v-primary-fg) !important; padding: .5rem 1rem; border-radius: var(--v-radius); }
 .v-skip:focus { top: 1rem; }
+/* globals.css paints auth-form alerts/status as boxes; the viewer uses them for live counts */
+.viewer :where(p[role="status"], p[role="alert"]) { border: 0; background: none; padding: 0; border-radius: 0; color: inherit; font-size: inherit; }

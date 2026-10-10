@@ -198,3 +198,23 @@ export const getHero = cache(async (): Promise<Hero | null> => {
   }
   return { ...pick, backdropPath: pick.backdropPath, playHref };
 });
+
+export type GenreTile = { genre: string; count: number; backdropPath: string | null };
+
+/** Genres of one kind with a representative backdrop (highest rated title), in one query. */
+export async function listGenreTiles(kind: CardKind): Promise<GenreTile[]> {
+  const table = kind === "movie" ? sql`movies` : sql`shows`;
+  const res = await db.execute(sql`
+    select genre, n::int as count, backdrop_path from (
+      select distinct on (g) g as genre, backdrop_path, count(*) over (partition by g) as n
+      from (select unnest(genres) as g, backdrop_path, rating from ${table} where is_published) t
+      where g <> ''
+      order by g, (backdrop_path is null), rating desc nulls last
+    ) x
+    order by n desc, genre asc`);
+  return (res.rows as { genre: string; count: number; backdrop_path: string | null }[]).map((r) => ({
+    genre: r.genre,
+    count: r.count,
+    backdropPath: r.backdrop_path,
+  }));
+}

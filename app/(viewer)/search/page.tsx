@@ -12,7 +12,9 @@ import {
 import { GridSkeleton } from "../_components/skeletons";
 import { NavMarker } from "../_components/nav-marker";
 import { MediaCard } from "../_components/media-card";
+import { PageHeader } from "../_components/page-header";
 import { SearchBar } from "../_components/search-bar";
+import { CardSizeSlider } from "../_components/view-controls";
 
 export const metadata: Metadata = { title: "Browse" };
 
@@ -47,8 +49,8 @@ function href(base: Query, patch: Partial<Query>) {
 export default function SearchPage({ searchParams }: { searchParams: Promise<Raw> }) {
   return (
     <div className="v-page">
-      <h1 className="v-sr">Browse</h1>
       <NavMarker active="search" />
+      <PageHeader title="Search" subtitle="Movies & Shows" controls={<CardSizeSlider />} />
       <Suspense fallback={<GridSkeleton count={12} />}>
         <SearchContent searchParams={searchParams} />
       </Suspense>
@@ -116,7 +118,7 @@ async function Results({ query }: { query: Query }) {
   }
   return (
     <>
-      <p className="v-muted" style={{ marginBottom: "1rem", fontSize: ".9rem" }} role="status">
+      <p className="v-muted v-grid-bar" role="status" aria-live="polite">
         {total} {total === 1 ? "title" : "titles"}
         {q.length >= MIN_QUERY ? ` for "${q}"` : ""}
       </p>
