@@ -14,6 +14,7 @@ export function MediaCard({ item, variant = "poster", badge = false, meta, logo 
   const src = landscape ? imageUrl(item.backdropPath ?? item.posterPath, "w780") : imageUrl(item.posterPath, "w342");
   const logoSrc = landscape && logo ? imageUrl(item.logoPath, "w300") : null;
   const sub = meta ?? [yearOf(item.date), badge ? (item.kind === "movie" ? "Movie" : "TV Show") : ""].filter(Boolean).join(" · ");
+  const dubs = (item.dubs ?? []).map((c) => audioLabel(c) && `${audioLabel(c)} dub`).filter(Boolean).join(" · ");
   return (
     <div className="v-card" data-variant={variant}>
       <CardLink href={detailHref(item.kind, item.id)} className="v-card-link" morphId={landscape ? undefined : item.id}>
@@ -30,15 +31,11 @@ export function MediaCard({ item, variant = "poster", badge = false, meta, logo 
               <img src={logoSrc} alt="" loading="lazy" decoding="async" />
             </span>
           )}
-          {item.dubs && item.dubs.length > 0 && (
-            <span className="v-card-dubs">
-              {item.dubs.map((c) => audioLabel(c) && <span key={c}>{audioLabel(c)} dub</span>)}
-            </span>
-          )}
           <span className="v-card-play" aria-hidden="true"><PlayIcon size={18} /></span>
         </div>
         <span className="v-card-title">{item.title}</span>
         {sub && <span className="v-card-sub">{sub}</span>}
+        {dubs && <span className="v-card-dub">{dubs}</span>}
       </CardLink>
       <BookmarkToggle kind={item.kind} id={item.id} title={item.title} />
     </div>
