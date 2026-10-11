@@ -14,6 +14,8 @@ export type Card = {
   date: string | null;
   posterPath: string | null;
   backdropPath: string | null;
+  /** Title-treatment image (transparent PNG); only some titles have one. */
+  logoPath?: string | null;
   rating: number | null;
 };
 
@@ -44,6 +46,7 @@ function cardQuery(kind: CardKind, f: Filters) {
           date: sql<string | null>`${t.date}`.as("date"),
           posterPath: sql<string | null>`${table.posterPath}`.as("poster_path"),
           backdropPath: sql<string | null>`${table.backdropPath}`.as("backdrop_path"),
+          logoPath: sql<string | null>`${table.logoPath}`.as("logo_path"),
           rating: sql<number | null>`${table.rating}`.as("rating"),
           createdAt: sql<Date>`${table.createdAt}`.as("created_at"),
         })
@@ -105,7 +108,7 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
 
   const [items, total] = await Promise.all([rows, counts()]);
   return {
-    items: items.map(({ kind, id, title, date, posterPath, backdropPath, rating }) => ({ kind, id, title, date, posterPath, backdropPath, rating })),
+    items: items.map(({ kind, id, title, date, posterPath, backdropPath, logoPath, rating }) => ({ kind, id, title, date, posterPath, backdropPath, logoPath, rating })),
     total,
   };
 }

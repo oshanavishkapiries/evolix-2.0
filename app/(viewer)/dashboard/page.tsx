@@ -48,7 +48,7 @@ async function HomeContent() {
 
   return (
     <>
-      <HubRow title="Featured" subtitle="New on Evolix" items={featured} variant="landscape" badge />
+      <HubRow title="Featured" subtitle="New on Evolix" items={featured} variant="landscape" badge logo />
       <ContinueRow items={resume} />
       <HubRow title="My List" subtitle="Saved for later" items={myList} href="/my-list" badge />
       <HubRow title="Recently Added Movies" subtitle="Movies" items={movies} href="/movies" />
