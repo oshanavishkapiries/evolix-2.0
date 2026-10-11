@@ -1,10 +1,10 @@
 # Usage and Commands
 
-This document details all CLI flags, search options, regular expression filtering, and background execution modes.
+This document details all CLI flags, search options, regular expression filtering, message ID selection, and background execution modes for `tg_downloader.py`, along with cross-references to the rest of the media tooling suite.
 
 ---
 
-## Command Line Interface Reference
+## Telegram Downloader CLI Reference
 
 ```bash
 python tg_downloader.py [OPTIONS]
@@ -19,6 +19,7 @@ python tg_downloader.py [OPTIONS]
 | `--search` | `-s` | Query string for Telegram server-side message search | None |
 | `--regex` | `-r` | Regular expression pattern matched against file names | None |
 | `--case-sensitive` | | Make regex matching case-sensitive | `False` (case-insensitive) |
+| `--ids` | | Comma-separated Telegram message IDs to download | None (all messages) |
 | `--all-files` | | Download any media/document type, not just videos | `False` |
 | `--dry-run` | | Preview matched files and sizes without downloading | `False` |
 | `--limit` | | Maximum number of messages to evaluate | All messages |
@@ -50,19 +51,25 @@ INFO    [MATCH] ID: 4 | 311 MB | 4_Better.Call.Saul.S01E02.720p.BluRay.x265.10bi
 INFO    Dry run complete: 5 matching file(s) found
 ```
 
-### 3. Server-Side Keyword Search
+### 3. Target Specific Message IDs
+Download specific known message IDs directly:
+```bash
+python tg_downloader.py --ids 132,135,140
+```
+
+### 4. Server-Side Keyword Search
 Filter large channels directly on Telegram servers for messages containing a keyword or code:
 ```bash
 python tg_downloader.py --search "720p"
 ```
 
-### 4. Non-Video File Types
+### 5. Non-Video File Types
 By default, the script targets video files (`.mp4`, `.mkv`, `.avi`, `.mov`, `.webm`, etc.). To download zip archives, PDFs, or software documents matching a regex:
 ```bash
 python tg_downloader.py --regex "\.(zip|rar|7z)$" --all-files
 ```
 
-### 5. Integrity Verification
+### 6. Integrity Verification
 Re-calculate SHA-256 hashes for all previously downloaded files and compare them against `manifest.json` to detect file corruption:
 ```bash
 python tg_downloader.py --verify
@@ -82,3 +89,16 @@ Follow the logs in real time:
 ```bash
 tail -f downloader.log
 ```
+
+---
+
+## Tool Suite Quick Reference
+
+Beyond standalone Telegram downloading, the tooling suite includes specialized scripts for each stage of media operations:
+
+| Tool | Script | Documentation |
+|---|---|---|
+| **Cloud Upload** | `upload_pixeldrain.py` | [Pixeldrain Guide](pixeldrain.md) |
+| **Subtitle Extraction** | `extract_subtitles.py` | [Subtitles Guide](subtitles.md) |
+| **Movie Curation** | `select_clean_50.py` | [Pipeline Guide](pipeline.md) |
+| **End-to-End Pipeline** | `run_50_pipeline.py` | [Pipeline Guide](pipeline.md) |
