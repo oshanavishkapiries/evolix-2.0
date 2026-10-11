@@ -56,3 +56,6 @@ export const SourcesIcon = ({ size = 20, className }: P) => (
 export const CloseIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><path d="M6 6l12 12M18 6 6 18" /></svg>
 );
+export const FlagIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>
+);

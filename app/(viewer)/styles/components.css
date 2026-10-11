@@ -185,3 +185,22 @@
 .v-facts dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1.1rem 2rem; padding: 0 var(--v-gutter); max-width: 62rem; }
 .v-facts dt { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--v-fg-faint); }
 .v-facts dd { margin-top: .2rem; font-size: .95rem; color: #e6e6e6; }
+
+/* Report dialog */
+.v-report { pointer-events: auto; cursor: auto; margin: auto; width: min(30rem, 94vw); max-height: 90dvh; overflow-y: auto; padding: 1.25rem; border: 1px solid var(--v-border); border-radius: .75rem; background: var(--v-card); color: var(--v-fg); box-shadow: 0 24px 80px rgb(0 0 0 / .6); }
+.v-report::backdrop { background: rgb(0 0 0 / .7); backdrop-filter: blur(4px); }
+.v-report[open] { animation: v-modal-in var(--v-dur-3) var(--v-ease); }
+.v-report-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.v-report-head h2 { font-size: 1.15rem; font-weight: 700; }
+.v-report-head p { font-size: .85rem; margin-top: .15rem; }
+.v-report fieldset { display: grid; gap: .25rem; border: 0; padding: 0; margin: 0; }
+.v-report-opt { display: flex; align-items: center; gap: .65rem; padding: .55rem .7rem; border-radius: var(--v-radius); cursor: pointer; font-size: .92rem; }
+.v-report-opt:hover { background: rgb(255 255 255 / .06); }
+.v-report-opt input { accent-color: var(--v-primary); width: 1rem; height: 1rem; }
+.v-report-msg { display: grid; gap: .35rem; margin-top: 1rem; font-size: .85rem; color: var(--v-fg-dim); }
+.v-report-msg textarea { width: 100%; padding: .6rem .75rem; border-radius: var(--v-radius); border: 1px solid var(--v-border); background: rgb(255 255 255 / .06); color: var(--v-fg); font: inherit; resize: vertical; }
+.v-report-msg textarea:focus-visible { outline: 2px solid var(--v-primary); outline-offset: 0; }
+.v-report-error { margin-top: .75rem; color: #ff8a8f; font-size: .85rem; }
+.v-report-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1rem; }
+.v-report-done { display: grid; gap: .5rem; justify-items: start; padding: .5rem 0; }
+.v-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

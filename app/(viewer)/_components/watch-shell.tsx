@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ReportButton, type ReportTarget } from "./report-button";
 import { BackIcon, CloseIcon, EpisodesIcon, SourcesIcon } from "./icons";
 import { WATCH_PANEL_EVENT, type WatchPanelKey } from "./watch-panel-events";
 
@@ -17,6 +18,7 @@ export function WatchShell({
   embed,
   sources,
   episodes,
+  report,
   children,
 }: {
   title: string;
@@ -26,6 +28,8 @@ export function WatchShell({
   embed: boolean;
   sources?: React.ReactNode;
   episodes?: React.ReactNode;
+  /** What the flag button reports. */
+  report?: ReportTarget;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -49,7 +53,7 @@ export function WatchShell({
     document.body.style.overflow = "hidden";
     document.body.setAttribute("data-v-watch", "");
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || document.fullscreenElement) return;
+      if (e.key !== "Escape" || document.fullscreenElement || document.querySelector("dialog[open]")) return;
       if (panel) setPanel(null);
       else router.push(backHref);
     };
@@ -112,7 +116,7 @@ export function WatchShell({
           <BackIcon size={22} />
         </Link>
         <h1>{title}</h1>
-        {(episodes || sources) && (
+        {(episodes || sources || report) && (
           <div className="v-watch-actions">
             {episodes && (
               <button type="button" className="v-bar-icon" aria-label="Episodes" onClick={() => toggle("episodes")}>
@@ -124,6 +128,7 @@ export function WatchShell({
                 <SourcesIcon size={22} />
               </button>
             )}
+            {report && <ReportButton target={report} className="v-bar-icon" iconSize={22} />}
           </div>
         )}
       </div>

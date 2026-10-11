@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { EmbedFrame } from "./embed-frame";
 import type { PauseInfo } from "./player-impl";
+import type { ReportTarget } from "./report-button";
 import { WatchPlayer } from "./watch-player";
 import { WatchShell } from "./watch-shell";
 
@@ -26,9 +27,10 @@ type Props = {
   startAt?: number;
   /** Backdrop and details shown while the video is paused. */
   info?: PauseInfo;
+  report?: ReportTarget;
 };
 
-export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt, info }: Props) {
+export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt, info, report }: Props) {
   const sourcesPanel =
     sources.length > 0 ? (
       <>
@@ -63,6 +65,7 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
       backLabel={backLabel}
       embed={selected?.kind === "embed"}
       sources={sourcesPanel}
+      report={report}
       episodes={nav || side ? <>{side}{nav}</> : undefined}
     >
       {!selected ? (
