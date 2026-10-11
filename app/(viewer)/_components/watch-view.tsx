@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { EmbedFrame } from "./embed-frame";
+import type { PauseInfo } from "./player-impl";
 import { WatchPlayer } from "./watch-player";
 import { WatchShell } from "./watch-shell";
 
@@ -23,9 +24,11 @@ type Props = {
   /** Progress tracking target and resume position (direct/HLS sources only). */
   track?: { kind: "movie" | "episode"; id: string };
   startAt?: number;
+  /** Backdrop and details shown while the video is paused. */
+  info?: PauseInfo;
 };
 
-export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt }: Props) {
+export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt, info }: Props) {
   const sourcesPanel =
     sources.length > 0 ? (
       <>
@@ -77,6 +80,7 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
           subtitles={subtitles}
           track={track}
           startAt={startAt}
+          info={info}
         />
       )}
     </WatchShell>

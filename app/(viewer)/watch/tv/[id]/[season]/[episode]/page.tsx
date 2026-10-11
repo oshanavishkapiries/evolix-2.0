@@ -56,6 +56,12 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       selected={selected}
       track={{ kind: "episode", id: current.id }}
       startAt={startAt}
+      info={{
+        title: current.showName,
+        meta: `S${p.season}:E${p.episode}${current.name ? ` · ${current.name}` : ""}`,
+        overview: current.overview,
+        backdropPath: current.stillPath ?? current.backdropPath,
+      }}
       nav={
         <nav className="v-epnav" aria-label="Episode navigation">
           {prev ? <Link href={href(prev)} className="v-btn" prefetch={false}>← Previous: {label(prev)}</Link> : <span className="v-btn" aria-disabled="true">← Previous</span>}

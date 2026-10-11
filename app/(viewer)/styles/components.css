@@ -63,10 +63,21 @@
 .v-watch { position: fixed; inset: 0; z-index: 200; background: #000; overflow: clip; }
 .v-player-wrap { position: absolute; inset: 0; background: #000; }
 .v-player-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.v-player-wrap [data-media-player] { aspect-ratio: auto; --media-brand: #e50914; --media-focus-ring-color: #e50914; --media-slider-track-fill-bg: #e50914; --media-slider-thumb-bg: #e50914; width: 100%; height: 100%; border-radius: 0; font-family: inherit; }
+.v-player-wrap [data-media-player] { aspect-ratio: auto; --media-brand: var(--v-primary); --media-focus-ring-color: var(--v-primary); --media-slider-track-fill-bg: var(--v-primary); --media-slider-thumb-bg: var(--v-primary); --media-tooltip-bg-color: #161616; --media-menu-bg: rgb(22 22 22 / .96); --media-menu-item-hover-bg: rgb(255 255 255 / .1); --media-menu-item-info-color: var(--v-fg-dim); width: 100%; height: 100%; border-radius: 0; font-family: inherit; }
 .v-player-wrap [data-media-provider] { position: absolute; inset: 0; aspect-ratio: auto; display: grid; place-items: center; }
 .v-player-wrap [data-media-provider] video { width: 100%; height: 100%; aspect-ratio: auto; object-fit: contain; }
 .v-player-wrap [data-media-player] [data-media-captions] { --media-cue-color: #fff; --media-cue-bg: transparent; --media-cue-backdrop: none; text-shadow: 0 0 4px #000, 1px 1px 2px #000; }
+/* Paused: backdrop and details over the frozen video (pointer-events none, so the controls keep working) */
+.v-pause { position: absolute; inset: 0; z-index: 1; pointer-events: none; animation: v-pause-in .35s var(--v-ease); }
+.v-pause-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .45; }
+.v-pause::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgb(0 0 0 / .92) 0%, rgb(0 0 0 / .6) 45%, rgb(0 0 0 / .2) 100%), linear-gradient(0deg, rgb(0 0 0 / .7), transparent 40%); }
+.v-pause-info { position: absolute; z-index: 2; left: var(--v-gutter); top: 50%; translate: 0 -50%; max-width: min(34rem, 80%); display: grid; gap: .5rem; }
+.v-pause-kicker { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--v-fg-dim); }
+.v-pause-info h2 { font-size: clamp(1.6rem, 4vw, 3rem); font-weight: 700; line-height: 1.1; }
+.v-pause-meta { color: var(--v-primary); font-weight: 600; }
+.v-pause-overview { color: #d6d6d6; font-size: clamp(.85rem, 1.4vw, 1.05rem); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+@keyframes v-pause-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .v-pause { animation: none; } }
 .v-player-msg { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: .75rem; text-align: center; padding: 1.5rem; background: rgb(10 10 15 / .92); }
 .v-player-msg strong { font-size: 1.1rem; }
 .v-watch-bar { position: absolute; inset: 0 0 auto 0; z-index: 10; display: flex; align-items: center; gap: 1rem; padding: 1rem var(--v-gutter) 2.5rem; background: linear-gradient(rgb(0 0 0 / .8), transparent); transition: opacity .3s; pointer-events: none; }
@@ -108,7 +119,7 @@
 .v-sources { display: flex; flex-wrap: wrap; gap: .5rem; }
 .v-source { padding: .4rem .9rem; border-radius: .375rem; border: 1px solid var(--v-border); background: var(--v-card); font-size: .875rem; }
 .v-source:hover { border-color: var(--v-fg-faint); }
-.v-source[aria-current="true"] { border-color: #e50914; color: #fff; font-weight: 600; }
+.v-source[aria-current="true"] { border-color: var(--v-primary); color: #fff; font-weight: 600; }
 .v-source small { color: var(--v-fg-faint); margin-left: .35rem; }
 .v-epnav { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 

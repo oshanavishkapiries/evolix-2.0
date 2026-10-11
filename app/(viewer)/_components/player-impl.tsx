@@ -7,6 +7,7 @@ import { defaultLayoutIcons, DefaultVideoLayout } from "@vidstack/react/player/l
 import { isHLSProvider } from "vidstack";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
+import { imageUrl } from "@/lib/images";
 import {
   pixeldrainId,
   pixeldrainInfoUrl,
@@ -17,7 +18,10 @@ import {
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
+/** Shown over the video while paused, Netflix-style. */
+export type PauseInfo = { title: string; meta?: string; overview?: string; backdropPath?: string | null };
 const SAVE_EVERY_MS = 15_000;
+const PAUSE_OVERLAY_DELAY_MS = 1500;
 
 const isEnglish = (lang: string) => /^en(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "english";
 
@@ -27,6 +31,7 @@ export default function PlayerImpl({
   subtitles,
   track,
   startAt = 0,
+  info,
 }: {
   title: string;
   source: Pick<WatchSource, "kind" | "url">;
@@ -35,6 +40,7 @@ export default function PlayerImpl({
   track?: ProgressTarget;
   /** Resume position in seconds. */
   startAt?: number;
+  info?: PauseInfo;
 }) {
   const player = useRef<MediaPlayerInstance>(null);
   const lastSave = useRef(0);
@@ -69,6 +75,14 @@ export default function PlayerImpl({
       save(true); // leaving the watch page (client navigation)
     };
   }, [track, save]);
+
+  const [paused, setPaused] = useState(false);
+  const pauseTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(pauseTimer.current), []);
+  const resumed = () => {
+    clearTimeout(pauseTimer.current);
+    setPaused(false);
+  };
 
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -115,6 +129,7 @@ export default function PlayerImpl({
       key={`${current.type}`}
       src={current}
       playsInline
+      autoPlay
       onProviderChange={(provider: MediaProviderAdapter | null) => {
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
         if (isHLSProvider(provider)) provider.library = () => import("hls.js");
@@ -128,8 +143,19 @@ export default function PlayerImpl({
       onTimeUpdate={() => {
         if (Date.now() - lastSave.current >= SAVE_EVERY_MS) save();
       }}
-      onPause={() => save()}
-      onEnded={() => save()}
+      onPlay={resumed}
+      onSeeking={resumed}
+      onPause={() => {
+        save();
+        const s = player.current?.state;
+        if (s?.ended || s?.seeking) return;
+        clearTimeout(pauseTimer.current);
+        pauseTimer.current = setTimeout(() => setPaused(true), PAUSE_OVERLAY_DELAY_MS);
+      }}
+      onEnded={() => {
+        resumed();
+        save();
+      }}
       onError={() => {
         if (attempt + 1 < candidates.length) setAttempt(attempt + 1);
         else setFailed(true);
@@ -148,10 +174,26 @@ export default function PlayerImpl({
           />
         ))}
       </MediaProvider>
-      <DefaultVideoLayout
-        icons={defaultLayoutIcons}
-        noScrubGesture={false}
-      />
+      {info && paused && <PauseOverlay info={info} />}
+      <DefaultVideoLayout icons={defaultLayoutIcons} noScrubGesture={false} />
     </MediaPlayer>
+  );
+}
+
+function PauseOverlay({ info }: { info: PauseInfo }) {
+  const bg = imageUrl(info.backdropPath, "w1280");
+  return (
+    <div className="v-pause" aria-hidden="true">
+      {bg && (
+        // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
+        <img className="v-pause-bg" src={bg} alt="" decoding="async" />
+      )}
+      <div className="v-pause-info">
+        <p className="v-pause-kicker">You are watching</p>
+        <h2>{info.title}</h2>
+        {info.meta && <p className="v-pause-meta">{info.meta}</p>}
+        {info.overview && <p className="v-pause-overview">{info.overview}</p>}
+      </div>
+    </div>
   );
 }
