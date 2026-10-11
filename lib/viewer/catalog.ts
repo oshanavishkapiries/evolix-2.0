@@ -1,3 +1,4 @@
+import { AUDIO_LANGUAGES } from "@/lib/audio";
 import { catalogCache } from "./cache";
 import { and, count, eq, ilike, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
@@ -71,8 +72,11 @@ function dubsOf(kind: CardKind) {
 }
 
 /** Postgres arrays can arrive as "{si,en}" text depending on the driver path. */
-const toList = (v: unknown): string[] =>
-  Array.isArray(v) ? v : typeof v === "string" ? v.replace(/^\{|\}$/g, "").split(",").filter(Boolean) : [];
+const toList = (v: unknown): string[] => {
+  const list = Array.isArray(v) ? v : typeof v === "string" ? v.replace(/^\{|\}$/g, "").split(",").filter(Boolean) : [];
+  const rank = (c: string) => AUDIO_LANGUAGES.findIndex((l) => l.code === c);
+  return list.sort((a, b) => rank(a) - rank(b));
+};
 
 /** Kids titles are listed in the Kids section only (or both); everything else in the main app. */
 export const audienceIn = (col: AnyColumn | SQL, scope: Scope | "all" = "main") =>
