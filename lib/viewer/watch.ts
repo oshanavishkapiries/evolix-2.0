@@ -1,6 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/db";
+import { catalogCache } from "./cache";
 import { normalizeSource } from "@/lib/viewer/providers";
 import { episodes, movies, seasons, shows, sources, subtitles } from "@/db/schema";
 
@@ -41,6 +42,8 @@ const subtitleRows = (where: ReturnType<typeof eq>) =>
 
 /** Published movie with its active sources and subtitles; null when missing or unpublished. */
 export const getMovieWatch = cache(async (id: string) => {
+  "use cache";
+  catalogCache();
   const [[movie], srcs, subs] = await Promise.all([
     db
       .select({ id: movies.id, title: movies.title, releaseDate: movies.releaseDate, backdropPath: movies.backdropPath, overview: movies.overview, runtimeMinutes: movies.runtimeMinutes, rating: movies.rating })
@@ -60,6 +63,8 @@ export type EpisodeRef = { seasonNumber: number; episodeNumber: number; name: st
  * Null when the show is unpublished or the season/episode is missing or hidden.
  */
 export const getEpisodeWatch = cache(async (showId: string, seasonNumber: number, episodeNumber: number) => {
+  "use cache";
+  catalogCache();
   const list = await db
     .select({
       id: episodes.id,

@@ -1,3 +1,4 @@
+import { catalogCache } from "./cache";
 import { and, count, eq, ilike, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 import { db } from "@/db";
@@ -82,6 +83,8 @@ export type BrowseParams = Filters & {
 
 /** Published titles (movies and/or shows), filtered, sorted and paged. */
 export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; total: number }> {
+  "use cache";
+  catalogCache();
   const type = p.type ?? "all";
   const limit = p.limit ?? SEARCH_PAGE_SIZE;
   const offset = p.offset ?? 0;
@@ -120,6 +123,8 @@ export const listFeatured = (limit = 10) => browse({ withBackdrop: true, limit }
 
 /** Genres shared by at least `minItems` published titles, most populated first. */
 export async function listGenres(minItems = 4, limit = 4, kind?: CardKind): Promise<string[]> {
+  "use cache";
+  catalogCache();
   const parts = [
     kind !== "show" && sql`select unnest(genres) as g from movies where is_published`,
     kind !== "movie" && sql`select unnest(genres) as g from shows where is_published`,
@@ -138,6 +143,8 @@ export type GenreTile = { genre: string; count: number; backdropPath: string | n
 
 /** Genres of one kind with a representative backdrop (highest rated title), in one query. */
 export async function listGenreTiles(kind: CardKind): Promise<GenreTile[]> {
+  "use cache";
+  catalogCache();
   const table = kind === "movie" ? sql`movies` : sql`shows`;
   const res = await db.execute(sql`
     select genre, n::int as count, backdrop_path from (
