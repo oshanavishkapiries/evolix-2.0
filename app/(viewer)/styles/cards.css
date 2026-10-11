@@ -91,7 +91,8 @@
 /* Page bits used by Movies / TV / My List / Search (spec §5.2–5.4) */
 .v-page-pad { padding-inline: var(--v-gutter); }
 .v-grid-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; font-size: .85rem; }
-.v-more { position: relative; }
+.v-more { position: relative; border: 0; border-radius: 0; padding: 0; }
+.v-more > * + * { margin-top: 0; }
 .v-more > summary { list-style: none; cursor: pointer; padding: .35rem .8rem; border-radius: 999px; background: rgb(255 255 255 / .07); font-size: .85rem; font-weight: 500; transition: background var(--v-dur-1); }
 .v-more > summary::-webkit-details-marker { display: none; }
 .v-more > summary:hover { background: rgb(255 255 255 / .12); }
