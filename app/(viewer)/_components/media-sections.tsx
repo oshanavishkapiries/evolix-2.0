@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { imageUrl, isImagePath } from "@/lib/images";
 import { CastList } from "./cast-list";
+import { DetailFacts } from "./detail-facts";
 import { Gallery } from "./gallery";
 import { Trailers } from "./trailers";
 
@@ -12,15 +13,16 @@ type Common = {
   galleryBackdrops: string[];
 };
 
-/** Cast, trailers and backdrop gallery shared by movie and show pages. */
-export function MediaSections({ item }: { item: Common }) {
+/** Cast & crew, extras (trailers and videos), gallery and a details panel, shared by movie and show pages. */
+export function MediaSections({ item, facts }: { item: Common; facts: [string, string][] }) {
   const paths = [...new Set([item.backdropPath, ...item.galleryBackdrops])].filter(isImagePath);
   return (
-    <>
+    <div className="v-detail-more">
       <CastList cast={item.cast} />
       <Trailers videos={item.videos} />
       <Gallery paths={paths} title={item.title} />
-    </>
+      <DetailFacts facts={facts} />
+    </div>
   );
 }
 

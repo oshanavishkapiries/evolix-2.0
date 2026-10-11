@@ -38,6 +38,10 @@ export const getMovieDetail = cache(async (id: string) => {
       .select({
         id: movies.id,
         title: movies.title,
+        originalTitle: movies.originalTitle,
+        status: movies.status,
+        originalLanguage: movies.originalLanguage,
+        voteCount: movies.voteCount,
         tagline: movies.tagline,
         overview: movies.overview,
         releaseDate: movies.releaseDate,
@@ -72,6 +76,9 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
       .select({
         id: shows.id,
         title: shows.name,
+        originalTitle: shows.originalName,
+        originalLanguage: shows.originalLanguage,
+        voteCount: shows.voteCount,
         tagline: shows.tagline,
         overview: shows.overview,
         firstAirDate: shows.firstAirDate,

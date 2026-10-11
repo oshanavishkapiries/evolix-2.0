@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { imageUrl } from "@/lib/images";
-import { ratingText, yearOf } from "@/lib/viewer/format";
+import { ratingText, votesText, yearOf } from "@/lib/viewer/format";
 import { BookmarkButton } from "./bookmarks";
 import { Overview, PosterTint, ShareButton } from "./detail-client";
 import { PlayIcon } from "./icons";
@@ -20,6 +20,9 @@ type Props = {
   posterPath: string | null;
   backdropPath: string | null;
   play: PlayAction | null;
+  voteCount?: number | null;
+  /** Show a Trailer button that jumps to the Extras row. */
+  hasExtras?: boolean;
 };
 
 /** Plex-style detail header (spec §5.5): poster left, metadata and actions right, tinted page. */
@@ -54,6 +57,7 @@ export function DetailHeader(p: Props) {
               <span className="v-score" aria-label={`Rated ${rating} out of 10 on TMDB`}>
                 <span className="v-score-badge">TMDB</span> {rating}
               </span>
+              {votesText(p.voteCount) && <span className="v-votes">{votesText(p.voteCount)}</span>}
             </div>
           )}
           <div className="v-detail-actions">
@@ -63,6 +67,9 @@ export function DetailHeader(p: Props) {
               </Link>
             ) : (
               <span className="v-btn v-btn-lg" aria-disabled="true">Not available yet</span>
+            )}
+            {p.hasExtras && (
+              <a href="#extras" className="v-btn v-btn-lg">Trailers &amp; extras</a>
             )}
             <BookmarkButton kind={p.kind} id={p.id} />
             <ShareButton title={p.title} />

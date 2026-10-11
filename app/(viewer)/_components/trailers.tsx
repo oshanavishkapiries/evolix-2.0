@@ -27,8 +27,8 @@ export function Trailers({ videos }: { videos: Video[] }) {
   };
 
   return (
-    <div id="trailers">
-      <ScrollRow label="Trailers and videos" variant="video" head={<h2>Trailers &amp; videos</h2>}>
+    <div id="extras">
+      <ScrollRow label="Extras" variant="video" head={<h2>Extras</h2>}>
         {list.map((v) => {
           const src = thumbUrl(v);
           return (

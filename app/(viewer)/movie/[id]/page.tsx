@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isUuid } from "@/lib/viewer/ids";
 import { getMovieDetail } from "@/lib/viewer/detail";
-import { runtimeText, yearOf } from "@/lib/viewer/format";
+import { dateText, languageName, runtimeText, yearOf } from "@/lib/viewer/format";
 import { resumeFor } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { DetailHeader, type PlayAction } from "../../_components/detail-header";
-import { detailMetadata } from "../../_components/media-sections";
+import { detailMetadata, MediaSections } from "../../_components/media-sections";
 import { PageMotion } from "../../_components/motion";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
@@ -54,6 +54,19 @@ export default async function MoviePage({ params }: Props) {
         posterPath={movie.posterPath}
         backdropPath={movie.backdropPath}
         play={play}
+        voteCount={movie.voteCount}
+        hasExtras={movie.videos.length > 0}
+      />
+      <MediaSections
+        item={movie}
+        facts={[
+          ["Original title", movie.originalTitle && movie.originalTitle !== movie.title ? movie.originalTitle : ""],
+          ["Release date", dateText(movie.releaseDate)],
+          ["Runtime", runtimeText(movie.runtimeMinutes)],
+          ["Status", movie.status],
+          ["Original language", languageName(movie.originalLanguage)],
+          ["Genres", movie.genres.join(", ")],
+        ]}
       />
     </div>
     </PageMotion>
