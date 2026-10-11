@@ -230,7 +230,11 @@ Newest first.
 | `galleryBackdrops` | image path[] (≤5) |        | `[]`    |
 | `cast`             | `{ name, character?, profilePath? }[]` (≤50) | | `[]` |
 | `isPublished`      | boolean         |          | **`false`** |
+| `audience`         | `"general"` \| `"kids"` \| `"both"` | | `"general"` |
 | `videos`           | Video input[] (§7) |       | `[]`    |
+
+`audience` decides where a title is listed: `general` = main app only, `kids` = the Kids section only (hidden from
+Home, Movies, TV, Search and genres), `both` = in both. Shows take the same field.
 
 `409 ALREADY_EXISTS` (with the existing `id`) when that `tmdbId` is already stored.
 
@@ -326,6 +330,7 @@ ordered by `sortOrder`.
   "kind": "hls",                   // "direct" (mp4/webm file) | "hls" (.m3u8) | "embed" (iframe page, https only)
   "url": "https://cdn.example.com/video.m3u8",   // required, absolute http(s) URL
   "quality": "1080p",              // optional
+  "audioLanguage": "si",           // optional dub language: "" (default) | "si" | "en" | "ta" | "hi"
   "sortOrder": 0,                  // optional, default 0; lowest plays first
   "isActive": true }               // optional, default true
 ```
@@ -333,8 +338,12 @@ ordered by `sortOrder`.
 The server **never fetches** the URL; it only stores it. Make sure the URL is reachable by viewers' browsers
 (CORS for direct/HLS; HTTPS pages can't play `http://` media).
 
-`PATCH /api/admin/sources/{id}` — any of `label, kind, url, quality, sortOrder, isActive`.
+`PATCH /api/admin/sources/{id}` — any of `label, kind, url, quality, audioLanguage, sortOrder, isActive`.
 `DELETE /api/admin/sources/{id}`. To take a source offline without deleting it: `{"isActive": false}`.
+
+**Dubs:** tag each source of the same title with its `audioLanguage`. When a title has more than one language the
+player shows an audio picker (Sinhala first by default; the viewer's last pick is remembered) and cards show "Sinhala dub"
+style tags. Untagged sources play under every language.
 
 ### 8.2 Subtitles
 
@@ -392,7 +401,7 @@ JSON shape (what you should produce — you may also just edit the downloaded te
 For a **movie**, the object is `{ "type": "movie", "title", "tmdbId", "sources": [...], "subtitles": [...] }`.
 
 CSV columns: `entry, seasonNumber, seasonName, episodeNumber, episodeName, isVisible, label, kind, url, quality,
-sortOrder, isActive, language, format`. `entry` is `source` or `subtitle`; the name/`isVisible` columns are
+audioLanguage, sortOrder, isActive, language, format`. `entry` is `source` or `subtitle`; the name/`isVisible` columns are
 read-only context and ignored on import. Rows with an empty `url` are placeholders and ignored.
 
 ### 9.2 Dry run — `POST …/provider-import/preview`
