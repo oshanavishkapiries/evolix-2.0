@@ -27,3 +27,17 @@ export const initials = (name: string) =>
     .join("");
 
 export const detailHref = (kind: "movie" | "show", id: string) => (kind === "movie" ? `/movie/${id}` : `/tv/${id}`);
+
+/** "en" -> "English"; falls back to the code. */
+export function languageName(code: string | null | undefined) {
+  if (!code) return "";
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/** 12345 -> "12.3K votes". */
+export const votesText = (n: number | null | undefined) =>
+  n && n > 0 ? `${n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : n} votes` : "";

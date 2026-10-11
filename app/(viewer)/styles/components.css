@@ -133,14 +133,14 @@
 @media (hover: none) { .v-ep-play { display: none; } }
 
 /* Cast, videos and gallery rows (inside ScrollRow) */
-.v-scroller[data-variant="cast"] > li { width: clamp(6.5rem, 9vw, 8rem); text-align: center; }
+.v-scroller[data-variant="cast"] > li { width: clamp(7.5rem, 11vw, 10.25rem); text-align: center; }
 .v-scroller[data-variant="video"] > li { width: clamp(15rem, 22vw, 20rem); }
 .v-scroller[data-variant="shot"] > li { width: clamp(15rem, 24vw, 22rem); }
 @media (max-width: 47.99rem) { .v-scroller[data-variant="video"] > li, .v-scroller[data-variant="shot"] > li { width: 72vw; } }
 .v-cast-img { aspect-ratio: 1; width: 100%; border-radius: 50%; overflow: hidden; background: var(--v-card); display: grid; place-items: center; color: var(--v-fg-dim); font-weight: 700; font-size: 1.5rem; box-shadow: 0 0 0 0 var(--v-primary); transition: box-shadow var(--v-dur-2) var(--v-ease), scale var(--v-dur-2) var(--v-ease); }
 .v-cast-img img { width: 100%; height: 100%; object-fit: cover; }
 @media (hover: hover) { .v-cast-card:hover .v-cast-img { box-shadow: 0 0 0 3px var(--v-primary); scale: 1.03; } }
-.v-cast-name { margin-top: .6rem; font-size: .85rem; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.v-cast-name { margin-top: .75rem; font-size: .92rem; font-weight: 500; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .v-cast-char { margin-top: .1rem; font-size: .75rem; color: var(--v-fg-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .v-video, .v-shot { display: block; width: 100%; text-align: left; cursor: pointer; }
@@ -176,3 +176,12 @@
 @keyframes v-modal-in { from { opacity: 0; scale: .96; } }
 @keyframes v-img-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .v-modal[open], .v-lightbox[open], .v-lightbox > img { animation: none; } }
+
+/* Detail page: stacked Plex-style sections under the header */
+.v-detail-more { margin-top: 1rem; }
+.v-detail-more .v-row { margin-top: 2.25rem; }
+.v-detail-more .v-scroller[data-variant="cast"] { gap: 1.25rem; }
+.v-votes { font-weight: 500; color: var(--v-fg-dim); }
+.v-facts dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1.1rem 2rem; padding: 0 var(--v-gutter); max-width: 62rem; }
+.v-facts dt { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--v-fg-faint); }
+.v-facts dd { margin-top: .2rem; font-size: .95rem; color: #e6e6e6; }

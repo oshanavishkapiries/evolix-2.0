@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isUuid, parseNumber } from "@/lib/viewer/ids";
 import { getShowDetail } from "@/lib/viewer/detail";
-import { yearOf } from "@/lib/viewer/format";
+import { dateText, languageName, yearOf } from "@/lib/viewer/format";
 import { resumeFor } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { DetailHeader, type PlayAction } from "../../_components/detail-header";
-import { detailMetadata } from "../../_components/media-sections";
+import { detailMetadata, MediaSections } from "../../_components/media-sections";
 import { Seasons } from "../../_components/seasons";
 import { PageMotion } from "../../_components/motion";
 
@@ -61,8 +61,22 @@ export default async function ShowPage({ params, searchParams }: Props) {
         posterPath={show.posterPath}
         backdropPath={show.backdropPath}
         play={play}
+        voteCount={show.voteCount}
+        hasExtras={show.videos.length > 0}
       />
       <Seasons show={show} resumeHref={resume?.href} />
+      <MediaSections
+        item={show}
+        facts={[
+          ["Original title", show.originalTitle && show.originalTitle !== show.title ? show.originalTitle : ""],
+          ["First aired", dateText(show.firstAirDate)],
+          ["Last aired", dateText(show.lastAirDate)],
+          ["Seasons", seasonCount ? String(seasonCount) : ""],
+          ["Status", show.status],
+          ["Original language", languageName(show.originalLanguage)],
+          ["Genres", show.genres.join(", ")],
+        ]}
+      />
     </div>
     </PageMotion>
   );
