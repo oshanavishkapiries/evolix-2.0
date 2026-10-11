@@ -112,7 +112,7 @@ export function WatchShell({
           <BackIcon size={22} />
         </Link>
         <h1>{title}</h1>
-        {embed && (
+        {(episodes || sources) && (
           <div className="v-watch-actions">
             {episodes && (
               <button type="button" className="v-bar-icon" aria-label="Episodes" onClick={() => toggle("episodes")}>
