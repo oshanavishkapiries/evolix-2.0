@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { audioLabel } from "@/lib/audio";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
+import { AudioPicker } from "./audio-picker";
 import { EmbedFrame } from "./embed-frame";
 import type { PauseInfo } from "./player-impl";
 import type { ReportTarget } from "./report-button";
 import { WatchPlayer } from "./watch-player";
 import { WatchShell } from "./watch-shell";
 
-/** Selected source from ?source=<id>; falls back to the first (lowest sortOrder). */
-export const pickSource = (sources: WatchSource[], id: string | undefined) =>
-  sources.find((s) => s.id === id) ?? sources[0] ?? null;
+/** Dub languages of the title and the one being played (see chooseAudio). */
+export type AudioState = { languages: string[]; active: string; fellBackFrom?: string | null };
 
 type Props = {
   heading: string;
@@ -28,12 +29,20 @@ type Props = {
   /** Backdrop and details shown while the video is paused. */
   info?: PauseInfo;
   report?: ReportTarget;
+  audio?: AudioState;
 };
 
-export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt, info, report }: Props) {
+export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt, info, report, audio }: Props) {
+  const multi = audio && audio.languages.length > 1;
   const sourcesPanel =
     sources.length > 0 ? (
       <>
+        {multi && <AudioPicker basePath={basePath} languages={audio.languages} active={audio.active} />}
+        {audio?.fellBackFrom && (
+          <p className="v-muted" style={{ fontSize: ".8rem", marginBottom: ".75rem" }}>
+            No {audioLabel(audio.fellBackFrom) || audio.fellBackFrom} dub for this one, so {audioLabel(audio.active)} is playing.
+          </p>
+        )}
         <h2>Sources</h2>
         <ul className="v-sources">
           {sources.map((s) => (
@@ -66,6 +75,7 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
       embed={selected?.kind === "embed"}
       sources={sourcesPanel}
       report={report}
+      audioLabel={multi ? `${audioLabel(audio.active)} dub` : undefined}
       episodes={nav || side ? <>{side}{nav}</> : undefined}
     >
       {!selected ? (

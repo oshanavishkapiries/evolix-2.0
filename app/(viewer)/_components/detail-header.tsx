@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { audioLabel } from "@/lib/audio";
 import { imageUrl } from "@/lib/images";
 import { ratingText, votesText, yearOf } from "@/lib/viewer/format";
 import { BookmarkButton } from "./bookmarks";
@@ -24,6 +25,8 @@ type Props = {
   voteCount?: number | null;
   /** Show a Trailer button that jumps to the Extras row. */
   hasExtras?: boolean;
+  /** Dub languages available; with two or more, each links to the player in that language. */
+  dubs?: string[];
 };
 
 /** Plex-style detail header (spec §5.5): poster left, metadata and actions right, tinted page. */
@@ -76,6 +79,18 @@ export function DetailHeader(p: Props) {
             <ShareButton title={p.title} />
             <ReportButton target={{ kind: p.kind, id: p.id, title: p.title }} />
           </div>
+          {p.dubs && p.dubs.length > 0 && (
+            <div className="v-dubs">
+              <span>Audio:</span>
+              {p.dubs.map((c) =>
+                p.play && p.dubs!.length > 1 ? (
+                  <Link key={c} href={`${p.play.href}${p.play.href.includes("?") ? "&" : "?"}lang=${c}`} prefetch={false}>{audioLabel(c)} dub</Link>
+                ) : (
+                  <span key={c} className="v-dub">{audioLabel(c)} dub</span>
+                ),
+              )}
+            </div>
+          )}
           {p.play?.detail && (
             <div className="v-detail-progress">
               {typeof p.play.percent === "number" && p.play.percent > 0 && (

@@ -16,7 +16,7 @@ export type FileFormat = "csv" | "json";
 /** The movie or show a file is exported from / imported into. */
 export type Target = { type: ItemType; id: string };
 
-const SOURCE_COLUMNS = ["label", "kind", "url", "quality", "sortOrder", "isActive"] as const;
+const SOURCE_COLUMNS = ["label", "kind", "url", "quality", "audioLanguage", "sortOrder", "isActive"] as const;
 const SUBTITLE_COLUMNS = ["label", "language", "url", "format", "sortOrder"] as const;
 /**
  * One flat shape for movies and shows. Movies leave the structure columns empty. The structure columns
@@ -33,6 +33,7 @@ export const CSV_COLUMNS = [
   "kind",
   "url",
   "quality",
+  "audioLanguage",
   "sortOrder",
   "isActive",
   "language",
@@ -46,6 +47,7 @@ type SourceOut = {
   kind: string;
   url: string;
   quality: string | null;
+  audioLanguage: string;
   sortOrder: number | null;
   isActive: boolean;
 };
@@ -58,7 +60,7 @@ export type Template =
   | { type: "show"; title: string; tmdbId: number; seasons: SeasonTemplate[] };
 
 /** Empty rows the admin fills in; ignored by the importer while the URL stays blank. */
-const blankSource = (): SourceOut => ({ label: "", kind: "direct", url: "", quality: null, sortOrder: null, isActive: true });
+const blankSource = (): SourceOut => ({ label: "", kind: "direct", url: "", quality: null, audioLanguage: "", sortOrder: null, isActive: true });
 const blankSubtitle = (): SubtitleOut => ({ label: "", language: "", url: "", format: "vtt", sortOrder: null });
 
 /** Existing rows, or one blank placeholder of each entry type when there are none. */
@@ -74,6 +76,7 @@ const sourceOut = (r: typeof sources.$inferSelect): SourceOut => ({
   kind: r.kind,
   url: r.url,
   quality: r.quality,
+  audioLanguage: r.audioLanguage,
   sortOrder: r.sortOrder,
   isActive: r.isActive,
 });
@@ -351,7 +354,7 @@ function csvValue(column: string, raw: string): unknown {
     return raw;
   }
   if (column === "quality") return raw === "" ? null : raw;
-  if (column === "kind" || column === "format") return raw.trim().toLowerCase();
+  if (column === "kind" || column === "format" || column === "audioLanguage") return raw.trim().toLowerCase();
   return raw;
 }
 
@@ -481,6 +484,7 @@ function validateFields(r: RawEntry): Valid | string {
     kind: f.kind,
     url: f.url,
     quality: f.quality ?? null,
+    audioLanguage: blank(f.audioLanguage) ? undefined : f.audioLanguage,
     isActive: blank(f.isActive) ? undefined : f.isActive,
   });
   if (!res.success) return issues(res.error);

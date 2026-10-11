@@ -92,6 +92,12 @@
 .v-bar-icon, .v-ctl { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 0; background: transparent; color: #fff; cursor: pointer; transition: background var(--v-dur-1) var(--v-ease), scale var(--v-dur-1) var(--v-ease); }
 .v-bar-icon:hover, .v-ctl:hover { background: rgb(255 255 255 / .18); scale: 1.08; }
 .v-bar-icon:active, .v-ctl:active { scale: .94; }
+.v-bar-pill { display: inline-flex; align-items: center; height: 2rem; padding: 0 .85rem; border: 1px solid var(--v-primary); border-radius: 999px; background: transparent; color: var(--v-primary); font-size: .8rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background var(--v-dur-1) var(--v-ease); }
+.v-bar-pill:hover { background: rgb(255 255 255 / .12); }
+.v-audio { margin-bottom: 1.25rem; }
+.v-dubs { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .6rem; font-size: .8rem; color: var(--v-fg-dim); }
+.v-dubs a, .v-dubs span.v-dub { padding: .2rem .65rem; border: 1px solid var(--v-primary); border-radius: 999px; color: var(--v-primary); font-weight: 600; }
+.v-dubs a:hover { background: rgb(255 255 255 / .1); }
 .v-ctl { width: 2.25rem; height: 2.25rem; margin-inline: .1rem; }
 .v-watch-scrim { position: absolute; inset: 0; z-index: 15; background: rgb(0 0 0 / .55); opacity: 0; visibility: hidden; transition: opacity .3s var(--v-ease), visibility 0s .3s; }
 .v-watch-scrim[data-open="true"] { opacity: 1; visibility: visible; transition: opacity .3s var(--v-ease); }

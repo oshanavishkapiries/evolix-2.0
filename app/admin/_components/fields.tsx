@@ -17,7 +17,8 @@ export type FieldDef = {
   key: string;
   label: string;
   kind: FieldKind;
-  options?: string[];
+  /** Plain strings, or value/label pairs when the stored value is not readable. */
+  options?: (string | { value: string; label: string })[];
   def?: string | boolean;
 };
 export type FormValues = Record<string, string | boolean>;
@@ -90,11 +91,14 @@ export function EntityFields({
               />
             ) : d.kind === "select" ? (
               <select value={String(values[d.key] ?? "")} onChange={(e) => set(d.key, e.target.value)}>
-                {d.options?.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
+                {d.options?.map((o) => {
+                  const { value, label } = typeof o === "string" ? { value: o, label: o } : o;
+                  return (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             ) : (
               <input

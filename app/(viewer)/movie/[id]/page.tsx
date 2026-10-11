@@ -56,6 +56,7 @@ export default async function MoviePage({ params }: Props) {
         play={play}
         voteCount={movie.voteCount}
         hasExtras={movie.videos.length > 0}
+        dubs={movie.dubs}
       />
       <MediaSections
         item={movie}

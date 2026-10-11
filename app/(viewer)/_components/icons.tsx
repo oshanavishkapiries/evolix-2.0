@@ -59,3 +59,6 @@ export const CloseIcon = ({ size = 20, className }: P) => (
 export const FlagIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>
 );
+export const KidsIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><circle cx="12" cy="12" r="9" /><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01" /></svg>
+);

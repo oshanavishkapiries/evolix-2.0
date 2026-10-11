@@ -151,7 +151,7 @@ export function ProviderIo({ kind, id }: { kind: "movie" | "show"; id: string })
             <div className="space-y-2 text-sm">
               <p>
                 Fill in the provider columns (<code>label</code>, <code>kind</code>, <code>url</code>,{" "}
-                <code>quality</code>, <code>language</code>, <code>format</code>) and leave the rest. Add more rows for the
+                <code>quality</code>, <code>audioLanguage</code> (si, en, ta, hi; the dub), <code>language</code> (subtitles), <code>format</code>) and leave the rest. Add more rows for the
                 same {kind === "movie" ? "movie" : "episode"} by copying a row. Rows with an empty <code>url</code> are
                 untouched placeholders.
               </p>

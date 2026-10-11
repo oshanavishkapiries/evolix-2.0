@@ -80,6 +80,8 @@ export const videoType = pgEnum("video_type", [
   "other",
 ]);
 export const subtitleFormat = pgEnum("subtitle_format", ["vtt", "srt"]);
+/** Where a title is listed: the main app, the Kids section only, or both. */
+export const audience = pgEnum("audience", ["general", "kids", "both"]);
 
 export type CastMember = {
   name: string;
@@ -112,6 +114,7 @@ export const movies = pgTable("movies", {
   galleryBackdrops: jsonb("gallery_backdrops").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   cast: jsonb("cast").$type<CastMember[]>().notNull().default(sql`'[]'::jsonb`),
   isPublished: boolean("is_published").notNull().default(false),
+  audience: audience("audience").notNull().default("general"),
   ...stamps,
 });
 
@@ -135,6 +138,7 @@ export const shows = pgTable("shows", {
   galleryBackdrops: jsonb("gallery_backdrops").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   cast: jsonb("cast").$type<CastMember[]>().notNull().default(sql`'[]'::jsonb`),
   isPublished: boolean("is_published").notNull().default(false),
+  audience: audience("audience").notNull().default("general"),
   ...stamps,
 });
 
@@ -191,6 +195,8 @@ export const sources = pgTable(
     kind: sourceKind("kind").notNull(),
     url: text("url").notNull(),
     quality: text("quality"),
+    /** Audio (dub) language code such as "si" or "en"; empty = unspecified. */
+    audioLanguage: text("audio_language").notNull().default(""),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

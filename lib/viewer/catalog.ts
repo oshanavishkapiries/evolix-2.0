@@ -18,7 +18,12 @@ export type Card = {
   /** Title-treatment image (transparent PNG); only some titles have one. */
   logoPath?: string | null;
   rating: number | null;
+  /** Audio (dub) language codes this title has playable sources for, e.g. ["si", "en"]. */
+  dubs?: string[];
 };
+
+/** Which section a query is for: the main app, or the Kids section. Kids titles never show in "main". */
+export type Scope = "main" | "kids";
 
 export type Sort = "newest" | "title" | "year";
 export const SORTS: Sort[] = ["newest", "title", "year"];
@@ -26,7 +31,7 @@ export type TypeFilter = "all" | CardKind;
 export const SEARCH_PAGE_SIZE = 24;
 export const MIN_QUERY = 2;
 
-type Filters = { q?: string; genre?: string; withBackdrop?: boolean };
+type Filters = { q?: string; genre?: string; withBackdrop?: boolean; scope?: Scope };
 
 /** Same output columns for movies and shows so the two can be UNIONed. */
 function cardQuery(kind: CardKind, f: Filters) {
@@ -36,7 +41,7 @@ function cardQuery(kind: CardKind, f: Filters) {
       : { table: shows, title: shows.name, original: shows.originalName, date: shows.firstAirDate };
   const { table } = t;
   return {
-    where: whereFor(table.isPublished, table.genres, table.backdropPath, [t.title, t.original], f),
+    where: whereFor(table.isPublished, table.audience, table.genres, table.backdropPath, [t.title, t.original], f),
     select: () =>
       db
         .select({
@@ -49,14 +54,32 @@ function cardQuery(kind: CardKind, f: Filters) {
           backdropPath: sql<string | null>`${table.backdropPath}`.as("backdrop_path"),
           logoPath: sql<string | null>`${table.logoPath}`.as("logo_path"),
           rating: sql<number | null>`${table.rating}`.as("rating"),
+          dubs: dubsOf(kind).as("dubs"),
           createdAt: sql<Date>`${table.createdAt}`.as("created_at"),
         })
         .from(table),
   };
 }
 
-function whereFor(published: AnyColumn, genres: AnyColumn, backdrop: AnyColumn, textColumns: AnyColumn[], f: Filters): SQL | undefined {
-  const parts: (SQL | undefined)[] = [eq(published, true)];
+/** Distinct audio languages of a title's active sources (episodes' sources for a show). */
+function dubsOf(kind: CardKind) {
+  // Qualified by hand: drizzle drops the table name on single-table selects, which makes "id" ambiguous here.
+  const id = sql.raw(kind === "movie" ? "movies.id" : "shows.id");
+  return kind === "movie"
+    ? sql<string[]>`array(select distinct s.audio_language from sources s where s.movie_id = ${id} and s.is_active and s.audio_language <> '' order by 1)`
+    : sql<string[]>`array(select distinct s.audio_language from sources s join episodes e on e.id = s.episode_id join seasons se on se.id = e.season_id where se.show_id = ${id} and s.is_active and s.audio_language <> '' order by 1)`;
+}
+
+/** Postgres arrays can arrive as "{si,en}" text depending on the driver path. */
+const toList = (v: unknown): string[] =>
+  Array.isArray(v) ? v : typeof v === "string" ? v.replace(/^\{|\}$/g, "").split(",").filter(Boolean) : [];
+
+/** Kids titles are listed in the Kids section only (or both); everything else in the main app. */
+export const audienceIn = (col: AnyColumn | SQL, scope: Scope | "all" = "main") =>
+  scope === "all" ? sql`true` : scope === "kids" ? sql`${col} in ('kids', 'both')` : sql`${col} in ('general', 'both')`;
+
+function whereFor(published: AnyColumn, audience: AnyColumn, genres: AnyColumn, backdrop: AnyColumn, textColumns: AnyColumn[], f: Filters): SQL | undefined {
+  const parts: (SQL | undefined)[] = [eq(published, true), audienceIn(audience, f.scope)];
   if (f.withBackdrop) parts.push(sql`${backdrop} is not null`);
   const q = f.q?.trim();
   if (q && q.length >= MIN_QUERY) {
@@ -111,23 +134,23 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
 
   const [items, total] = await Promise.all([rows, counts()]);
   return {
-    items: items.map(({ kind, id, title, date, posterPath, backdropPath, logoPath, rating }) => ({ kind, id, title, date, posterPath, backdropPath, logoPath, rating })),
+    items: items.map(({ kind, id, title, date, posterPath, backdropPath, logoPath, rating, dubs }) => ({ kind, id, title, date, posterPath, backdropPath, logoPath, rating, dubs: toList(dubs) })),
     total,
   };
 }
 
-export const listLatest = (kind: CardKind, limit = 20) => browse({ type: kind, limit }).then((r) => r.items);
+export const listLatest = (kind: CardKind, limit = 20, scope?: Scope) => browse({ type: kind, limit, scope }).then((r) => r.items);
 
 /** Home "Featured" row: newest titles that have a backdrop (curation can replace this later). */
-export const listFeatured = (limit = 10) => browse({ withBackdrop: true, limit }).then((r) => r.items);
+export const listFeatured = (limit = 10, scope?: Scope) => browse({ withBackdrop: true, limit, scope }).then((r) => r.items);
 
 /** Genres shared by at least `minItems` published titles, most populated first. */
-export async function listGenres(minItems = 4, limit = 4, kind?: CardKind): Promise<string[]> {
+export async function listGenres(minItems = 4, limit = 4, kind?: CardKind, scope: Scope = "main"): Promise<string[]> {
   "use cache";
   catalogCache();
   const parts = [
-    kind !== "show" && sql`select unnest(genres) as g from movies where is_published`,
-    kind !== "movie" && sql`select unnest(genres) as g from shows where is_published`,
+    kind !== "show" && sql`select unnest(genres) as g from movies where is_published and ${audienceIn(sql`audience`, scope)}`,
+    kind !== "movie" && sql`select unnest(genres) as g from shows where is_published and ${audienceIn(sql`audience`, scope)}`,
   ].filter((p): p is SQL => Boolean(p));
   const res = await db.execute(sql`
     select g as genre from (${sql.join(parts, sql` union all `)}) t
@@ -142,14 +165,14 @@ export async function listGenres(minItems = 4, limit = 4, kind?: CardKind): Prom
 export type GenreTile = { genre: string; count: number; backdropPath: string | null };
 
 /** Genres of one kind with a representative backdrop (highest rated title), in one query. */
-export async function listGenreTiles(kind: CardKind): Promise<GenreTile[]> {
+export async function listGenreTiles(kind: CardKind, scope: Scope = "main"): Promise<GenreTile[]> {
   "use cache";
   catalogCache();
   const table = kind === "movie" ? sql`movies` : sql`shows`;
   const res = await db.execute(sql`
     select genre, n::int as count, backdrop_path from (
       select distinct on (g) g as genre, backdrop_path, count(*) over (partition by g) as n
-      from (select unnest(genres) as g, backdrop_path, rating from ${table} where is_published) t
+      from (select unnest(genres) as g, backdrop_path, rating from ${table} where is_published and ${audienceIn(sql`audience`, scope)}) t
       where g <> ''
       order by g, (backdrop_path is null), rating desc nulls last
     ) x

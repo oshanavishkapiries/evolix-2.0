@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { AUDIO_COOKIE } from "@/lib/audio";
+import { chooseAudio } from "@/lib/viewer/audio";
 import { isUuid, parseNumber } from "@/lib/viewer/ids";
 import { resumePosition } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { getEpisodeWatch, type EpisodeRef } from "@/lib/viewer/watch";
 import { EpisodeRow } from "../../../../../_components/seasons";
-import { pickSource, WatchView } from "../../../../../_components/watch-view";
+import { WatchView } from "../../../../../_components/watch-view";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
 // unpublished title is a real HTTP 404 instead of a streamed 200.
 export const instant = false;
 
 type Params = { id: string; season: string; episode: string };
-type Props = { params: Promise<Params>; searchParams: Promise<{ source?: string | string[] }> };
+type Props = { params: Promise<Params>; searchParams: Promise<{ source?: string | string[]; lang?: string | string[] }> };
 
 const code = (s: number, e: number) => `S${s}E${e}`;
 
@@ -41,7 +44,8 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
   const { current, prev, next } = data;
   const userId = await currentUserId();
   const startAt = userId ? await resumePosition(userId, { episodeId: current.id }) : 0;
-  const selected = pickSource(data.sources, Array.isArray(sp.source) ? sp.source[0] : sp.source);
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const audio = chooseAudio(data.sources, { source: one(sp.source), lang: one(sp.lang), saved: (await cookies()).get(AUDIO_COOKIE)?.value });
   const href = (e: EpisodeRef) => `/watch/tv/${p.id}/${e.seasonNumber}/${e.episodeNumber}`;
   const label = (e: EpisodeRef) => (e.seasonNumber === p.season ? `Episode ${e.episodeNumber}` : code(e.seasonNumber, e.episodeNumber));
 
@@ -51,9 +55,10 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       backHref={`/tv/${p.id}?season=${p.season}`}
       backLabel={current.showName}
       basePath={href({ seasonNumber: p.season, episodeNumber: p.episode, name: "" })}
-      sources={data.sources}
+      sources={audio.visible}
       subtitles={data.subtitles}
-      selected={selected}
+      selected={audio.selected}
+      audio={audio}
       track={{ kind: "episode", id: current.id }}
       startAt={startAt}
       report={{ kind: "episode", id: current.id, title: `${current.showName} ${code(p.season, p.episode)}` }}
