@@ -3,8 +3,6 @@
 import "vidstack/player/styles/default/theme.css";
 import "vidstack/player/styles/default/layouts/video.css";
 import { MediaPlayer, MediaProvider, Track, type MediaPlayerInstance, type MediaProviderAdapter } from "@vidstack/react";
-import { EpisodesIcon, SourcesIcon } from "./icons";
-import { openWatchPanel } from "./watch-panel-events";
 import { defaultLayoutIcons, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
 import { isHLSProvider } from "vidstack";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -153,20 +151,6 @@ export default function PlayerImpl({
       <DefaultVideoLayout
         icons={defaultLayoutIcons}
         noScrubGesture={false}
-        slots={{
-          beforeCaptionButton: (
-            <>
-              {track?.kind === "episode" && (
-                <button type="button" className="v-ctl" aria-label="Episodes" title="Episodes" onClick={() => openWatchPanel("episodes")}>
-                  <EpisodesIcon size={26} />
-                </button>
-              )}
-              <button type="button" className="v-ctl" aria-label="Sources" title="Sources" onClick={() => openWatchPanel("sources")}>
-                <SourcesIcon size={26} />
-              </button>
-            </>
-          ),
-        }}
       />
     </MediaPlayer>
   );
