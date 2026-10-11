@@ -1,7 +1,7 @@
 /* Phones and tablets in a normal browser tab see only the install screen. */
 html[data-install-gate] body > *:not(.pwa-gate) { display: none !important; }
 html[data-install-gate] body { overflow: hidden; background: #161616; }
-.pwa-gate { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 1.5rem; background: #161616; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-y: auto; }
+.pwa-gate { position: fixed; inset: 0; z-index: 2147483000; display: grid; align-items: safe center; justify-items: center; padding: 1.5rem; background: #161616; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-y: auto; }
 .pwa-card { width: min(100%, 26rem); display: grid; gap: 1.1rem; justify-items: center; text-align: center; }
 .pwa-brand { font-size: 2.4rem; font-weight: 800; letter-spacing: -.02em; color: #f5a623; }
 .pwa-card h1 { font-size: 1.5rem; font-weight: 700; }
@@ -12,3 +12,108 @@ html[data-install-gate] body { overflow: hidden; background: #161616; }
 .pwa-steps { list-style: decimal; width: 100%; display: grid; gap: .6rem; padding: 1rem 1rem 1rem 2.4rem; border-radius: .5rem; background: #232323; text-align: left; color: #e6e6e6; line-height: 1.45; }
 .pwa-steps li svg { display: inline; vertical-align: -.25em; }
 .pwa-steps strong { color: #fff; }
+.pwa-or { margin-top: -.4rem; font-size: .85rem; color: #8a8a8a; }
+.pwa-how { width: 100%; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1rem; }
+.pwa-how .pwa-steps { font-size: .9rem; padding: .9rem .9rem .9rem 2rem; }
+@media (max-width: 360px) { .pwa-how { grid-template-columns: 1fr; justify-items: center; } }
+
+/* ---- Animated install walkthrough: one 8s loop in three phases ---- */
+.d-phone {
+  --dur: 8s;
+  width: 8.5rem; height: 17rem; padding: .35rem; border-radius: 1.5rem; background: #0b0b0b;
+  box-shadow: 0 0 0 2px #3a3a3a, 0 18px 40px rgb(0 0 0 / .5);
+}
+.d-phone[data-platform="ipad"] { width: 11rem; height: 15rem; border-radius: 1.1rem; }
+.d-screen { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 1.2rem; background: #1d1d1d; font-size: .58rem; color: #eee; text-align: left; }
+.d-phone[data-platform="ipad"] .d-screen { border-radius: .8rem; }
+.d-screen i { font-style: normal; }
+
+/* Phase 1: the browser */
+.d-page { position: absolute; inset: 0; display: flex; flex-direction: column; animation: d-page var(--dur) infinite; }
+.d-bar { display: flex; align-items: center; gap: .35rem; padding: .55rem .45rem .35rem; }
+.d-url { flex: 1; padding: .2rem .5rem; border-radius: 999px; background: #333; color: #bbb; }
+.d-ico { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; color: #4da3ff; }
+.d-dots { color: #ddd; font-size: .9rem; font-weight: 700; }
+.d-content { flex: 1; display: grid; align-content: start; gap: .4rem; padding: .35rem .45rem; }
+.d-hero { height: 3.4rem; border-radius: .35rem; background: linear-gradient(135deg, #5a3d12, #2a2a2a); }
+.d-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; }
+.d-row i { height: 2.4rem; border-radius: .25rem; background: #2e2e2e; }
+.d-toolbar { display: flex; justify-content: space-around; align-items: center; padding: .35rem .3rem .55rem; background: #262626; color: #4da3ff; font-size: .75rem; }
+.d-t1 { animation: d-ring var(--dur) infinite; }
+
+/* Phase 2: share sheet (iPhone) or menu (iPad, Android) */
+.d-sheet, .d-menu { position: absolute; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr); background: #2b2b2b; box-shadow: 0 -6px 24px rgb(0 0 0 / .5); }
+.d-sheet { left: 0; right: 0; bottom: 0; padding: .35rem .4rem .7rem; gap: .25rem; border-radius: .8rem .8rem 0 0; animation: d-sheet var(--dur) infinite; }
+.d-grip { justify-self: center; width: 1.6rem; height: .18rem; border-radius: 999px; background: #555; margin-bottom: .2rem; }
+.d-menu { top: 1.9rem; right: .35rem; width: 62%; padding: .25rem; gap: .1rem; border-radius: .45rem; transform-origin: top right; animation: d-menu var(--dur) infinite; }
+.d-item { display: flex; align-items: center; gap: .3rem; padding: .45rem .5rem; border-radius: .35rem; background: #353535; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d-item svg { flex: none; }
+.d-menu .d-item { background: transparent; }
+.d-sheet .d-item { font-size: .52rem; padding-inline: .4rem; }
+.d-t2 { animation: d-pick var(--dur) infinite; font-weight: 700; }
+
+/* Phase 3: home screen with the new icon */
+.d-home { position: absolute; inset: 0; z-index: 3; padding: 1.4rem .6rem; background: radial-gradient(120% 80% at 30% 0%, #3c3020, #151515 70%); animation: d-home var(--dur) infinite; }
+.d-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .55rem; }
+.d-grid i { aspect-ratio: 1; border-radius: .45rem; background: rgb(255 255 255 / .12); }
+.d-app { position: absolute; left: 50%; top: 52%; translate: -50% -50%; display: grid; justify-items: center; gap: .2rem; animation: d-app var(--dur) infinite; }
+.d-app img { width: 2.2rem; height: 2.2rem; border-radius: .55rem; box-shadow: 0 4px 14px rgb(245 166 35 / .45); }
+.d-app small { font-size: .55rem; color: #fff; }
+
+/* The tapping finger: target positions per platform */
+.d-screen { --x1: 50%; --y1: 92%; --x2: 50%; --y2: 86%; --x3: 50%; --y3: 50%; }
+.d-phone[data-platform="ipad"] .d-screen { --x1: 90%; --y1: 6%; --x2: 70%; --y2: 41%; }
+.d-phone[data-platform="ipad"] .d-menu { width: 72%; }
+.d-phone[data-platform="android"] .d-screen { --x1: 89%; --y1: 6.5%; --x2: 66%; --y2: 40%; }
+.d-finger {
+  position: absolute; z-index: 5; width: 1.5rem; height: 1.5rem; translate: -50% -50%; border-radius: 50%;
+  background: rgb(255 255 255 / .55); box-shadow: 0 0 0 .2rem rgb(255 255 255 / .25); pointer-events: none;
+  animation: d-finger var(--dur) infinite;
+}
+
+@keyframes d-page { 0%, 60% { opacity: 1; } 66%, 100% { opacity: 0; } }
+@keyframes d-ring { 0%, 18% { box-shadow: none; } 22%, 30% { box-shadow: 0 0 0 .2rem #f5a623; } 34%, 100% { box-shadow: none; } }
+@keyframes d-sheet { 0%, 28% { transform: translateY(105%); } 34%, 100% { transform: translateY(0); } }
+@keyframes d-menu { 0%, 28% { opacity: 0; scale: .85; } 33%, 100% { opacity: 1; scale: 1; } }
+@keyframes d-pick { 0%, 46% { background: transparent; color: inherit; } 50%, 62% { background: rgb(245 166 35 / .35); color: #fff; } 66%, 100% { background: transparent; } }
+@keyframes d-home { 0%, 62% { opacity: 0; } 67%, 100% { opacity: 1; } }
+@keyframes d-app { 0%, 68% { opacity: 0; scale: 0; } 74% { opacity: 1; scale: 1.18; } 78%, 100% { opacity: 1; scale: 1; } }
+@keyframes d-finger {
+  0% { left: 60%; top: 62%; opacity: 0; scale: 1; }
+  8% { opacity: 1; }
+  18% { left: var(--x1); top: var(--y1); scale: 1; }
+  22% { scale: .7; } 26% { scale: 1; }
+  36% { left: var(--x1); top: var(--y1); }
+  46% { left: var(--x2); top: var(--y2); scale: 1; }
+  50% { scale: .7; } 54% { scale: 1; }
+  68% { left: var(--x2); top: var(--y2); }
+  82% { left: var(--x3); top: var(--y3); scale: 1; opacity: 1; }
+  86% { scale: .7; } 90% { scale: 1; }
+  96%, 100% { left: var(--x3); top: var(--y3); opacity: 0; }
+}
+
+/* The numbered steps light up in time with the demo */
+.pwa-how .pwa-steps li { opacity: .45; transition: none; }
+.pwa-how .pwa-steps li:nth-child(1) { animation: d-step1 8s infinite; }
+.pwa-how .pwa-steps li:nth-child(2) { animation: d-step2 8s infinite; }
+.pwa-how .pwa-steps li:nth-child(3) { animation: d-step3 8s infinite; }
+@keyframes d-step1 { 0%, 34% { opacity: 1; color: #fff; } 38%, 100% { opacity: .45; } }
+@keyframes d-step2 { 0%, 34% { opacity: .45; } 38%, 64% { opacity: 1; color: #fff; } 68%, 100% { opacity: .45; } }
+@keyframes d-step3 { 0%, 64% { opacity: .45; } 68%, 100% { opacity: 1; color: #fff; } }
+
+/* Reduced motion: a still frame of the key step, all steps readable */
+@media (prefers-reduced-motion: reduce) {
+  .d-phone *, .pwa-how .pwa-steps li { animation: none !important; }
+  .pwa-how .pwa-steps li { opacity: 1; }
+  .d-home, .d-finger { display: none; }
+  .d-menu { opacity: 1; }
+  .d-t2 { background: rgb(245 166 35 / .35); }
+}
+
+/* Tablets: a roomier card and a bigger demo */
+@media (min-width: 700px) {
+  .pwa-card { width: min(100%, 36rem); }
+  .pwa-how .pwa-steps { font-size: 1rem; }
+  .d-phone[data-platform="ipad"] { width: 15rem; height: 20rem; }
+  .d-phone[data-platform="ipad"] .d-screen { font-size: .75rem; }
+}
