@@ -1,0 +1,23 @@
+/* Full-screen status pages (404, errors). Self-contained: also used by global-error, outside the app layouts. */
+body:has(.s-screen) { background: #161616; }
+.s-screen {
+  min-height: 100dvh; display: grid; place-items: center; padding: 2rem 1.25rem; text-align: center; color: #fff; line-height: 1.5;
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgb(245 166 35 / .14), transparent 65%),
+    linear-gradient(180deg, #1d1d1d, #161616 70%);
+}
+.s-card { width: min(100%, 30rem); display: grid; justify-items: center; gap: .9rem; animation: s-in .45s cubic-bezier(.2, .8, .2, 1) both; }
+.s-brand { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; color: #f5a623; text-decoration: none; margin-bottom: 1rem; }
+.s-code { font-size: clamp(5rem, 22vw, 8rem); font-weight: 800; line-height: 1; letter-spacing: -.04em; background: linear-gradient(180deg, #ffb83d, #c9831a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.s-card h1 { font-size: clamp(1.4rem, 4vw, 1.9rem); font-weight: 700; }
+.s-text { color: #a8a8a8; max-width: 26rem; }
+.s-ref { font-size: .75rem; color: #767676; font-family: ui-monospace, monospace; }
+.s-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: .75rem; }
+.s-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 2.9rem; padding: 0 1.5rem; border: 1px solid #4a4a4a; border-radius: 6px; background: transparent; color: #fff; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; transition: background-color .15s, border-color .15s, transform .1s; }
+.s-btn:hover { background: rgb(255 255 255 / .08); border-color: #7d7d7d; }
+.s-btn:active { transform: scale(.98); }
+.s-btn[data-primary] { background: #f5a623; border-color: #f5a623; color: #1a1a1a; }
+.s-btn[data-primary]:hover { background: #ffb83d; border-color: #ffb83d; }
+.s-btn:focus-visible { outline: 2px solid #f5a623; outline-offset: 2px; }
+@keyframes s-in { from { opacity: 0; transform: translateY(14px); } }
+@media (prefers-reduced-motion: reduce) { .s-card { animation: none; } }
