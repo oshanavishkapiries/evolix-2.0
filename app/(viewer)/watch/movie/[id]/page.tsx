@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isUuid } from "@/lib/viewer/ids";
-import { yearOf } from "@/lib/viewer/format";
+import { runtimeText, yearOf } from "@/lib/viewer/format";
 import { resumePosition } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { getMovieWatch } from "@/lib/viewer/watch";
@@ -43,6 +43,12 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
       selected={selected}
       track={{ kind: "movie", id: movie.id }}
       startAt={startAt}
+      info={{
+        title: movie.title,
+        meta: [yearOf(movie.releaseDate), runtimeText(movie.runtimeMinutes), movie.rating ? `★ ${movie.rating.toFixed(1)}` : ""].filter(Boolean).join(" · "),
+        overview: movie.overview,
+        backdropPath: movie.backdropPath,
+      }}
     />
   );
 }

@@ -43,7 +43,7 @@ const subtitleRows = (where: ReturnType<typeof eq>) =>
 export const getMovieWatch = cache(async (id: string) => {
   const [[movie], srcs, subs] = await Promise.all([
     db
-      .select({ id: movies.id, title: movies.title, releaseDate: movies.releaseDate, backdropPath: movies.backdropPath })
+      .select({ id: movies.id, title: movies.title, releaseDate: movies.releaseDate, backdropPath: movies.backdropPath, overview: movies.overview, runtimeMinutes: movies.runtimeMinutes, rating: movies.rating })
       .from(movies)
       .where(and(eq(movies.id, id), eq(movies.isPublished, true)))
       .limit(1),
