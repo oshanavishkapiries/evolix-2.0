@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AUDIENCES, AUDIO_CODES } from "@/lib/audio";
 import { GALLERY_MAX, IMAGE_PATH_RE } from "@/lib/images";
 import { VIDEO_SITES, VIDEO_TYPES, isValidKey } from "@/lib/videos";
 
@@ -71,6 +72,7 @@ const movieFields = {
   galleryBackdrops: gallery.default([]),
   cast: castSchema.default([]),
   isPublished: z.boolean().default(false),
+  audience: z.enum(AUDIENCES).default("general"),
 };
 const tmdbId = z.number().int().positive();
 
@@ -97,6 +99,7 @@ const showFields = {
   galleryBackdrops: gallery.default([]),
   cast: castSchema.default([]),
   isPublished: z.boolean().default(false),
+  audience: z.enum(AUDIENCES).default("general"),
 };
 
 const episodeFields = {
@@ -180,6 +183,7 @@ const sourceFields = {
   kind: z.enum(KINDS),
   url: urlSchema,
   quality: text(50).nullable().default(null).transform((v) => v || null),
+  audioLanguage: z.enum(AUDIO_CODES).default(""),
   sortOrder: z.number().int().min(-100000).max(100000).default(0),
   isActive: z.boolean().default(true),
 };

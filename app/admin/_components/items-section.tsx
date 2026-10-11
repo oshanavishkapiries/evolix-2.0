@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { AUDIO_LANGUAGES, audioLabel } from "@/lib/audio";
 import { adminApi, errorText } from "@/lib/client/admin";
 import { useConfirm } from "./confirm-dialog";
 import { EntityFields, FieldDef, FormValues, fromForm, toForm } from "./fields";
@@ -13,6 +14,13 @@ const SOURCE_DEFS: FieldDef[] = [
   { key: "kind", label: "Kind", kind: "select", options: ["direct", "hls", "embed"], def: "direct" },
   { key: "url", label: "URL", kind: "text" },
   { key: "quality", label: "Quality", kind: "ntext" },
+  {
+    key: "audioLanguage",
+    label: "Audio (dub) language",
+    kind: "select",
+    options: [{ value: "", label: "Not specified" }, ...AUDIO_LANGUAGES.map((l) => ({ value: l.code, label: l.label }))],
+    def: "",
+  },
   { key: "sortOrder", label: "Order", kind: "int", def: "0" },
   { key: "isActive", label: "Active", kind: "bool", def: true },
 ];
@@ -159,7 +167,7 @@ export function SourcesSection({ parent }: { parent: Parent }) {
       defs={SOURCE_DEFS}
       parent={parent}
       summary={(i) =>
-        `[${i.sortOrder}] ${i.label} (${i.kind}${i.quality ? `, ${i.quality}` : ""}${i.isActive ? "" : ", inactive"}) ${i.url}`
+        `[${i.sortOrder}] ${i.label} (${i.kind}${i.quality ? `, ${i.quality}` : ""}${i.audioLanguage ? `, ${audioLabel(String(i.audioLanguage)) || i.audioLanguage} dub` : ""}${i.isActive ? "" : ", inactive"}) ${i.url}`
       }
     />
   );

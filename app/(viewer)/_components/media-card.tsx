@@ -1,3 +1,4 @@
+import { audioLabel } from "@/lib/audio";
 import { imageUrl } from "@/lib/images";
 import { detailHref, yearOf } from "@/lib/viewer/format";
 import type { Card } from "@/lib/viewer/catalog";
@@ -27,6 +28,11 @@ export function MediaCard({ item, variant = "poster", badge = false, meta, logo 
             <span className="v-card-logo" aria-hidden="true">
               {/* eslint-disable-next-line @next/next/no-img-element -- TMDB CDN */}
               <img src={logoSrc} alt="" loading="lazy" decoding="async" />
+            </span>
+          )}
+          {item.dubs && item.dubs.length > 0 && (
+            <span className="v-card-dubs">
+              {item.dubs.map((c) => audioLabel(c) && <span key={c}>{audioLabel(c)} dub</span>)}
             </span>
           )}
           <span className="v-card-play" aria-hidden="true"><PlayIcon size={18} /></span>

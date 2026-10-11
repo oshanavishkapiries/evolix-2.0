@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { imageUrl } from "@/lib/images";
-import { browse, listGenres, listGenreTiles, SEARCH_PAGE_SIZE, SORTS, type Sort } from "@/lib/viewer/catalog";
+import { browse, listGenres, listGenreTiles, SEARCH_PAGE_SIZE, SORTS, type Scope, type Sort } from "@/lib/viewer/catalog";
 import type { CardKind } from "@/lib/viewer/ids";
 import { HubRow } from "./hub-row";
+import { KidsNav } from "./kids-nav";
 import { MediaCard } from "./media-card";
 import { PageHeader } from "./page-header";
 import { GridSkeleton, RowSkeleton } from "./skeletons";
@@ -27,21 +28,21 @@ function parse(raw: Raw) {
 type Query = ReturnType<typeof parse>;
 
 /** Movies / TV page: Browse (rows or grid) and Genres tabs. */
-export function BrowsePage({ kind, basePath, heading, searchParams }: { kind: CardKind; basePath: string; heading: string; searchParams: Promise<Raw> }) {
+export function BrowsePage({ kind, basePath, heading, searchParams, scope = "main" }: { kind: CardKind; basePath: string; heading: string; searchParams: Promise<Raw>; scope?: Scope }) {
   return (
     <PageMotion>
     <div className="v-page v-page-rows">
       <Suspense fallback={<SkeletonOut><PageHeader title={heading} /><RowSkeleton /><RowSkeleton /></SkeletonOut>}>
-        <Reveal><Content kind={kind} basePath={basePath} heading={heading} searchParams={searchParams} /></Reveal>
+        <Reveal><Content kind={kind} basePath={basePath} heading={heading} searchParams={searchParams} scope={scope} /></Reveal>
       </Suspense>
     </div>
     </PageMotion>
   );
 }
 
-async function Content({ kind, basePath, heading, searchParams }: { kind: CardKind; basePath: string; heading: string; searchParams: Promise<Raw> }) {
+async function Content({ kind, basePath, heading, searchParams, scope }: { kind: CardKind; basePath: string; heading: string; searchParams: Promise<Raw>; scope: Scope }) {
   const q = parse(await searchParams);
-  const pageKey = kind === "movie" ? "movies" : "tv";
+  const pageKey = scope === "kids" ? (kind === "movie" ? "kids-movies" : "kids-tv") : kind === "movie" ? "movies" : "tv";
   const view = await resolveView(pageKey, q.view, "rows");
   const href = (patch: Partial<Query>) => {
     const n = { ...q, view, ...patch };
@@ -68,15 +69,16 @@ async function Content({ kind, basePath, heading, searchParams }: { kind: CardKi
 
   return (
     <>
-      <PageHeader title={heading} subtitle="On Evolix" tabs={tabs} controls={controls} />
+      <PageHeader title={heading} subtitle={scope === "kids" ? "Kids" : "On Evolix"} tabs={tabs} controls={controls} />
+      {scope === "kids" && <div className="v-page-pad"><KidsNav current={kind === "movie" ? "movies" : "tv"} /></div>}
       {q.tab === "genres" ? (
-        <Genres kind={kind} />
+        <Genres kind={kind} scope={scope} />
       ) : view === "rows" ? (
-        <Rows kind={kind} />
+        <Rows kind={kind} scope={scope} />
       ) : (
         <div className="v-page-pad">
           <Suspense key={`${q.sort}|${q.page}`} fallback={<GridSkeleton />}>
-            <Grid kind={kind} query={q} href={href} />
+            <Grid kind={kind} query={q} href={href} scope={scope} />
           </Suspense>
         </div>
       )}
@@ -84,24 +86,26 @@ async function Content({ kind, basePath, heading, searchParams }: { kind: CardKi
   );
 }
 
-async function Rows({ kind }: { kind: CardKind }) {
-  const [latest, genres] = await Promise.all([browse({ type: kind, limit: 20 }), listGenres(2, 10, kind)]);
+const searchBase = (scope: Scope) => (scope === "kids" ? "/kids/search" : "/search");
+
+async function Rows({ kind, scope }: { kind: CardKind; scope: Scope }) {
+  const [latest, genres] = await Promise.all([browse({ type: kind, limit: 20, scope }), listGenres(2, 10, kind, scope)]);
   if (!latest.items.length) return <Empty />;
-  const rows = await Promise.all(genres.map(async (g) => ({ genre: g, items: (await browse({ type: kind, genre: g, limit: 20 })).items })));
+  const rows = await Promise.all(genres.map(async (g) => ({ genre: g, items: (await browse({ type: kind, genre: g, limit: 20, scope })).items })));
   const label = kind === "movie" ? "Movies" : "TV Shows";
   return (
     <>
       <HubRow title="Recently Added" subtitle={label} items={latest.items} />
       {rows.map((r) => (
-        <HubRow key={r.genre} title={r.genre} subtitle={label} items={r.items} href={`/search?type=${kind}&genre=${encodeURIComponent(r.genre)}`} />
+        <HubRow key={r.genre} title={r.genre} subtitle={label} items={r.items} href={`${searchBase(scope)}?type=${kind}&genre=${encodeURIComponent(r.genre)}`} />
       ))}
     </>
   );
 }
 
-async function Grid({ kind, query, href }: { kind: CardKind; query: Query; href: (p: Partial<Query>) => string }) {
+async function Grid({ kind, query, href, scope }: { kind: CardKind; query: Query; href: (p: Partial<Query>) => string; scope: Scope }) {
   const { sort, page } = query;
-  const { items, total } = await browse({ type: kind, sort, limit: SEARCH_PAGE_SIZE, offset: (page - 1) * SEARCH_PAGE_SIZE, withTotal: true });
+  const { items, total } = await browse({ type: kind, sort, limit: SEARCH_PAGE_SIZE, offset: (page - 1) * SEARCH_PAGE_SIZE, withTotal: true, scope });
   const pages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
   if (!items.length) return <Empty />;
   return (
@@ -137,8 +141,8 @@ async function Grid({ kind, query, href }: { kind: CardKind; query: Query; href:
   );
 }
 
-async function Genres({ kind }: { kind: CardKind }) {
-  const tiles = await listGenreTiles(kind);
+async function Genres({ kind, scope }: { kind: CardKind; scope: Scope }) {
+  const tiles = await listGenreTiles(kind, scope);
   if (!tiles.length) return <Empty />;
   return (
     <ul className="v-genres v-page-pad">
@@ -146,7 +150,7 @@ async function Genres({ kind }: { kind: CardKind }) {
         const src = imageUrl(t.backdropPath, "w780");
         return (
           <li key={t.genre}>
-            <Link href={`/search?type=${kind}&genre=${encodeURIComponent(t.genre)}`} className="v-genre">
+            <Link href={`${searchBase(scope)}?type=${kind}&genre=${encodeURIComponent(t.genre)}`} className="v-genre">
               {src && (
                 // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
                 <img src={src} alt="" width={780} height={439} loading="lazy" decoding="async" />

@@ -11,6 +11,8 @@ export type WatchSource = {
   kind: "direct" | "hls" | "embed";
   quality: string | null;
   url: string;
+  /** Dub language code ("si", "en", ...); empty when not specified. */
+  audioLanguage: string;
 };
 export type WatchSubtitle = {
   id: string;
@@ -22,7 +24,7 @@ export type WatchSubtitle = {
 
 const activeSources = async (where: ReturnType<typeof eq>): Promise<WatchSource[]> =>
   (await db
-    .select({ id: sources.id, label: sources.label, kind: sources.kind, quality: sources.quality, url: sources.url })
+    .select({ id: sources.id, label: sources.label, kind: sources.kind, quality: sources.quality, url: sources.url, audioLanguage: sources.audioLanguage })
     .from(sources)
     .where(and(where, eq(sources.isActive, true)))
     .orderBy(asc(sources.sortOrder), asc(sources.createdAt))).map(normalizeSource);

@@ -63,6 +63,7 @@ export default async function ShowPage({ params, searchParams }: Props) {
         play={play}
         voteCount={show.voteCount}
         hasExtras={show.videos.length > 0}
+        dubs={show.dubs}
       />
       <Seasons show={show} resumeHref={resume?.href} />
       <MediaSections

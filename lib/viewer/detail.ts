@@ -1,8 +1,13 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/db";
+import { AUDIO_LANGUAGES } from "@/lib/audio";
 import { catalogCache } from "./cache";
 import { episodes, movies, seasons, shows, sources, videos } from "@/db/schema";
+
+/** Language codes of a title's sources in display order, without the unspecified one. */
+const dubCodes = (rows: { audioLanguage: string }[]) =>
+  AUDIO_LANGUAGES.map((l) => l.code as string).filter((c) => rows.some((r) => r.audioLanguage === c));
 
 // Viewer reads: published titles, visible seasons/episodes/videos, active sources only.
 
@@ -36,7 +41,7 @@ export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getMovieDetail>>
 export const getMovieDetail = cache(async (id: string) => {
   "use cache";
   catalogCache();
-  const [[movie], vids, [src]] = await Promise.all([
+  const [[movie], vids, langs] = await Promise.all([
     db
       .select({
         id: movies.id,
@@ -62,12 +67,11 @@ export const getMovieDetail = cache(async (id: string) => {
       .limit(1),
     visibleVideos({ movieId: id }),
     db
-      .select({ id: sources.id })
+      .selectDistinct({ audioLanguage: sources.audioLanguage })
       .from(sources)
-      .where(and(eq(sources.movieId, id), eq(sources.isActive, true)))
-      .limit(1),
+      .where(and(eq(sources.movieId, id), eq(sources.isActive, true))),
   ]);
-  return movie ? { ...movie, videos: vids, playable: Boolean(src) } : null;
+  return movie ? { ...movie, videos: vids, playable: langs.length > 0, dubs: dubCodes(langs) } : null;
 });
 
 export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getShowDetail>>>;
@@ -76,7 +80,7 @@ export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getShowDetail>>>;
 export const getShowDetail = cache(async (id: string, seasonNumber: number | null) => {
   "use cache";
   catalogCache();
-  const [[show], vids, seasonRows, first] = await Promise.all([
+  const [[show], vids, seasonRows, first, langs] = await Promise.all([
     db
       .select({
         id: shows.id,
@@ -117,6 +121,12 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
       .where(and(eq(seasons.showId, id), eq(seasons.isVisible, true)))
       .orderBy(asc(seasons.seasonNumber)),
     firstEpisode(id),
+    db
+      .selectDistinct({ audioLanguage: sources.audioLanguage })
+      .from(sources)
+      .innerJoin(episodes, eq(episodes.id, sources.episodeId))
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(and(eq(seasons.showId, id), eq(sources.isActive, true))),
   ]);
   if (!show) return null;
 
@@ -140,5 +150,5 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
         .where(and(eq(episodes.seasonId, selected.id), eq(episodes.isVisible, true)))
         .orderBy(asc(episodes.episodeNumber))
     : [];
-  return { ...show, videos: vids, seasons: seasonRows, selected, episodes: eps, first };
+  return { ...show, videos: vids, seasons: seasonRows, selected, episodes: eps, first, dubs: dubCodes(langs) };
 });

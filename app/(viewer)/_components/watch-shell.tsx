@@ -19,6 +19,7 @@ export function WatchShell({
   sources,
   episodes,
   report,
+  audioLabel,
   children,
 }: {
   title: string;
@@ -30,6 +31,8 @@ export function WatchShell({
   episodes?: React.ReactNode;
   /** What the flag button reports. */
   report?: ReportTarget;
+  /** Current dub, shown as a button that opens the panel where it can be changed. */
+  audioLabel?: string;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -116,8 +119,13 @@ export function WatchShell({
           <BackIcon size={22} />
         </Link>
         <h1>{title}</h1>
-        {(episodes || sources || report) && (
+        {(episodes || sources || report || audioLabel) && (
           <div className="v-watch-actions">
+            {audioLabel && (
+              <button type="button" className="v-bar-pill" aria-label={`Audio: ${audioLabel}. Change`} onClick={() => toggle("sources")}>
+                {audioLabel}
+              </button>
+            )}
             {episodes && (
               <button type="button" className="v-bar-icon" aria-label="Episodes" onClick={() => toggle("episodes")}>
                 <EpisodesIcon size={22} />

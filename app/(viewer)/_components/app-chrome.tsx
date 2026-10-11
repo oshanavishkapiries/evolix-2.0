@@ -5,11 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
-import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
+import { FilmIcon, HomeIcon, KidsIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
 import { activeNavKey, SIDEBAR_ITEMS } from "./nav-items";
 import { PREF_SIDEBAR, savePref } from "./prefs";
 
-const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon };
+const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, kids: KidsIcon, "my-list": ListIcon };
 const DESKTOP = "(min-width: 80rem)";
 
 function NavSearch() {

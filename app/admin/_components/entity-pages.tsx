@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { AUDIENCES, AUDIENCE_LABEL, type Audience } from "@/lib/audio";
 import { adminApi, errorText, tmdbImage } from "@/lib/client/admin";
 import { navigate } from "@/lib/client/api";
 import { useConfirm } from "./confirm-dialog";
@@ -168,6 +169,24 @@ export function OverviewPage({ counts }: { counts: Record<string, number> }) {
             offLabel="Draft (not public)"
             onToggle={(next) => patch({ isPublished: next }, next ? "Published." : "Unpublished.")}
           />
+        </p>
+        <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+          Where this {kind} is listed. Kids titles are hidden from the main app and shown in the Kids section.
+        </p>
+        <p className="mt-2">
+          <label>
+            Audience{" "}
+            <select
+              value={String(entity.audience ?? "general")}
+              onChange={(e) => patch({ audience: e.target.value }, "Audience saved.")}
+            >
+              {AUDIENCES.map((a: Audience) => (
+                <option key={a} value={a}>
+                  {AUDIENCE_LABEL[a]}
+                </option>
+              ))}
+            </select>
+          </label>
         </p>
       </section>
 
