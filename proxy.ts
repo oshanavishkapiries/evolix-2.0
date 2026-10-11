@@ -37,7 +37,14 @@ export async function proxy(req: NextRequest) {
     // Pages stream (status is fixed at 200), so unknown/unpublished titles are 404'd here.
     return NextResponse.rewrite(new URL("/not-available", req.url));
   }
-  if (pathname === "/" && valid) return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (pathname === "/") {
+    // No landing page: signed-in users go straight to the dashboard. With an expired access token
+    // the refresh bounce renews the session, or sends a guest to the login page.
+    if (valid) return NextResponse.redirect(new URL("/dashboard", req.url));
+    const url = new URL("/api/auth/refresh-redirect", req.url);
+    url.searchParams.set("next", "/dashboard");
+    return NextResponse.redirect(url);
+  }
   if (matches(pathname, GUEST_ONLY) && valid) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
