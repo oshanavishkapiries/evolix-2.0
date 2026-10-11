@@ -1,6 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/db";
+import { catalogCache } from "./cache";
 import { episodes, movies, seasons, shows, sources, videos } from "@/db/schema";
 
 // Viewer reads: published titles, visible seasons/episodes/videos, active sources only.
@@ -33,6 +34,8 @@ export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getMovieDetail>>
 
 /** Published movie with its visible videos; null when missing or unpublished. */
 export const getMovieDetail = cache(async (id: string) => {
+  "use cache";
+  catalogCache();
   const [[movie], vids, [src]] = await Promise.all([
     db
       .select({
@@ -71,6 +74,8 @@ export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getShowDetail>>>;
 
 /** Published show with visible seasons; episodes are for the selected season only. */
 export const getShowDetail = cache(async (id: string, seasonNumber: number | null) => {
+  "use cache";
+  catalogCache();
   const [[show], vids, seasonRows, first] = await Promise.all([
     db
       .select({
