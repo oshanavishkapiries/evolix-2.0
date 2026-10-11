@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { detectDevice, GATE_ATTR, gateExempt, isInstalled } from "@/lib/client/device";
+import { InstallDemo, type DemoPlatform } from "./install-demo";
 import "./pwa-gate.css";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
@@ -29,7 +30,9 @@ export function PwaGate() {
   const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
   const [done, setDone] = useState(false);
   const needs = useBrowser(() => !gateOff && detectDevice() !== "desktop" && !isInstalled() && !gateExempt(pathname));
-  const ios = useBrowser(() => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+  const ipad = useBrowser(() => /iPad/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+  const iphone = useBrowser(() => /iPhone|iPod/i.test(navigator.userAgent));
+  const platform: DemoPlatform = iphone ? "iphone" : ipad ? "ipad" : "android";
 
   useEffect(() => {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -72,21 +75,26 @@ export function PwaGate() {
         ) : (
           <>
             <p className="pwa-text">On phones and tablets, Evolix works as an app. Install it to start watching.</p>
-            {prompt ? (
+            {prompt && (
               <button type="button" className="pwa-btn" onClick={install}>Install Evolix</button>
-            ) : ios ? (
-              <ol className="pwa-steps">
-                <li>Tap the Share button <ShareGlyph /> in your browser</li>
-                <li>Choose <strong>Add to Home Screen</strong></li>
-                <li>Tap <strong>Add</strong>, then open Evolix from your home screen</li>
-              </ol>
-            ) : (
-              <ol className="pwa-steps">
-                <li>Open your browser menu (⋮)</li>
-                <li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong></li>
-                <li>Open Evolix from your home screen</li>
-              </ol>
             )}
+            {prompt && <p className="pwa-or">or install it from your browser menu</p>}
+            <div className="pwa-how">
+              <InstallDemo platform={platform} />
+              {platform === "android" ? (
+                <ol className="pwa-steps">
+                  <li>Open your browser menu <strong>⋮</strong></li>
+                  <li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong></li>
+                  <li>Confirm, then open Evolix from your home screen</li>
+                </ol>
+              ) : (
+                <ol className="pwa-steps">
+                  <li>Tap the Share button <ShareGlyph /> {platform === "ipad" ? "at the top" : "at the bottom"}</li>
+                  <li>Choose <strong>Add to Home Screen</strong></li>
+                  <li>Tap <strong>Add</strong>, then open Evolix from your home screen</li>
+                </ol>
+              )}
+            </div>
           </>
         )}
       </div>
