@@ -73,3 +73,12 @@ export async function postJsonWithRefresh<T = Record<string, unknown>>(path: str
   });
   return parse<T>(res);
 }
+
+export async function deleteJsonWithRefresh<T = Record<string, unknown>>(path: string, body?: unknown) {
+  const res = await fetchWithRefresh(path, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+  return parse<T>(res);
+}

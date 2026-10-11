@@ -521,3 +521,4 @@ Signed-in viewer features; agents managing content normally don't need these. Bo
 - `GET /api/me/bookmarks` → `{ movies: [uuid], shows: [uuid] }`.
   `POST /api/me/bookmarks` `{ kind: "movie"|"show", id, on: boolean }` → `{ bookmarked }`.
 - `POST /api/me/progress` `{ kind: "movie"|"episode", id, position, duration }` (seconds) → `{ completed }`.
+- `DELETE /api/me/progress` `{ kind: "movie"|"episode"|"show", id }` → `{ cleared: true }`. Clears saved progress; `show` clears every episode of that show.

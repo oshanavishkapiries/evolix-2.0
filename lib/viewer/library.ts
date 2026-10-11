@@ -22,6 +22,8 @@ export type ContinueItem = {
   /** 0-100; 0 for "up next" episodes that were not started. */
   percent: number;
   detailHref: string;
+  /** What "remove from Continue Watching" clears progress for. */
+  target: { kind: "movie" | "show"; id: string };
 };
 
 export async function bookmarkIds(userId: string) {
@@ -163,6 +165,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
     href: `/watch/movie/${r.id}`,
     detailHref: `/movie/${r.id}`,
     percent: pct(r.position, r.duration),
+    target: { kind: "movie" as const, id: r.id },
     at: r.at.getTime(),
   }));
 
@@ -217,6 +220,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
       href: `/watch/tv/${r.showId}/${ep.seasonNumber}/${ep.episodeNumber}`,
       detailHref: `/tv/${r.showId}`,
       percent,
+      target: { kind: "show" as const, id: r.showId },
       at: r.at.getTime(),
     });
   }
@@ -224,7 +228,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
   return items
     .sort((a, b) => b.at - a.at)
     .slice(0, limit)
-    .map((it) => ({ key: it.key, title: it.title, label: it.label, posterPath: it.posterPath, backdropPath: it.backdropPath, leftMinutes: it.leftMinutes, href: it.href, percent: it.percent, detailHref: it.detailHref }));
+    .map((it) => ({ key: it.key, title: it.title, label: it.label, posterPath: it.posterPath, backdropPath: it.backdropPath, leftMinutes: it.leftMinutes, href: it.href, percent: it.percent, detailHref: it.detailHref, target: it.target }));
 }
 
 /** The Continue Watching entry for one title (movie in progress, or the show's current/next episode). */
