@@ -4,7 +4,7 @@ import { MediaCard, type CardVariant } from "./media-card";
 import { ScrollRow } from "./scroll-row";
 
 /** A titled horizontal row ("hub") of cards; the title links to the full list when `href` is set. */
-export function HubRow({ title, subtitle, items, href, variant = "poster", badge }: { title: string; subtitle?: string; items: Card[]; href?: string; variant?: CardVariant; badge?: boolean }) {
+export function HubRow({ title, subtitle, items, href, variant = "poster", badge, logo }: { title: string; subtitle?: string; items: Card[]; href?: string; variant?: CardVariant; badge?: boolean; logo?: boolean }) {
   if (!items.length) return null;
   return (
     <ScrollRow
@@ -19,7 +19,7 @@ export function HubRow({ title, subtitle, items, href, variant = "poster", badge
     >
       {items.map((item) => (
         <li key={`${item.kind}-${item.id}`}>
-          <MediaCard item={item} variant={variant} badge={badge} />
+          <MediaCard item={item} variant={variant} badge={badge} logo={logo} />
         </li>
       ))}
     </ScrollRow>
