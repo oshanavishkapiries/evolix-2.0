@@ -4,6 +4,7 @@ import { ratingText, votesText, yearOf } from "@/lib/viewer/format";
 import { BookmarkButton } from "./bookmarks";
 import { Overview, PosterTint, ShareButton } from "./detail-client";
 import { PlayIcon } from "./icons";
+import { ReportButton } from "./report-button";
 
 export type PlayAction = { href: string; label: string; detail?: string; percent?: number };
 
@@ -73,6 +74,7 @@ export function DetailHeader(p: Props) {
             )}
             <BookmarkButton kind={p.kind} id={p.id} />
             <ShareButton title={p.title} />
+            <ReportButton target={{ kind: p.kind, id: p.id, title: p.title }} />
           </div>
           {p.play?.detail && (
             <div className="v-detail-progress">

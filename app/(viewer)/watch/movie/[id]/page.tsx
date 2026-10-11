@@ -43,6 +43,7 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
       selected={selected}
       track={{ kind: "movie", id: movie.id }}
       startAt={startAt}
+      report={{ kind: "movie", id: movie.id, title: movie.title }}
       info={{
         title: movie.title,
         meta: [yearOf(movie.releaseDate), runtimeText(movie.runtimeMinutes), movie.rating ? `★ ${movie.rating.toFixed(1)}` : ""].filter(Boolean).join(" · "),

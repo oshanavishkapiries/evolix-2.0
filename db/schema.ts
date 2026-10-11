@@ -300,3 +300,34 @@ export const watchProgress = pgTable(
     index("watch_progress_user_updated_idx").on(t.userId, t.updatedAt),
   ],
 );
+
+// ---------------------------------------------------------------- Reports
+
+export const reportStatus = pgEnum("report_status", ["open", "resolved", "dismissed"]);
+
+/** A viewer's problem report about a movie, a show or one episode. `reason` is a key from lib/reports.ts. */
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    movieId: uuid("movie_id").references(() => movies.id, { onDelete: "cascade" }),
+    showId: uuid("show_id").references(() => shows.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    message: text("message").notNull().default(""),
+    status: reportStatus("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [
+    check(
+      "reports_one_target",
+      sql`(${t.movieId} is not null)::int + (${t.showId} is not null)::int + (${t.episodeId} is not null)::int = 1`,
+    ),
+    index("reports_status_created_idx").on(t.status, t.createdAt),
+    index("reports_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);

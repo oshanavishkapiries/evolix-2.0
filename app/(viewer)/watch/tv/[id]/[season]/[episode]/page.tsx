@@ -56,6 +56,7 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       selected={selected}
       track={{ kind: "episode", id: current.id }}
       startAt={startAt}
+      report={{ kind: "episode", id: current.id, title: `${current.showName} ${code(p.season, p.episode)}` }}
       info={{
         title: current.showName,
         meta: `S${p.season}:E${p.episode}${current.name ? ` · ${current.name}` : ""}`,

@@ -522,3 +522,5 @@ Signed-in viewer features; agents managing content normally don't need these. Bo
   `POST /api/me/bookmarks` `{ kind: "movie"|"show", id, on: boolean }` → `{ bookmarked }`.
 - `POST /api/me/progress` `{ kind: "movie"|"episode", id, position, duration }` (seconds) → `{ completed }`.
 - `DELETE /api/me/progress` `{ kind: "movie"|"episode"|"show", id }` → `{ cleared: true }`. Clears saved progress; `show` clears every episode of that show.
+- `POST /api/reports` `{ kind: "movie"|"show"|"episode", id, reason, message? }` → `201 { reported: true }` (or `200 { duplicate: true }` if the same open report exists). `reason` is one of `wont_play`, `buffering`, `wrong_video`, `audio_problem`, `wrong_language`, `subtitle_problem`, `poor_quality`, `wrong_info`, `inappropriate`, `other`; `other` needs a `message` (5–1000 chars). Max 20 reports per user per day (`429 RATE_LIMITED`).
+- Admin: `GET /api/admin/reports?status=open|resolved|dismissed&page=&pageSize=` → `{ reports, total }`; `PATCH /api/admin/reports/{id}` `{ status }` → `{ report }`.
