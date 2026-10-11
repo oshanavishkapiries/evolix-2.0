@@ -2,6 +2,7 @@ import Link from "next/link";
 import { imageUrl } from "@/lib/images";
 import type { ContinueItem } from "@/lib/viewer/library";
 import { PlayIcon } from "./icons";
+import { RemoveProgress } from "./remove-progress";
 import { ScrollRow } from "./scroll-row";
 
 const leftText = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}hr ${m % 60}min left` : `${m}min left`);
@@ -35,6 +36,7 @@ export function ContinueRow({ items }: { items: ContinueItem[] }) {
                 <span className="v-card-title">{it.title}</span>
                 {sub && <span className="v-card-sub">{sub}</span>}
               </Link>
+              <RemoveProgress target={it.target} title={it.title} />
             </div>
           </li>
         );

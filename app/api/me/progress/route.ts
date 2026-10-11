@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { episodes, movies, seasons, shows, watchProgress } from "@/db/schema";
@@ -54,4 +54,27 @@ export async function POST(req: NextRequest) {
       set: { positionSeconds: position, durationSeconds: duration, completed, updatedAt: values.updatedAt },
     });
   return json(200, { completed });
+}
+
+const clearBody = z.object({ kind: z.enum(["movie", "episode", "show"]), id: z.uuid() });
+
+/** Clears the caller's saved progress for a movie, an episode, or every episode of a show. */
+export async function DELETE(req: NextRequest) {
+  const auth = await authenticate(req);
+  if (!auth) return fail(401, "UNAUTHORIZED", "Not authenticated");
+  const parsed = await parseBody(req, clearBody);
+  if ("error" in parsed) return parsed.error;
+  const { kind, id } = parsed.data;
+  const mine = eq(watchProgress.userId, auth.userId);
+  if (kind === "movie") await db.delete(watchProgress).where(and(mine, eq(watchProgress.movieId, id)));
+  else if (kind === "episode") await db.delete(watchProgress).where(and(mine, eq(watchProgress.episodeId, id)));
+  else {
+    const eps = db
+      .select({ id: episodes.id })
+      .from(episodes)
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(eq(seasons.showId, id));
+    await db.delete(watchProgress).where(and(mine, inArray(watchProgress.episodeId, eps)));
+  }
+  return json(200, { cleared: true });
 }
