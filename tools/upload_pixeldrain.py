@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -198,6 +199,7 @@ def main():
     p.add_argument("--subtitle-dir", type=Path, default=SUBTITLE_DIR, help="directory containing subtitle files")
     p.add_argument("--output-json", type=Path, default=OUTPUT_JSON, help="file to save upload links")
     p.add_argument("--list-title", default="Better Call Saul - Season 1", help="title for the Pixeldrain album/list")
+    p.add_argument("--regex", "-r", help="regex pattern to filter files to upload")
     p.add_argument("--dry-run", action="store_true", help="list files to be uploaded without uploading")
     p.add_argument("--no-subs", action="store_true", help="skip uploading subtitle files")
     p.add_argument("--no-videos", action="store_true", help="skip uploading video files")
@@ -223,8 +225,12 @@ def main():
         for s in subs:
             items_to_upload.append({"path": s, "type": "subtitle"})
 
+    if args.regex:
+        pat = re.compile(args.regex, re.IGNORECASE)
+        items_to_upload = [item for item in items_to_upload if pat.search(item["path"].name)]
+
     if not items_to_upload:
-        log.warning("No files found to upload in %s or %s", args.video_dir, args.subtitle_dir)
+        log.warning("No files matched pattern or found to upload in %s or %s", args.video_dir, args.subtitle_dir)
         sys.exit(0)
 
     total_bytes = sum(item["path"].stat().st_size for item in items_to_upload)
