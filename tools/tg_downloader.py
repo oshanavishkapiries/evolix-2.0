@@ -14,7 +14,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError, RPCError
+from telethon.errors import FileReferenceExpiredError, FloodWaitError, RPCError
 
 load_dotenv()
 
@@ -176,7 +176,15 @@ async def download_one(client, msg, manifest):
         except FloodWaitError as e:
             wait = e.seconds + 1
             log.warning("FloodWait %ds, waiting...", wait)
-            await asyncio.sleep(wait)
+        except FileReferenceExpiredError:
+            log.warning("File reference expired for %s, fetching fresh message...", name)
+            try:
+                refreshed = await client.get_messages(msg.peer_id, ids=msg.id)
+                if refreshed:
+                    msg = refreshed
+            except Exception as ref_err:
+                log.error("Failed to refresh message %s: %s", name, ref_err)
+            await asyncio.sleep(2)
         except OSError as e:
             if e.errno == errno.ENOSPC:
                 log.critical("Disk full, stopping.")
@@ -265,13 +273,26 @@ async def run(args):
             log.info("Search query: %r", args.search)
         if args.regex:
             log.info("Regex filter: %r (case_sensitive=%s)", args.regex, args.case_sensitive)
+        if args.ids:
+            log.info("Target message IDs: %r", args.ids)
 
-        async for msg in client.iter_messages(
-            entity,
-            limit=args.limit,
-            reverse=args.reverse,
-            search=args.search,
-        ):
+        async def _iter_messages():
+            if args.ids:
+                target_ids = [int(x.strip()) for x in args.ids.split(",") if x.strip()]
+                msgs = await client.get_messages(entity, ids=target_ids)
+                for m in msgs:
+                    if m:
+                        yield m
+            else:
+                async for m in client.iter_messages(
+                    entity,
+                    limit=args.limit,
+                    reverse=args.reverse,
+                    search=args.search,
+                ):
+                    yield m
+
+        async for msg in _iter_messages():
             if not is_downloadable(msg, all_files=args.all_files):
                 continue
             if not matches_regex(msg, regex_pattern):
@@ -322,6 +343,7 @@ def main():
         action="store_true",
         help="list matching files without downloading them",
     )
+    p.add_argument("--ids", help="comma-separated message IDs to download")
     p.add_argument("--limit", type=int, default=None, help="number of messages (default: all)")
     p.add_argument("--reverse", action="store_true", help="oldest first")
     p.add_argument("--verify", action="store_true", help="re-check downloaded files against manifest")
