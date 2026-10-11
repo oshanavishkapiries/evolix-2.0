@@ -1,0 +1,14 @@
+/* Phones and tablets in a normal browser tab see only the install screen. */
+html[data-install-gate] body > *:not(.pwa-gate) { display: none !important; }
+html[data-install-gate] body { overflow: hidden; background: #161616; }
+.pwa-gate { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 1.5rem; background: #161616; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-y: auto; }
+.pwa-card { width: min(100%, 26rem); display: grid; gap: 1.1rem; justify-items: center; text-align: center; }
+.pwa-brand { font-size: 2.4rem; font-weight: 800; letter-spacing: -.02em; color: #f5a623; }
+.pwa-card h1 { font-size: 1.5rem; font-weight: 700; }
+.pwa-text { color: #b3b3b3; line-height: 1.55; }
+.pwa-text strong { color: #fff; }
+.pwa-btn { width: 100%; padding: .9rem 1.2rem; border-radius: .5rem; background: #f5a623; color: #1a1a1a; font-size: 1.05rem; font-weight: 700; cursor: pointer; border: 0; }
+.pwa-btn:active { filter: brightness(.92); }
+.pwa-steps { list-style: decimal; width: 100%; display: grid; gap: .6rem; padding: 1rem 1rem 1rem 2.4rem; border-radius: .5rem; background: #232323; text-align: left; color: #e6e6e6; line-height: 1.45; }
+.pwa-steps li svg { display: inline; vertical-align: -.25em; }
+.pwa-steps strong { color: #fff; }
