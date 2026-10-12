@@ -16,6 +16,8 @@ import {
   type PlayerType,
 } from "@/lib/viewer/providers";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
+import { loadStyle, saveStyle, styleVars, type SubStyle } from "./subtitle-style";
+import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
 /** Shown over the video while paused, Netflix-style. */
@@ -84,6 +86,16 @@ export default function PlayerImpl({
     setPaused(false);
   };
 
+  const [subOpen, setSubOpen] = useState(false);
+  const [subTab, setSubTab] = useState<SubTab>("style");
+  // Client-only component (dynamic, ssr: false), so localStorage is safe to read here.
+  const [subStyle, setSubStyle] = useState<SubStyle>(loadStyle);
+  const changeSubStyle = (s: SubStyle) => {
+    setSubStyle(s);
+    saveStyle(s);
+  };
+  const closeSubPanel = useCallback(() => setSubOpen(false), []);
+
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [hint, setHint] = useState<PlayerType | null>(null);
@@ -128,6 +140,7 @@ export default function PlayerImpl({
       title={title}
       key={`${current.type}`}
       src={current}
+      style={styleVars(subStyle)}
       playsInline
       autoPlay
       onProviderChange={(provider: MediaProviderAdapter | null) => {
@@ -170,12 +183,31 @@ export default function PlayerImpl({
             type={s.format}
             label={s.label}
             lang={s.language}
+            id={s.id}
             default={s.id === defaultSub}
           />
         ))}
       </MediaProvider>
-      {info && paused && <PauseOverlay info={info} />}
-      <DefaultVideoLayout icons={defaultLayoutIcons} noScrubGesture={false} />
+      {info && paused && !subOpen && <PauseOverlay info={info} />}
+      <DefaultVideoLayout
+        icons={defaultLayoutIcons}
+        noScrubGesture={false}
+        slots={
+          subtitles.length > 0
+            ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> }
+            : undefined
+        }
+      />
+      {subtitles.length > 0 && (
+        <SubtitleTools
+          open={subOpen}
+          tab={subTab}
+          onTab={setSubTab}
+          onClose={closeSubPanel}
+          style={subStyle}
+          onStyle={changeSubStyle}
+        />
+      )}
     </MediaPlayer>
   );
 }
