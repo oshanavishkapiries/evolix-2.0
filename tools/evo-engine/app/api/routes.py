@@ -52,6 +52,7 @@ def trigger_media_ingestion(
         task_id=task.task_id,
         status=task.status,
         requested_quality=task.requested_quality,
+        result_url=task.result_url,
         message=f"Media ingestion queued in background (Target quality: {task.requested_quality})"
         if task.status == IngestStatus.PENDING
         else f"Task already {task.status.value}",

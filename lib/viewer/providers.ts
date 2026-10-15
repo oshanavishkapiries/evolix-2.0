@@ -56,7 +56,13 @@ export function playbackCandidates(kind: SourceKind, url: string, hintedType?: P
   };
   if (kind === "hls") return [{ src: url, type: "application/x-mpegurl" as const }];
 
-  const ext = typeFromName(new URL(url).pathname);
+  let pathname = "";
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    pathname = url.split("?")[0] || "";
+  }
+  const ext = typeFromName(pathname);
   if (ext === "application/x-mpegurl") return [{ src: url, type: ext }];
   if (hintedType) push(hintedType);
   if (ext) push(ext);

@@ -30,7 +30,7 @@ const isEnglish = (lang: string) => /^en(-|_|$)/i.test(lang.trim()) || lang.trim
 export default function PlayerImpl({
   title,
   source,
-  subtitles,
+  subtitles = [],
   track,
   startAt = 0,
   info,
@@ -118,7 +118,7 @@ export default function PlayerImpl({
   const candidates = playbackCandidates(source.kind, source.url, hint);
   const current = candidates[Math.min(attempt, candidates.length - 1)];
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
-  const defaultSub = subtitles.find((s) => isEnglish(s.language))?.id;
+  const defaultSub = (subtitles ?? []).find((s) => isEnglish(s.language))?.id;
 
   if (failed || insecure) {
     return (

@@ -14,6 +14,7 @@ class IngestResponse(BaseModel):
     status: IngestStatus
     requested_quality: str
     message: str
+    result_url: Optional[str] = None
 
 
 class TaskStatusResponse(BaseModel):

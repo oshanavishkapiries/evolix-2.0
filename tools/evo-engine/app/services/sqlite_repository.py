@@ -115,12 +115,18 @@ class SQLiteTaskRepository(ITaskRepository):
             row = cur.fetchone()
             return self._row_to_task(row) if row else None
 
-    def get_by_tmdb_id(self, tmdb_id: int, media_type: str = "movie") -> Optional[IngestTask]:
+    def get_by_tmdb_id(self, tmdb_id: int, media_type: str = "movie", quality: Optional[str] = None) -> Optional[IngestTask]:
         with self._get_connection() as conn:
-            cur = conn.execute(
-                "SELECT * FROM ingest_tasks WHERE tmdb_id = ? AND media_type = ? ORDER BY created_at DESC LIMIT 1",
-                (tmdb_id, media_type),
-            )
+            if quality:
+                cur = conn.execute(
+                    "SELECT * FROM ingest_tasks WHERE tmdb_id = ? AND media_type = ? AND (requested_quality = ? OR resolved_quality = ?) ORDER BY created_at DESC LIMIT 1",
+                    (tmdb_id, media_type, quality, quality),
+                )
+            else:
+                cur = conn.execute(
+                    "SELECT * FROM ingest_tasks WHERE tmdb_id = ? AND media_type = ? ORDER BY created_at DESC LIMIT 1",
+                    (tmdb_id, media_type),
+                )
             row = cur.fetchone()
             return self._row_to_task(row) if row else None
 

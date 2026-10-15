@@ -162,3 +162,109 @@
   gap: .75rem;
   margin-top: .5rem;
 }
+
+/* Quality Picker Selection Cards */
+.evo-quality-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  text-align: left;
+}
+
+.evo-quality-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid var(--v-border);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.evo-quality-card:hover {
+  background: rgb(255 255 255 / 0.08);
+  border-color: rgb(245 166 35 / 0.4);
+}
+
+.evo-quality-card[data-selected="true"] {
+  background: rgb(245 166 35 / 0.12);
+  border-color: var(--v-primary);
+  box-shadow: 0 0 16px rgb(245 166 35 / 0.15);
+}
+
+.evo-quality-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.evo-quality-radio {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  border: 2px solid var(--v-fg-faint);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+
+.evo-quality-card[data-selected="true"] .evo-quality-radio {
+  border-color: var(--v-primary);
+}
+
+.evo-quality-radio-inner {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.2s;
+}
+
+.evo-quality-card[data-selected="true"] .evo-quality-radio-inner {
+  background: var(--v-primary);
+}
+
+.evo-quality-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.evo-quality-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.evo-quality-desc {
+  font-size: 0.78rem;
+  color: var(--v-fg-dim);
+}
+
+.evo-quality-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--v-fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.evo-quality-card[data-selected="true"] .evo-quality-tag {
+  background: rgb(245 166 35 / 0.2);
+  color: var(--v-primary);
+  border: 1px solid rgb(245 166 35 / 0.3);
+}
+
