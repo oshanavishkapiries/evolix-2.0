@@ -17,8 +17,15 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_tmdb_id(self, tmdb_id: int, media_type: str, quality: Optional[str] = None) -> Optional[IngestTask]:
-        """Finds task by TMDB ID, media type, and optional quality."""
+    def get_by_tmdb_id(
+        self,
+        tmdb_id: int,
+        media_type: str,
+        quality: Optional[str] = None,
+        season: Optional[int] = None,
+        episode: Optional[int] = None,
+    ) -> Optional[IngestTask]:
+        """Finds task by TMDB ID, media type, optional quality, and optional season/episode."""
         pass
 
     @abstractmethod

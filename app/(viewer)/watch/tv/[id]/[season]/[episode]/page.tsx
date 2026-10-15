@@ -60,6 +60,8 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       selected={audio.selected}
       tmdbId={current.tmdbId}
       mediaType="tv"
+      season={p.season}
+      episode={p.episode}
       backdropPath={current.backdropPath}
       audio={audio}
       track={isUuid(current.id) ? { kind: "episode", id: current.id } : undefined}

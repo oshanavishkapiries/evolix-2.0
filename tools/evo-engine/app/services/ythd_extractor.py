@@ -23,12 +23,23 @@ class YtHdStreamExtractor(IStreamExtractor):
     def __init__(self, base_url: str = "https://ythd.org"):
         self.base_url = base_url.rstrip("/")
 
-    def extract_streams(self, tmdb_id: int, media_type: str = "movie") -> List[StreamSource]:
+    def extract_streams(
+        self,
+        tmdb_id: int,
+        media_type: str = "movie",
+        season: Optional[int] = None,
+        episode: Optional[int] = None,
+    ) -> List[StreamSource]:
         session = requests.Session(impersonate="chrome124")
-        embed_url = f"{self.base_url}/embed/{tmdb_id}"
 
-        # 1. Fetch vs_src
-        vs_src_url = f"{self.base_url}/vs_src.php?type={media_type}&id={tmdb_id}"
+        # 1. Fetch vs_src with TV season & episode parameters if applicable
+        if media_type == "tv" and season is not None and episode is not None:
+            vs_src_url = f"{self.base_url}/vs_src.php?type=tv&id={tmdb_id}&season={season}&episode={episode}"
+            embed_url = f"{self.base_url}/embed/{tmdb_id}/{season}/{episode}"
+        else:
+            vs_src_url = f"{self.base_url}/vs_src.php?type={media_type}&id={tmdb_id}"
+            embed_url = f"{self.base_url}/embed/{tmdb_id}"
+
         r_src = session.get(vs_src_url, headers={"Referer": embed_url})
         if r_src.status_code != 200 or "src" not in r_src.json():
             raise RuntimeError(f"Failed to fetch vs_src: {r_src.status_code}")
@@ -51,7 +62,12 @@ class YtHdStreamExtractor(IStreamExtractor):
             raise RuntimeError("Failed to extract window.CONFIG from player page")
         cfg = json.loads(m_cfg.group(1))
 
-        stream_api_url = cfg["api"] + "&api_token=" + urllib.parse.quote(cfg["apiToken"])
+        api_base = cfg.get("api")
+        if not api_base:
+            meta_api = cfg.get("metaApi") or cfg.get("streamBase", "")
+            api_base = meta_api + ("&stream_urls" if "&stream_urls" not in meta_api else "")
+
+        stream_api_url = api_base + "&api_token=" + urllib.parse.quote(cfg.get("apiToken", ""))
 
         # 4. Fetch encrypted stream payload
         r_stream = session.get(
@@ -66,6 +82,7 @@ class YtHdStreamExtractor(IStreamExtractor):
             raise RuntimeError(f"Stream API returned {r_stream.status_code}")
         stream_json = r_stream.json()
         title = stream_json.get("data", {}).get("title", f"Media_{tmdb_id}")
+        imdb_id = stream_json.get("data", {}).get("imdb_id") or cfg.get("imdb")
 
         # 5. Fetch vsdec decryptor WebAssembly script
         r_vsdec = session.get(f"{player_origin}/embed/iframe_player/assets/vsdec.js?v=1786492668")
@@ -107,7 +124,7 @@ class YtHdStreamExtractor(IStreamExtractor):
             try:
                 r_m3u8 = session.get(master_url, headers={"Referer": f"{player_origin}/"})
                 if r_m3u8.status_code == 200 and "#EXTM3U" in r_m3u8.text:
-                    parsed_variants = self._parse_variants(r_m3u8.text, st_origin, token, title, player_origin)
+                    parsed_variants = self._parse_variants(r_m3u8.text, st_origin, token, title, player_origin, imdb_id)
                     if parsed_variants:
                         results.extend(parsed_variants)
                         break  # Found working provider with parsed qualities
@@ -121,6 +138,7 @@ class YtHdStreamExtractor(IStreamExtractor):
                     quality="1080p",
                     headers={"Referer": f"{player_origin}/"},
                     title=title,
+                    imdb_id=imdb_id,
                 )
             )
             break
@@ -134,6 +152,7 @@ class YtHdStreamExtractor(IStreamExtractor):
         token: str,
         title: str,
         player_origin: str,
+        imdb_id: Optional[str] = None,
     ) -> List[StreamSource]:
         lines = [line.strip() for line in m3u8_text.strip().split("\n") if line.strip()]
         variants: List[StreamSource] = []
@@ -170,6 +189,7 @@ class YtHdStreamExtractor(IStreamExtractor):
                         quality=quality,
                         headers={"Referer": f"{player_origin}/"},
                         title=title,
+                        imdb_id=imdb_id,
                     )
                 )
 
