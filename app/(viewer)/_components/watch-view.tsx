@@ -6,6 +6,7 @@ import { EmbedFrame } from "./embed-frame";
 import type { PauseInfo } from "./player-impl";
 import type { ReportTarget } from "./report-button";
 import { WatchPlayer } from "./watch-player";
+import { EvoPlayer } from "./evo-player";
 import { WatchShell } from "./watch-shell";
 
 /** Dub languages of the title and the one being played (see chooseAudio). */
@@ -20,7 +21,10 @@ type Props = {
   basePath: string;
   sources: WatchSource[];
   subtitles: WatchSubtitle[];
-  selected: WatchSource | null;
+  selected?: WatchSource | null;
+  /** Optional TMDB ID for on-demand Evo Engine resolution. */
+  tmdbId?: number | null;
+  backdropPath?: string | null;
   nav?: React.ReactNode;
   side?: React.ReactNode;
   /** Progress tracking target and resume position (direct/HLS sources only). */
@@ -32,7 +36,7 @@ type Props = {
   audio?: AudioState;
 };
 
-export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, nav, side, track, startAt, info, report, audio }: Props) {
+export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, tmdbId, backdropPath, nav, side, track, startAt, info, report, audio }: Props) {
   const multi = audio && audio.languages.length > 1;
   const sourcesPanel =
     sources.length > 0 ? (
@@ -79,11 +83,24 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
       episodes={nav || side ? <>{side}{nav}</> : undefined}
     >
       {!selected ? (
-        <div className="v-player-msg" role="status">
-          <strong>No sources available yet</strong>
-          <p className="v-muted">This title has no playable source right now. Check back later.</p>
-          <Link href={backHref} className="v-btn">{backLabel}</Link>
-        </div>
+        tmdbId ? (
+          <EvoPlayer
+            tmdbId={tmdbId}
+            title={heading}
+            backdropPath={backdropPath ?? info?.backdropPath}
+            backHref={backHref}
+            subtitles={subtitles}
+            track={track}
+            startAt={startAt}
+            info={info}
+          />
+        ) : (
+          <div className="v-player-msg" role="status">
+            <strong>No sources available yet</strong>
+            <p className="v-muted">This title has no playable source right now. Check back later.</p>
+            <Link href={backHref} className="v-btn">{backLabel}</Link>
+          </div>
+        )
       ) : selected.kind === "embed" ? (
         <EmbedFrame key={selected.id} url={selected.url} title={heading} />
       ) : (

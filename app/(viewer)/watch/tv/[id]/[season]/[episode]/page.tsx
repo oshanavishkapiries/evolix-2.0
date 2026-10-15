@@ -58,6 +58,8 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       sources={audio.visible}
       subtitles={data.subtitles}
       selected={audio.selected}
+      tmdbId={current.tmdbId}
+      backdropPath={current.backdropPath}
       audio={audio}
       track={{ kind: "episode", id: current.id }}
       startAt={startAt}

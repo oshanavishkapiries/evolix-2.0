@@ -48,7 +48,7 @@ export const getMovieWatch = cache(async (id: string) => {
   catalogCache();
   const [[movie], srcs, subs] = await Promise.all([
     db
-      .select({ id: movies.id, title: movies.title, releaseDate: movies.releaseDate, backdropPath: movies.backdropPath, overview: movies.overview, runtimeMinutes: movies.runtimeMinutes, rating: movies.rating })
+      .select({ id: movies.id, tmdbId: movies.tmdbId, title: movies.title, releaseDate: movies.releaseDate, backdropPath: movies.backdropPath, overview: movies.overview, runtimeMinutes: movies.runtimeMinutes, rating: movies.rating })
       .from(movies)
       .where(and(eq(movies.id, id), eq(movies.isPublished, true)))
       .limit(1),
@@ -80,6 +80,7 @@ export const getEpisodeWatch = cache(async (showId: string, seasonNumber: number
       airDate: episodes.airDate,
       runtimeMinutes: episodes.runtimeMinutes,
       stillPath: episodes.stillPath,
+      tmdbId: shows.tmdbId,
     })
     .from(episodes)
     .innerJoin(seasons, eq(seasons.id, episodes.seasonId))

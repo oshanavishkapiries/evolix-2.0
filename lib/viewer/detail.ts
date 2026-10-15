@@ -61,6 +61,7 @@ export const getMovieDetail = cache(async (id: string) => {
         logoPath: movies.logoPath,
         galleryBackdrops: movies.galleryBackdrops,
         cast: movies.cast,
+        tmdbId: movies.tmdbId,
       })
       .from(movies)
       .where(and(eq(movies.id, id), eq(movies.isPublished, true)))
@@ -71,7 +72,7 @@ export const getMovieDetail = cache(async (id: string) => {
       .from(sources)
       .where(and(eq(sources.movieId, id), eq(sources.isActive, true))),
   ]);
-  return movie ? { ...movie, videos: vids, playable: langs.length > 0, dubs: dubCodes(langs) } : null;
+  return movie ? { ...movie, videos: vids, playable: langs.length > 0 || Boolean(movie.tmdbId), isEvo: langs.length === 0 && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
 });
 
 export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getShowDetail>>>;

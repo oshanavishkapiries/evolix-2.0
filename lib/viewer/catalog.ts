@@ -21,6 +21,8 @@ export type Card = {
   rating: number | null;
   /** Audio (dub) language codes this title has playable sources for, e.g. ["si", "en"]. */
   dubs?: string[];
+  /** Marked for on-demand resolution via Evo Engine */
+  isEvo?: boolean;
 };
 
 /** Which section a query is for: the main app, or the Kids section. Kids titles never show in "main". */
@@ -138,7 +140,21 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
 
   const [items, total] = await Promise.all([rows, counts()]);
   return {
-    items: items.map(({ kind, id, title, date, posterPath, backdropPath, logoPath, rating, dubs }) => ({ kind, id, title, date, posterPath, backdropPath, logoPath, rating, dubs: toList(dubs) })),
+    items: items.map(({ kind, id, title, date, posterPath, backdropPath, logoPath, rating, dubs }) => {
+      const dubList = toList(dubs);
+      return {
+        kind,
+        id,
+        title,
+        date,
+        posterPath,
+        backdropPath,
+        logoPath,
+        rating,
+        dubs: dubList,
+        isEvo: dubList.length === 0,
+      };
+    }),
     total,
   };
 }
