@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { EvoProgressScreen } from "./evo-progress-screen";
 import type { PauseInfo, ProgressTarget } from "./player-impl";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
+import { normalizeSource } from "@/lib/viewer/providers";
 
 const PlayerImpl = dynamic(() => import("./player-impl"), {
   ssr: false,
@@ -121,10 +122,11 @@ export function EvoPlayer({
 
         if (data.status === "COMPLETED" && data.result_url) {
           // Transition directly to playback
+          const ready = normalizeSource({ id: `evo-${tmdbId}`, kind: "direct", url: data.result_url });
           setActiveSource({
-            id: `evo-${tmdbId}`,
-            kind: "direct",
-            url: data.result_url,
+            id: ready.id,
+            kind: ready.kind,
+            url: ready.url,
           });
           return;
         }
