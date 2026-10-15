@@ -6,3 +6,4 @@ downloads/
 temp/
 *.sqlite3
 *.log
+*.png
