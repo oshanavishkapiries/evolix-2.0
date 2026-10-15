@@ -6,3 +6,6 @@ downloads/
 subtitles/
 *.log
 __pycache__
+.auth_state.json
+auth_telegram.py
+
