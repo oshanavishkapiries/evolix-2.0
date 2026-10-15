@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bookmarks, episodes, movies, seasons, shows, watchProgress } from "@/db/schema";
 import { audienceIn, type Card, type Scope } from "./catalog";
+import { isUuid } from "./ids";
 
 /** A position this far in counts as finished. */
 export const COMPLETE_RATIO = 0.9;
@@ -79,6 +80,8 @@ export async function listBookmarks(userId: string, limit = 200, scope: Scope = 
 
 /** Saved position for one movie/episode, or 0 when none, finished, or barely started. */
 export async function resumePosition(userId: string, target: { movieId: string } | { episodeId: string }) {
+  const targetId = "movieId" in target ? target.movieId : target.episodeId;
+  if (!isUuid(targetId)) return 0;
   const [row] = await db
     .select({ position: watchProgress.positionSeconds, completed: watchProgress.completed })
     .from(watchProgress)
@@ -235,6 +238,7 @@ export async function continueWatching(userId: string, limit = 20, scope: Scope 
 
 /** The Continue Watching entry for one title (movie in progress, or the show's current/next episode). */
 export async function resumeFor(userId: string, kind: "movie" | "show", id: string): Promise<ContinueItem | null> {
+  if (!isUuid(id)) return null;
   const key = `${kind === "movie" ? "m" : "s"}-${id}`;
   return (await continueWatching(userId, 200, "all")).find((it) => it.key === key) ?? null;
 }

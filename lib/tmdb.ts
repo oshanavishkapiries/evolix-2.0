@@ -349,3 +349,70 @@ export async function getShowDetails(tmdbId: number): Promise<ShowPrefill> {
     warnings: warnings.sort(),
   };
 }
+
+export type TmdbCatalogItem = {
+  tmdbId: number;
+  title: string;
+  date: string | null;
+  posterPath: string | null;
+  backdropPath: string | null;
+  rating: number | null;
+  overview: string;
+};
+
+export type TmdbCatalogPage = {
+  page: number;
+  totalPages: number;
+  totalResults: number;
+  items: TmdbCatalogItem[];
+};
+
+export async function getPopularMedia(kind: "movie" | "tv", page = 1): Promise<TmdbCatalogPage> {
+  const data = await tmdb<Raw>(`/${kind}/popular`, { page });
+  const items: TmdbCatalogItem[] = (data.results ?? []).map((r: Raw) => ({
+    tmdbId: r.id,
+    title: str(kind === "movie" ? r.title : r.name),
+    date: strOrNull(kind === "movie" ? r.release_date : r.first_air_date),
+    posterPath: strOrNull(r.poster_path),
+    backdropPath: strOrNull(r.backdrop_path),
+    rating: rating(r.vote_average),
+    overview: str(r.overview),
+  }));
+  return { page: data.page ?? page, totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
+}
+
+export async function getTrendingMedia(kind: "movie" | "tv", timeWindow: "day" | "week" = "week", page = 1): Promise<TmdbCatalogPage> {
+  const data = await tmdb<Raw>(`/trending/${kind}/${timeWindow}`, { page });
+  const items: TmdbCatalogItem[] = (data.results ?? []).map((r: Raw) => ({
+    tmdbId: r.id,
+    title: str(kind === "movie" ? r.title : r.name),
+    date: strOrNull(kind === "movie" ? r.release_date : r.first_air_date),
+    posterPath: strOrNull(r.poster_path),
+    backdropPath: strOrNull(r.backdrop_path),
+    rating: rating(r.vote_average),
+    overview: str(r.overview),
+  }));
+  return { page: data.page ?? page, totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
+}
+
+export async function getDiscoverMedia(kind: "movie" | "tv", params: { withGenres?: string; sortBy?: string; page?: number } = {}): Promise<TmdbCatalogPage> {
+  const tmdbParams: Record<string, string | number> = {
+    page: params.page ?? 1,
+    include_adult: "false",
+    "vote_count.gte": 10,
+  };
+  if (params.withGenres) tmdbParams.with_genres = params.withGenres;
+  if (params.sortBy) tmdbParams.sort_by = params.sortBy;
+  const data = await tmdb<Raw>(`/discover/${kind}`, tmdbParams);
+  const items: TmdbCatalogItem[] = (data.results ?? []).map((r: Raw) => ({
+    tmdbId: r.id,
+    title: str(kind === "movie" ? r.title : r.name),
+    date: strOrNull(kind === "movie" ? r.release_date : r.first_air_date),
+    posterPath: strOrNull(r.poster_path),
+    backdropPath: strOrNull(r.backdrop_path),
+    rating: rating(r.vote_average),
+    overview: str(r.overview),
+  }));
+  return { page: data.page ?? (params.page ?? 1), totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
+}
+

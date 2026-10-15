@@ -24,6 +24,7 @@ type Props = {
   selected?: WatchSource | null;
   /** Optional TMDB ID for on-demand Evo Engine resolution. */
   tmdbId?: number | null;
+  mediaType?: "movie" | "tv";
   backdropPath?: string | null;
   nav?: React.ReactNode;
   side?: React.ReactNode;
@@ -36,7 +37,7 @@ type Props = {
   audio?: AudioState;
 };
 
-export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, tmdbId, backdropPath, nav, side, track, startAt, info, report, audio }: Props) {
+export function WatchView({ heading, sub, backHref, backLabel, basePath, sources, subtitles, selected, tmdbId, mediaType, backdropPath, nav, side, track, startAt, info, report, audio }: Props) {
   const multi = audio && audio.languages.length > 1;
   const sourcesPanel =
     sources.length > 0 ? (
@@ -86,6 +87,7 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
         tmdbId ? (
           <EvoPlayer
             tmdbId={tmdbId}
+            mediaType={mediaType}
             title={heading}
             backdropPath={backdropPath ?? info?.backdropPath}
             backHref={backHref}
