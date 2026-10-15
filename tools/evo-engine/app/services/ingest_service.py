@@ -49,7 +49,7 @@ class IngestService:
         requested_quality: str = "1080p",
     ) -> IngestTask:
         # Check if already completed or currently in progress
-        existing = self.repository.get_by_tmdb_id(tmdb_id, media_type.value)
+        existing = self.repository.get_by_tmdb_id(tmdb_id, media_type.value, requested_quality)
         if existing:
             if existing.status == IngestStatus.COMPLETED and existing.result_url:
                 return existing

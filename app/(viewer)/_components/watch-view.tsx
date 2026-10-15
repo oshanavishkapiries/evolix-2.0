@@ -7,6 +7,7 @@ import type { PauseInfo } from "./player-impl";
 import type { ReportTarget } from "./report-button";
 import { WatchPlayer } from "./watch-player";
 import { EvoPlayer } from "./evo-player";
+import { SafePlayerBoundary } from "./safe-player-boundary";
 import { WatchShell } from "./watch-shell";
 
 /** Dub languages of the title and the one being played (see chooseAudio). */
@@ -106,14 +107,16 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
       ) : selected.kind === "embed" ? (
         <EmbedFrame key={selected.id} url={selected.url} title={heading} />
       ) : (
-        <WatchPlayer
-          title={heading}
-          source={{ id: selected.id, kind: selected.kind, url: selected.url }}
-          subtitles={subtitles}
-          track={track}
-          startAt={startAt}
-          info={info}
-        />
+        <SafePlayerBoundary backHref={backHref}>
+          <WatchPlayer
+            title={heading}
+            source={{ id: selected.id, kind: selected.kind, url: selected.url }}
+            subtitles={subtitles}
+            track={track}
+            startAt={startAt}
+            info={info}
+          />
+        </SafePlayerBoundary>
       )}
     </WatchShell>
   );
