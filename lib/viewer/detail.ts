@@ -41,7 +41,7 @@ export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getMovieDetail>>
 export const getMovieDetail = cache(async (id: string) => {
   "use cache";
   catalogCache();
-  const [[movie], vids, langs] = await Promise.all([
+  const [[movie], vids, langs, hasSourcesRow] = await Promise.all([
     db
       .select({
         id: movies.id,
@@ -71,8 +71,14 @@ export const getMovieDetail = cache(async (id: string) => {
       .selectDistinct({ audioLanguage: sources.audioLanguage })
       .from(sources)
       .where(and(eq(sources.movieId, id), eq(sources.isActive, true))),
+    db
+      .select({ id: sources.id })
+      .from(sources)
+      .where(and(eq(sources.movieId, id), eq(sources.isActive, true)))
+      .limit(1),
   ]);
-  return movie ? { ...movie, videos: vids, playable: langs.length > 0 || Boolean(movie.tmdbId), isEvo: langs.length === 0 && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
+  const hasSources = hasSourcesRow.length > 0;
+  return movie ? { ...movie, videos: vids, playable: hasSources || Boolean(movie.tmdbId), isEvo: !hasSources && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
 });
 
 export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getShowDetail>>>;

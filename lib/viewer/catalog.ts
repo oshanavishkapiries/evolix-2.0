@@ -58,6 +58,7 @@ function cardQuery(kind: CardKind, f: Filters) {
           logoPath: sql<string | null>`${table.logoPath}`.as("logo_path"),
           rating: sql<number | null>`${table.rating}`.as("rating"),
           dubs: dubsOf(kind).as("dubs"),
+          hasSources: hasSourcesOf(kind).as("has_sources"),
           createdAt: sql<Date>`${table.createdAt}`.as("created_at"),
         })
         .from(table),
@@ -71,6 +72,14 @@ function dubsOf(kind: CardKind) {
   return kind === "movie"
     ? sql<string[]>`array(select distinct s.audio_language from sources s where s.movie_id = ${id} and s.is_active and s.audio_language <> '' order by 1)`
     : sql<string[]>`array(select distinct s.audio_language from sources s join episodes e on e.id = s.episode_id join seasons se on se.id = e.season_id where se.show_id = ${id} and s.is_active and s.audio_language <> '' order by 1)`;
+}
+
+/** Whether this title has at least one active playable source (episodes' sources for a show). */
+function hasSourcesOf(kind: CardKind) {
+  const id = sql.raw(kind === "movie" ? "movies.id" : "shows.id");
+  return kind === "movie"
+    ? sql<boolean>`exists (select 1 from sources s where s.movie_id = ${id} and s.is_active)`
+    : sql<boolean>`exists (select 1 from sources s join episodes e on e.id = s.episode_id join seasons se on se.id = e.season_id where se.show_id = ${id} and s.is_active)`;
 }
 
 /** Postgres arrays can arrive as "{si,en}" text depending on the driver path. */
@@ -140,7 +149,7 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
 
   const [items, total] = await Promise.all([rows, counts()]);
   return {
-    items: items.map(({ kind, id, title, date, posterPath, backdropPath, logoPath, rating, dubs }) => {
+    items: items.map(({ kind, id, title, date, posterPath, backdropPath, logoPath, rating, dubs, hasSources }) => {
       const dubList = toList(dubs);
       return {
         kind,
@@ -152,7 +161,7 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
         logoPath,
         rating,
         dubs: dubList,
-        isEvo: dubList.length === 0,
+        isEvo: kind === "movie" ? !hasSources : false,
       };
     }),
     total,
