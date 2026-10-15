@@ -1,5 +1,7 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header
+from typing import Optional
 from app.api.schemas import IngestRequest, IngestResponse, TaskStatusResponse
+from app.domain.models import IngestStatus
 from app.services.ingest_service import IngestService
 from app.services.ythd_extractor import YtHdStreamExtractor
 from app.services.ffmpeg_downloader import FFmpegStreamDownloader
@@ -8,6 +10,12 @@ from app.services.sqlite_repository import SQLiteTaskRepository
 from app.core.config import settings
 
 router = APIRouter(prefix="/api/v1/media", tags=["Media Ingestion"])
+
+
+def verify_secret_token(x_evo_secret: Optional[str] = Header(None, alias="X-Evo-Secret")):
+    if settings.EVO_SECRET_TOKEN and x_evo_secret != settings.EVO_SECRET_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid Evo Secret Token")
+    return True
 
 
 def get_ingest_service() -> IngestService:
@@ -26,7 +34,7 @@ def get_ingest_service() -> IngestService:
 _service_instance = get_ingest_service()
 
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(verify_secret_token)])
 def trigger_media_ingestion(
     request: IngestRequest,
     background_tasks: BackgroundTasks,
@@ -37,17 +45,20 @@ def trigger_media_ingestion(
         media_type=request.media_type,
         requested_quality=request.quality,
     )
-    background_tasks.add_task(_service_instance.process_task, task.task_id)
+    if task.status == IngestStatus.PENDING:
+        background_tasks.add_task(_service_instance.process_task, task.task_id)
 
     return IngestResponse(
         task_id=task.task_id,
         status=task.status,
         requested_quality=task.requested_quality,
-        message=f"Media ingestion queued in background (Target quality: {task.requested_quality})",
+        message=f"Media ingestion queued in background (Target quality: {task.requested_quality})"
+        if task.status == IngestStatus.PENDING
+        else f"Task already {task.status.value}",
     )
 
 
-@router.get("/status/{task_id}", response_model=TaskStatusResponse)
+@router.get("/status/{task_id}", response_model=TaskStatusResponse, dependencies=[Depends(verify_secret_token)])
 def get_ingest_task_status(task_id: str):
     """Polls the live progress and result of an ingestion job."""
     task = _service_instance.get_task(task_id)

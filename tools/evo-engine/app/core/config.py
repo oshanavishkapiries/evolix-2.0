@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # External Storage / CDN
     PIXELDRAIN_API_KEY: str = ""
 
+    # Security: Shared token for Next.js / Vercel proxy
+    EVO_SECRET_TOKEN: str = ""
+
     # Database integration (optional direct update)
     DATABASE_URL: str = ""
 

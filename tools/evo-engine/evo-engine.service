@@ -1,0 +1,15 @@
+[Unit]
+Description=Evolix Evo-Engine Media Microservice
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/PROJECTS/evolix-2.0/tools/evo-engine
+Environment="PYTHONPATH=/home/ubuntu/PROJECTS/evolix-2.0/tools/evo-engine"
+ExecStart=/home/ubuntu/PROJECTS/evolix-2.0/tools/evo-engine/test/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -45,6 +45,8 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
       sources={audio.visible}
       subtitles={movie.subtitles}
       selected={audio.selected}
+      tmdbId={movie.tmdbId}
+      backdropPath={movie.backdropPath}
       audio={audio}
       track={{ kind: "movie", id: movie.id }}
       startAt={startAt}

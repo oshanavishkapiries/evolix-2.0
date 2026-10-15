@@ -48,10 +48,13 @@ class IngestService:
         media_type: MediaType = MediaType.MOVIE,
         requested_quality: str = "1080p",
     ) -> IngestTask:
-        # Check if already completed with this quality
+        # Check if already completed or currently in progress
         existing = self.repository.get_by_tmdb_id(tmdb_id, media_type.value)
-        if existing and existing.status == IngestStatus.COMPLETED and existing.resolved_quality == requested_quality:
-            return existing
+        if existing:
+            if existing.status == IngestStatus.COMPLETED and existing.result_url:
+                return existing
+            if existing.status in [IngestStatus.PENDING, IngestStatus.EXTRACTING, IngestStatus.DOWNLOADING, IngestStatus.UPLOADING]:
+                return existing
 
         task_id = str(uuid.uuid4())
         task = IngestTask(
