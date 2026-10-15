@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { episodes, movies, seasons, shows } from "@/db/schema";
-import { isUuid, parseNumber } from "./ids";
+import { parseMediaId, parseNumber } from "./ids";
 
 /**
  * Cheap visibility check used by the proxy so missing/unpublished/hidden titles get a real
@@ -12,21 +12,25 @@ export async function titleRouteVisible(pathname: string): Promise<boolean | nul
   const path = pathname.replace(/\/+$/, "");
   let m = /^(?:\/watch)?\/movie\/([^/]+)$/.exec(path);
   if (m) {
-    if (!isUuid(m[1])) return false;
+    const media = parseMediaId(m[1]);
+    if (!media) return false;
+    if (media.kind === "tmdb") return true;
     const [row] = await db
       .select({ id: movies.id })
       .from(movies)
-      .where(and(eq(movies.id, m[1]), eq(movies.isPublished, true)))
+      .where(and(eq(movies.id, media.id), eq(movies.isPublished, true)))
       .limit(1);
     return Boolean(row);
   }
   m = /^\/tv\/([^/]+)$/.exec(path);
   if (m) {
-    if (!isUuid(m[1])) return false;
+    const media = parseMediaId(m[1]);
+    if (!media) return false;
+    if (media.kind === "tmdb") return true;
     const [row] = await db
       .select({ id: shows.id })
       .from(shows)
-      .where(and(eq(shows.id, m[1]), eq(shows.isPublished, true)))
+      .where(and(eq(shows.id, media.id), eq(shows.isPublished, true)))
       .limit(1);
     return Boolean(row);
   }
@@ -34,7 +38,10 @@ export async function titleRouteVisible(pathname: string): Promise<boolean | nul
   if (m) {
     const season = parseNumber(m[2], 1000);
     const episode = parseNumber(m[3], 100_000);
-    if (!isUuid(m[1]) || season === null || episode === null) return false;
+    if (season === null || episode === null) return false;
+    const media = parseMediaId(m[1]);
+    if (!media) return false;
+    if (media.kind === "tmdb") return true;
     const [row] = await db
       .select({ id: episodes.id })
       .from(episodes)
@@ -42,7 +49,7 @@ export async function titleRouteVisible(pathname: string): Promise<boolean | nul
       .innerJoin(shows, eq(shows.id, seasons.showId))
       .where(
         and(
-          eq(shows.id, m[1]),
+          eq(shows.id, media.id),
           eq(shows.isPublished, true),
           eq(seasons.seasonNumber, season),
           eq(seasons.isVisible, true),
