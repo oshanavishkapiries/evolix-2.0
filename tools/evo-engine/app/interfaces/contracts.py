@@ -8,7 +8,13 @@ class IStreamExtractor(ABC):
     """Interface for extracting and decrypting streams from external media providers."""
 
     @abstractmethod
-    def extract_streams(self, tmdb_id: int, media_type: str = "movie") -> List[StreamSource]:
+    def extract_streams(
+        self,
+        tmdb_id: int,
+        media_type: str = "movie",
+        season: Optional[int] = None,
+        episode: Optional[int] = None,
+    ) -> List[StreamSource]:
         """Extracts playable master stream URLs."""
         pass
 

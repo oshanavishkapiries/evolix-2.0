@@ -12,6 +12,8 @@ import { normalizeSource } from "@/lib/viewer/providers";
 type Props = {
   tmdbId: number;
   mediaType?: "movie" | "tv";
+  season?: number;
+  episode?: number;
   title: string;
   backdropPath?: string | null;
   backHref: string;
@@ -22,17 +24,35 @@ type Props = {
   info?: PauseInfo;
 };
 
-type TaskStatus = "PENDING" | "EXTRACTING" | "DOWNLOADING" | "UPLOADING" | "COMPLETED" | "FAILED";
+type TaskStatus = "PENDING" | "EXTRACTING" | "STREAMING" | "DOWNLOADING" | "UPLOADING" | "COMPLETED" | "FAILED";
 type PlayerStage = "SELECT_QUALITY" | "INGESTING" | "READY";
+
+function formatSubtitles(rawSubs: unknown[]): WatchSubtitle[] {
+  if (!Array.isArray(rawSubs)) return [];
+  return rawSubs.map((s) => {
+    const item = s as Record<string, string>;
+    const rawUrl = item.url || "";
+    const cleanUrl = rawUrl.replace(/^\/api\/v1\/media\/subtitles/, "/api/evo/subtitles");
+    return {
+      id: item.id || `sub-${Math.random().toString(36).substring(2, 9)}`,
+      label: item.label || "Subtitle",
+      language: item.language || "en",
+      format: (item.format === "srt" ? "srt" : "vtt") as "vtt" | "srt",
+      url: cleanUrl,
+    };
+  });
+}
 
 export function EvoPlayer({
   tmdbId,
   mediaType = "movie",
+  season,
+  episode,
   title,
   backdropPath,
   backHref,
   initialSource,
-  subtitles,
+  subtitles: initialSubtitles,
   track,
   startAt,
   info,
@@ -42,6 +62,7 @@ export function EvoPlayer({
   const [activeSource, setActiveSource] = useState<Pick<WatchSource, "id" | "kind" | "url"> | null>(
     initialSource ?? null
   );
+  const [activeSubtitles, setActiveSubtitles] = useState<WatchSubtitle[]>(initialSubtitles || []);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState<TaskStatus>("PENDING");
   const [progressPct, setProgressPct] = useState(0);
@@ -57,13 +78,19 @@ export function EvoPlayer({
       setStage("INGESTING");
       setStatus("PENDING");
       setProgressPct(0);
-      setMessage(`Submitting on-demand job (${targetQuality})...`);
+      setMessage(`Resolving stream (${targetQuality})...`);
 
       try {
         const res = await fetch("/api/evo/ingest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tmdbId, mediaType, quality: targetQuality }),
+          body: JSON.stringify({
+            tmdbId,
+            mediaType,
+            season,
+            episode,
+            quality: targetQuality,
+          }),
         });
 
         if (!res.ok) {
@@ -73,9 +100,34 @@ export function EvoPlayer({
 
         const data = await res.json();
 
-        // If server already has a completed result, jump straight to playback
+        // Merge extracted subtitles if available
+        if (data.subtitles && Array.isArray(data.subtitles)) {
+          const parsed = formatSubtitles(data.subtitles);
+          setActiveSubtitles((prev) => {
+            const existingIds = new Set(prev.map((s) => s.id));
+            return [...prev, ...parsed.filter((p) => !existingIds.has(p.id))];
+          });
+        }
+
+        // 1. Instant Stream Ready (Zero wait!)
+        if (data.stream_url) {
+          const streamUrl = data.stream_url.replace(/^\/api\/v1\/media\/stream/, "/api/evo/stream");
+          setActiveSource({
+            id: `evo-stream-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            kind: "hls",
+            url: streamUrl,
+          });
+          setStage("READY");
+          return;
+        }
+
+        // 2. Persistent CDN File already available
         if (data.status === "COMPLETED" && data.result_url) {
-          const ready = normalizeSource({ id: `evo-${tmdbId}`, kind: "direct", url: data.result_url });
+          const ready = normalizeSource({
+            id: `evo-cdn-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            kind: "direct",
+            url: data.result_url,
+          });
           setActiveSource({
             id: ready.id,
             kind: ready.kind,
@@ -93,7 +145,7 @@ export function EvoPlayer({
         setStatus("FAILED");
       }
     },
-    [tmdbId, mediaType, selectedQuality]
+    [tmdbId, mediaType, season, episode, selectedQuality]
   );
 
   // Poll status while ingesting
@@ -110,8 +162,34 @@ export function EvoPlayer({
         setProgressPct(data.progress_pct ?? 0);
         setMessage(data.message || "");
 
+        // Merge subtitles when they arrive
+        if (data.subtitles && Array.isArray(data.subtitles)) {
+          const parsed = formatSubtitles(data.subtitles);
+          setActiveSubtitles((prev) => {
+            const existingIds = new Set(prev.map((s) => s.id));
+            return [...prev, ...parsed.filter((p) => !existingIds.has(p.id))];
+          });
+        }
+
+        // Instant Stream Ready via HLS proxy
+        if (data.status === "STREAMING" && data.stream_url) {
+          const streamUrl = data.stream_url.replace(/^\/api\/v1\/media\/stream/, "/api/evo/stream");
+          setActiveSource({
+            id: `evo-stream-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            kind: "hls",
+            url: streamUrl,
+          });
+          setStage("READY");
+          return;
+        }
+
+        // Cloud sync completed directly
         if (data.status === "COMPLETED" && data.result_url) {
-          const ready = normalizeSource({ id: `evo-${tmdbId}`, kind: "direct", url: data.result_url });
+          const ready = normalizeSource({
+            id: `evo-cdn-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            kind: "direct",
+            url: data.result_url,
+          });
           setActiveSource({
             id: ready.id,
             kind: ready.kind,
@@ -126,16 +204,16 @@ export function EvoPlayer({
           return;
         }
 
-        pollTimer.current = setTimeout(poll, 1500);
+        pollTimer.current = setTimeout(poll, 1200);
       } catch {
-        pollTimer.current = setTimeout(poll, 3000);
+        pollTimer.current = setTimeout(poll, 2500);
       }
     };
 
-    pollTimer.current = setTimeout(poll, 1000);
+    pollTimer.current = setTimeout(poll, 800);
 
     return () => clearTimeout(pollTimer.current);
-  }, [taskId, activeSource, tmdbId, stage]);
+  }, [taskId, activeSource, tmdbId, season, episode, stage]);
 
   // Clean up poll timer on unmount
   useEffect(() => {
@@ -155,7 +233,7 @@ export function EvoPlayer({
         <WatchPlayer
           title={title}
           source={activeSource}
-          subtitles={subtitles}
+          subtitles={activeSubtitles}
           track={track}
           startAt={startAt}
           info={info}
@@ -183,7 +261,7 @@ export function EvoPlayer({
     <EvoProgressScreen
       title={title}
       backdropPath={backdropPath}
-      status={status}
+      status={status === "STREAMING" ? "COMPLETED" : status}
       progressPct={progressPct}
       message={message}
       error={error}

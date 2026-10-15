@@ -7,6 +7,7 @@ from datetime import datetime
 class IngestStatus(str, Enum):
     PENDING = "PENDING"
     EXTRACTING = "EXTRACTING"
+    STREAMING = "STREAMING"
     DOWNLOADING = "DOWNLOADING"
     UPLOADING = "UPLOADING"
     COMPLETED = "COMPLETED"
@@ -24,6 +25,7 @@ class StreamSource:
     quality: str = "1080p"
     headers: dict = field(default_factory=dict)
     title: Optional[str] = None
+    imdb_id: Optional[str] = None
 
 
 @dataclass
@@ -42,9 +44,16 @@ class IngestTask:
     requested_quality: str = "1080p"
     resolved_quality: Optional[str] = None
     title: Optional[str] = None
+    season: Optional[int] = None
+    episode: Optional[int] = None
+    imdb_id: Optional[str] = None
     status: IngestStatus = IngestStatus.PENDING
     progress_pct: int = 0
     message: str = "Initialized"
+    stream_url: Optional[str] = None
     result_url: Optional[str] = None
+    subtitles: List[dict] = field(default_factory=list)
+    upstream_stream_url: Optional[str] = None
+    upstream_headers: dict = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
