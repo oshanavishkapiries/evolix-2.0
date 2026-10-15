@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "evo:start": "pm2 start tools/evo-engine/ecosystem.config.cjs",
+    "evo:stop": "pm2 stop evo-engine",
+    "evo:restart": "pm2 restart evo-engine",
+    "evo:status": "pm2 status evo-engine",
+    "evo:logs": "pm2 logs evo-engine"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
