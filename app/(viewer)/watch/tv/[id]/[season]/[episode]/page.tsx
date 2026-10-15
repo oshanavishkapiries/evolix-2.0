@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { AUDIO_COOKIE } from "@/lib/audio";
 import { chooseAudio } from "@/lib/viewer/audio";
-import { isUuid, parseNumber } from "@/lib/viewer/ids";
+import { isUuid, parseMediaId, parseNumber } from "@/lib/viewer/ids";
 import { resumePosition } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
 import { getEpisodeWatch, type EpisodeRef } from "@/lib/viewer/watch";
@@ -23,7 +23,7 @@ const code = (s: number, e: number) => `S${s}E${e}`;
 function parse(p: Params) {
   const season = parseNumber(p.season, 1000);
   const episode = parseNumber(p.episode, 100_000);
-  return isUuid(p.id) && season !== null && episode !== null ? { id: p.id, season, episode } : null;
+  return parseMediaId(p.id) !== null && season !== null && episode !== null ? { id: p.id, season, episode } : null;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -59,11 +59,12 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       subtitles={data.subtitles}
       selected={audio.selected}
       tmdbId={current.tmdbId}
+      mediaType="tv"
       backdropPath={current.backdropPath}
       audio={audio}
-      track={{ kind: "episode", id: current.id }}
+      track={isUuid(current.id) ? { kind: "episode", id: current.id } : undefined}
       startAt={startAt}
-      report={{ kind: "episode", id: current.id, title: `${current.showName} ${code(p.season, p.episode)}` }}
+      report={isUuid(current.id) ? { kind: "episode", id: current.id, title: `${current.showName} ${code(p.season, p.episode)}` } : undefined}
       info={{
         title: current.showName,
         meta: `S${p.season}:E${p.episode}${current.name ? ` · ${current.name}` : ""}`,

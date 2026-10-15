@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { AUDIO_COOKIE } from "@/lib/audio";
 import { chooseAudio } from "@/lib/viewer/audio";
-import { isUuid } from "@/lib/viewer/ids";
+import { isUuid, parseMediaId } from "@/lib/viewer/ids";
 import { runtimeText, yearOf } from "@/lib/viewer/format";
 import { resumePosition } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
@@ -21,13 +21,13 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const movie = isUuid(id) ? await getMovieWatch(id) : null;
+  const movie = parseMediaId(id) ? await getMovieWatch(id) : null;
   return { title: movie ? `Watch ${movie.title}` : "Not found", robots: { index: false, follow: false } };
 }
 
 export default async function WatchMoviePage({ params, searchParams }: Props) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  if (!isUuid(id)) notFound();
+  if (!parseMediaId(id)) notFound();
   const movie = await getMovieWatch(id);
   if (!movie) notFound();
   const userId = await currentUserId();
@@ -46,11 +46,12 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
       subtitles={movie.subtitles}
       selected={audio.selected}
       tmdbId={movie.tmdbId}
+      mediaType="movie"
       backdropPath={movie.backdropPath}
       audio={audio}
-      track={{ kind: "movie", id: movie.id }}
+      track={isUuid(movie.id) ? { kind: "movie", id: movie.id } : undefined}
       startAt={startAt}
-      report={{ kind: "movie", id: movie.id, title: movie.title }}
+      report={isUuid(movie.id) ? { kind: "movie", id: movie.id, title: movie.title } : undefined}
       info={{
         title: movie.title,
         meta: [yearOf(movie.releaseDate), runtimeText(movie.runtimeMinutes), movie.rating ? `★ ${movie.rating.toFixed(1)}` : ""].filter(Boolean).join(" · "),

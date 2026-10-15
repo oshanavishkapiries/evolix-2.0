@@ -4,6 +4,10 @@ import { db } from "@/db";
 import { AUDIO_LANGUAGES } from "@/lib/audio";
 import { catalogCache } from "./cache";
 import { episodes, movies, seasons, shows, sources, videos } from "@/db/schema";
+import { parseMediaId } from "./ids";
+import { findMovieIdByTmdb } from "@/lib/cms/movies";
+import { findShowIdByTmdb } from "@/lib/cms/shows";
+import { getMovieDetails, getShowDetails } from "@/lib/tmdb";
 
 /** Language codes of a title's sources in display order, without the unspecified one. */
 const dubCodes = (rows: { audioLanguage: string }[]) =>
@@ -24,23 +28,18 @@ const visibleVideos = (parent: { movieId: string } | { showId: string }) =>
     .orderBy(asc(videos.sortOrder), asc(videos.createdAt));
 
 /** First visible episode of a show (specials, season 0, come last). */
-export async function firstEpisode(showId: string) {
-  const [row] = await db
+export async function firstEpisode(showId: string): Promise<{ seasonNumber: number; episodeNumber: number } | null> {
+  const rows = await db
     .select({ seasonNumber: seasons.seasonNumber, episodeNumber: episodes.episodeNumber })
     .from(episodes)
     .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
     .where(and(eq(seasons.showId, showId), eq(seasons.isVisible, true), eq(episodes.isVisible, true)))
     .orderBy(sql`${seasons.seasonNumber} = 0`, asc(seasons.seasonNumber), asc(episodes.episodeNumber))
     .limit(1);
-  return row ?? null;
+  return rows[0] ?? null;
 }
 
-export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getMovieDetail>>>;
-
-/** Published movie with its visible videos; null when missing or unpublished. */
-export const getMovieDetail = cache(async (id: string) => {
-  "use cache";
-  catalogCache();
+async function getDbMovieDetail(id: string) {
   const [[movie], vids, langs, hasSourcesRow] = await Promise.all([
     db
       .select({
@@ -79,14 +78,60 @@ export const getMovieDetail = cache(async (id: string) => {
   ]);
   const hasSources = hasSourcesRow.length > 0;
   return movie ? { ...movie, videos: vids, playable: hasSources || Boolean(movie.tmdbId), isEvo: !hasSources && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
-});
+}
 
-export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getShowDetail>>>;
+export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getDbMovieDetail>>>;
 
-/** Published show with visible seasons; episodes are for the selected season only. */
-export const getShowDetail = cache(async (id: string, seasonNumber: number | null) => {
+/** Published movie with its visible videos; null when missing or unpublished. */
+export const getMovieDetail = cache(async (id: string): Promise<MovieDetail | null> => {
   "use cache";
   catalogCache();
+
+  const media = parseMediaId(id);
+  if (!media) return null;
+
+  if (media.kind === "tmdb") {
+    const localId = await findMovieIdByTmdb(media.tmdbId);
+    if (localId) {
+      const localDetail = await getDbMovieDetail(localId);
+      if (localDetail) return localDetail;
+    }
+
+    try {
+      const tmdbMovie = await getMovieDetails(media.tmdbId);
+      return {
+        id: `tmdb-${media.tmdbId}`,
+        title: tmdbMovie.title,
+        originalTitle: tmdbMovie.originalTitle,
+        status: tmdbMovie.status,
+        originalLanguage: tmdbMovie.originalLanguage,
+        voteCount: tmdbMovie.voteCount,
+        tagline: tmdbMovie.tagline,
+        overview: tmdbMovie.overview,
+        releaseDate: tmdbMovie.releaseDate,
+        runtimeMinutes: tmdbMovie.runtimeMinutes,
+        genres: tmdbMovie.genres,
+        rating: tmdbMovie.rating,
+        posterPath: tmdbMovie.posterPath,
+        backdropPath: tmdbMovie.backdropPath,
+        logoPath: tmdbMovie.logoPath,
+        galleryBackdrops: tmdbMovie.galleryBackdrops,
+        cast: tmdbMovie.cast,
+        tmdbId: tmdbMovie.tmdbId,
+        videos: tmdbMovie.videos.map((v, i) => ({ id: `tmdb-vid-${i}`, ...v })),
+        playable: true,
+        isEvo: true,
+        dubs: [],
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return getDbMovieDetail(media.id);
+});
+
+async function getDbShowDetail(id: string, seasonNumber: number | null) {
   const [[show], vids, seasonRows, first, langs] = await Promise.all([
     db
       .select({
@@ -107,6 +152,7 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
         logoPath: shows.logoPath,
         galleryBackdrops: shows.galleryBackdrops,
         cast: shows.cast,
+        tmdbId: shows.tmdbId,
       })
       .from(shows)
       .where(and(eq(shows.id, id), eq(shows.isPublished, true)))
@@ -137,11 +183,10 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
   ]);
   if (!show) return null;
 
-  const selected =
+  const selected: (typeof seasonRows)[number] | null =
     seasonRows.find((s) => s.seasonNumber === seasonNumber) ??
     seasonRows.find((s) => s.seasonNumber === first?.seasonNumber) ??
-    seasonRows[0] ??
-    null;
+    (seasonRows.length > 0 ? seasonRows[0] : null);
   const eps = selected
     ? await db
         .select({
@@ -158,4 +203,82 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
         .orderBy(asc(episodes.episodeNumber))
     : [];
   return { ...show, videos: vids, seasons: seasonRows, selected, episodes: eps, first, dubs: dubCodes(langs) };
+}
+
+export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getDbShowDetail>>>;
+
+/** Published show with visible seasons; episodes are for the selected season only. */
+export const getShowDetail = cache(async (id: string, seasonNumber: number | null): Promise<ShowDetail | null> => {
+  "use cache";
+  catalogCache();
+
+  const media = parseMediaId(id);
+  if (!media) return null;
+
+  if (media.kind === "tmdb") {
+    const localId = await findShowIdByTmdb(media.tmdbId);
+    if (localId) {
+      const localDetail = await getDbShowDetail(localId, seasonNumber);
+      if (localDetail) return localDetail;
+    }
+
+    try {
+      const s = await getShowDetails(media.tmdbId);
+      const selected =
+        s.seasons.find((sec) => sec.seasonNumber === seasonNumber) ??
+        s.seasons.find((sec) => sec.seasonNumber === 1) ??
+        s.seasons[0] ??
+        null;
+      const eps = (selected?.episodes ?? []).map((e) => ({
+        id: `tmdb-ep-${media.tmdbId}-${selected?.seasonNumber ?? 1}-${e.episodeNumber}`,
+        episodeNumber: e.episodeNumber,
+        name: e.name,
+        overview: e.overview,
+        airDate: e.airDate,
+        runtimeMinutes: e.runtimeMinutes,
+        stillPath: e.stillPath,
+      }));
+      const seasonRows = s.seasons.map((sec) => ({
+        id: `tmdb-season-${media.tmdbId}-${sec.seasonNumber}`,
+        seasonNumber: sec.seasonNumber,
+        name: sec.name,
+        overview: sec.overview,
+        airDate: sec.airDate,
+        posterPath: sec.posterPath,
+        episodeCount: sec.episodes?.length ?? 0,
+        firstEpisode: sec.episodes?.[0]?.episodeNumber ?? 1,
+      }));
+      const first = eps[0] ? { seasonNumber: selected?.seasonNumber ?? 1, episodeNumber: eps[0].episodeNumber } : null;
+      return {
+        id: `tmdb-${media.tmdbId}`,
+        title: s.name,
+        originalTitle: s.originalName,
+        originalLanguage: s.originalLanguage,
+        voteCount: s.voteCount,
+        tagline: s.tagline,
+        overview: s.overview,
+        firstAirDate: s.firstAirDate,
+        lastAirDate: s.lastAirDate,
+        status: s.status,
+        genres: s.genres,
+        rating: s.rating,
+        posterPath: s.posterPath,
+        backdropPath: s.backdropPath,
+        logoPath: s.logoPath,
+        galleryBackdrops: s.galleryBackdrops,
+        cast: s.cast,
+        tmdbId: s.tmdbId,
+        videos: s.videos.map((v, i) => ({ id: `tmdb-vid-${i}`, ...v })),
+        seasons: seasonRows,
+        selected: selected ? { id: `tmdb-season-${media.tmdbId}-${selected.seasonNumber}`, seasonNumber: selected.seasonNumber, name: selected.name, overview: selected.overview, airDate: selected.airDate, posterPath: selected.posterPath, episodeCount: eps.length, firstEpisode: 1 } : null,
+        episodes: eps,
+        first,
+        dubs: [],
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return getDbShowDetail(media.id, seasonNumber);
 });

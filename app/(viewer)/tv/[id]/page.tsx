@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { isUuid, parseNumber } from "@/lib/viewer/ids";
+import { parseMediaId, parseNumber } from "@/lib/viewer/ids";
 import { getShowDetail } from "@/lib/viewer/detail";
 import { dateText, languageName, yearOf } from "@/lib/viewer/format";
 import { resumeFor } from "@/lib/viewer/library";
@@ -23,7 +23,7 @@ const seasonOf = (raw: string | string[] | undefined) => parseNumber(Array.isArr
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const show = isUuid(id) ? await getShowDetail(id, seasonOf(sp.season)) : null;
+  const show = parseMediaId(id) ? await getShowDetail(id, seasonOf(sp.season)) : null;
   if (!show) return { title: "Not found" };
   const year = yearOf(show.firstAirDate);
   return detailMetadata(year ? `${show.title} (${year})` : show.title, show.overview, show.backdropPath);
@@ -31,7 +31,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
 export default async function ShowPage({ params, searchParams }: Props) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  if (!isUuid(id)) notFound();
+  if (!parseMediaId(id)) notFound();
   const [show, userId] = await Promise.all([getShowDetail(id, seasonOf(sp.season)), currentUserId()]);
   if (!show) notFound();
 

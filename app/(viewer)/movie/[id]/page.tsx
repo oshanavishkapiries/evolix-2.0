@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { isUuid } from "@/lib/viewer/ids";
+import { parseMediaId } from "@/lib/viewer/ids";
 import { getMovieDetail } from "@/lib/viewer/detail";
 import { dateText, languageName, runtimeText, yearOf } from "@/lib/viewer/format";
 import { resumeFor } from "@/lib/viewer/library";
@@ -17,7 +17,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const movie = isUuid(id) ? await getMovieDetail(id) : null;
+  const movie = parseMediaId(id) ? await getMovieDetail(id) : null;
   if (!movie) return { title: "Not found" };
   const year = yearOf(movie.releaseDate);
   return detailMetadata(year ? `${movie.title} (${year})` : movie.title, movie.overview, movie.backdropPath);
@@ -27,7 +27,7 @@ const left = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m left` 
 
 export default async function MoviePage({ params }: Props) {
   const { id } = await params;
-  if (!isUuid(id)) notFound();
+  if (!parseMediaId(id)) notFound();
   const [movie, userId] = await Promise.all([getMovieDetail(id), currentUserId()]);
   if (!movie) notFound();
   const resume = userId && movie.playable ? await resumeFor(userId, "movie", movie.id) : null;

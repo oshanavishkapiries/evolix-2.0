@@ -1,10 +1,11 @@
 import { AUDIO_LANGUAGES } from "@/lib/audio";
 import { catalogCache } from "./cache";
-import { and, count, eq, ilike, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { movies, shows } from "@/db/schema";
 import { escapeLike } from "@/lib/cms/search";
+import { getDiscoverMedia, getPopularMedia, getTrendingMedia, searchMovies, searchShows, type TmdbCatalogItem } from "@/lib/tmdb";
 import type { CardKind } from "./ids";
 
 // Everything here only ever returns PUBLISHED titles.
@@ -119,10 +120,32 @@ export type BrowseParams = Filters & {
   withTotal?: boolean;
 };
 
-/** Published titles (movies and/or shows), filtered, sorted and paged. */
-export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; total: number }> {
-  "use cache";
-  catalogCache();
+export const TMDB_GENRES: Record<string, number> = {
+  Action: 28,
+  Adventure: 12,
+  Animation: 16,
+  Comedy: 35,
+  Crime: 80,
+  Documentary: 99,
+  Drama: 18,
+  Family: 10751,
+  Fantasy: 14,
+  History: 36,
+  Horror: 27,
+  Music: 10402,
+  Mystery: 9648,
+  Romance: 10749,
+  "Science Fiction": 878,
+  "Sci-Fi": 878,
+  Thriller: 53,
+  War: 10752,
+  Western: 37,
+  "Action & Adventure": 10759,
+  "Sci-Fi & Fantasy": 10765,
+};
+
+/** Published titles directly from the local PostgreSQL database (used for Kids section and fallbacks). */
+async function browseDb(p: BrowseParams = {}): Promise<{ items: Card[]; total: number }> {
   const type = p.type ?? "all";
   const limit = p.limit ?? SEARCH_PAGE_SIZE;
   const offset = p.offset ?? 0;
@@ -168,6 +191,142 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
   };
 }
 
+/** Fetches catalog items from TMDB and cross-references with local DB for manual sources. */
+async function getTmdbCatalog(p: BrowseParams): Promise<{ items: Card[]; total: number }> {
+  const type = p.type ?? "all";
+  const limit = p.limit ?? SEARCH_PAGE_SIZE;
+  const page = Math.floor((p.offset ?? 0) / limit) + 1;
+  const genreId = p.genre ? TMDB_GENRES[p.genre] : undefined;
+
+  let tmdbItems: (TmdbCatalogItem & { kind: CardKind })[] = [];
+  let total = 0;
+
+  if (p.q && p.q.trim().length >= MIN_QUERY) {
+    if (type === "show") {
+      const sp = await searchShows(p.q, page);
+      tmdbItems = sp.results.map((r) => ({ ...r, kind: "show" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
+      total = sp.totalPages * 20;
+    } else if (type === "movie") {
+      const sp = await searchMovies(p.q, page);
+      tmdbItems = sp.results.map((r) => ({ ...r, kind: "movie" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
+      total = sp.totalPages * 20;
+    } else {
+      const [m, s] = await Promise.all([searchMovies(p.q, page), searchShows(p.q, page)]);
+      const mItems = m.results.map((r) => ({ ...r, kind: "movie" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
+      const sItems = s.results.map((r) => ({ ...r, kind: "show" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
+      tmdbItems = [...mItems, ...sItems];
+      total = (m.totalPages + s.totalPages) * 20;
+    }
+  } else if (genreId) {
+    if (type === "show") {
+      const sp = await getDiscoverMedia("tv", { withGenres: String(genreId), page });
+      tmdbItems = sp.items.map((i) => ({ ...i, kind: "show" as CardKind }));
+      total = sp.totalResults;
+    } else {
+      const sp = await getDiscoverMedia("movie", { withGenres: String(genreId), page });
+      tmdbItems = sp.items.map((i) => ({ ...i, kind: "movie" as CardKind }));
+      total = sp.totalResults;
+    }
+  } else if (p.sort === "newest" || p.withBackdrop) {
+    if (type === "show") {
+      const sp = await getTrendingMedia("tv", "week", page);
+      tmdbItems = sp.items.map((i) => ({ ...i, kind: "show" as CardKind }));
+      total = sp.totalResults;
+    } else if (type === "movie") {
+      const sp = await getTrendingMedia("movie", "week", page);
+      tmdbItems = sp.items.map((i) => ({ ...i, kind: "movie" as CardKind }));
+      total = sp.totalResults;
+    } else {
+      const [m, s] = await Promise.all([getTrendingMedia("movie", "week", page), getTrendingMedia("tv", "week", page)]);
+      tmdbItems = [...m.items.map((i) => ({ ...i, kind: "movie" as CardKind })), ...s.items.map((i) => ({ ...i, kind: "show" as CardKind }))];
+      total = m.totalResults + s.totalResults;
+    }
+  } else {
+    if (type === "show") {
+      const sp = await getPopularMedia("tv", page);
+      tmdbItems = sp.items.map((i) => ({ ...i, kind: "show" as CardKind }));
+      total = sp.totalResults;
+    } else if (type === "movie") {
+      const sp = await getPopularMedia("movie", page);
+      tmdbItems = sp.items.map((i) => ({ ...i, kind: "movie" as CardKind }));
+      total = sp.totalResults;
+    } else {
+      const [m, s] = await Promise.all([getPopularMedia("movie", page), getPopularMedia("tv", page)]);
+      tmdbItems = [...m.items.map((i) => ({ ...i, kind: "movie" as CardKind })), ...s.items.map((i) => ({ ...i, kind: "show" as CardKind }))];
+      total = m.totalResults + s.totalResults;
+    }
+  }
+
+  // Cross-reference with local database
+  const movieTmdbIds = tmdbItems.filter((i) => i.kind === "movie").map((i) => i.tmdbId).filter(Boolean);
+  const showTmdbIds = tmdbItems.filter((i) => i.kind === "show").map((i) => i.tmdbId).filter(Boolean);
+
+  const [localMovies, localShows] = await Promise.all([
+    movieTmdbIds.length > 0
+      ? db.select({ id: movies.id, tmdbId: movies.tmdbId, hasSources: hasSourcesOf("movie") }).from(movies).where(inArray(movies.tmdbId, movieTmdbIds))
+      : [],
+    showTmdbIds.length > 0
+      ? db.select({ id: shows.id, tmdbId: shows.tmdbId, hasSources: hasSourcesOf("show") }).from(shows).where(inArray(shows.tmdbId, showTmdbIds))
+      : [],
+  ]);
+
+  const movieMap = new Map(localMovies.map((m) => [m.tmdbId, m]));
+  const showMap = new Map(localShows.map((s) => [s.tmdbId, s]));
+
+  const cards: Card[] = tmdbItems.slice(0, limit).map((item) => {
+    const local = item.kind === "movie" ? movieMap.get(item.tmdbId) : showMap.get(item.tmdbId);
+    const hasLocalSources = Boolean(local?.hasSources);
+    return {
+      kind: item.kind,
+      id: hasLocalSources && local ? local.id : `tmdb-${item.tmdbId}`,
+      title: item.title,
+      date: item.date,
+      posterPath: item.posterPath,
+      backdropPath: item.backdropPath,
+      rating: item.rating,
+      isEvo: !hasLocalSources,
+    };
+  });
+
+  return { items: cards, total };
+}
+
+/** Published titles (movies and/or shows), filtered, sorted and paged. */
+export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; total: number }> {
+  "use cache";
+  catalogCache();
+  const scope = p.scope ?? "main";
+
+  // 1. Kids section: STRICTLY local database titles (audience = 'kids' or 'both')
+  if (scope === "kids") {
+    return browseDb(p);
+  }
+
+  // 2. Main section: Hybrid catalog (TMDB API + Local Manual Uploads)
+  try {
+    const tmdbRes = await getTmdbCatalog(p);
+
+    // On page 1 (no search query or genre filter), prepend any local manual titles for the main section
+    if ((p.offset ?? 0) === 0 && !p.genre && !p.q) {
+      const localManual = await browseDb({ ...p, limit: 10, offset: 0, scope: "main" });
+      const localWithSources = localManual.items.filter((item) => !item.isEvo);
+      if (localWithSources.length > 0) {
+        const localIds = new Set(localWithSources.map((i) => i.id));
+        const filteredTmdb = tmdbRes.items.filter((i) => !localIds.has(i.id));
+        return {
+          items: [...localWithSources, ...filteredTmdb].slice(0, p.limit ?? SEARCH_PAGE_SIZE),
+          total: tmdbRes.total + localWithSources.length,
+        };
+      }
+    }
+
+    return tmdbRes;
+  } catch (err) {
+    console.error("TMDB catalog fetch failed, falling back to local DB:", err);
+    return browseDb(p);
+  }
+}
+
 export const listLatest = (kind: CardKind, limit = 20, scope?: Scope) => browse({ type: kind, limit, scope }).then((r) => r.items);
 
 /** Home "Featured" row: newest titles that have a backdrop (curation can replace this later). */
@@ -177,18 +336,25 @@ export const listFeatured = (limit = 10, scope?: Scope) => browse({ withBackdrop
 export async function listGenres(minItems = 4, limit = 4, kind?: CardKind, scope: Scope = "main"): Promise<string[]> {
   "use cache";
   catalogCache();
-  const parts = [
-    kind !== "show" && sql`select unnest(genres) as g from movies where is_published and ${audienceIn(sql`audience`, scope)}`,
-    kind !== "movie" && sql`select unnest(genres) as g from shows where is_published and ${audienceIn(sql`audience`, scope)}`,
-  ].filter((p): p is SQL => Boolean(p));
-  const res = await db.execute(sql`
-    select g as genre from (${sql.join(parts, sql` union all `)}) t
-    where g <> ''
-    group by g
-    having count(*) >= ${minItems}
-    order by count(*) desc, g asc
-    limit ${limit}`);
-  return (res.rows as { genre: string }[]).map((r) => r.genre);
+  if (scope === "kids") {
+    const parts = [
+      kind !== "show" && sql`select unnest(genres) as g from movies where is_published and ${audienceIn(sql`audience`, scope)}`,
+      kind !== "movie" && sql`select unnest(genres) as g from shows where is_published and ${audienceIn(sql`audience`, scope)}`,
+    ].filter((p): p is SQL => Boolean(p));
+    const res = await db.execute(sql`
+      select g as genre from (${sql.join(parts, sql` union all `)}) t
+      where g <> ''
+      group by g
+      having count(*) >= ${minItems}
+      order by count(*) desc, g asc
+      limit ${limit}`);
+    return (res.rows as { genre: string }[]).map((r) => r.genre);
+  }
+
+  const genres = kind === "show"
+    ? ["Drama", "Action & Adventure", "Comedy", "Crime", "Mystery", "Sci-Fi & Fantasy"]
+    : ["Action", "Comedy", "Drama", "Thriller", "Sci-Fi", "Adventure", "Crime", "Animation"];
+  return genres.slice(0, limit);
 }
 
 export type GenreTile = { genre: string; count: number; backdropPath: string | null };
@@ -197,18 +363,30 @@ export type GenreTile = { genre: string; count: number; backdropPath: string | n
 export async function listGenreTiles(kind: CardKind, scope: Scope = "main"): Promise<GenreTile[]> {
   "use cache";
   catalogCache();
-  const table = kind === "movie" ? sql`movies` : sql`shows`;
-  const res = await db.execute(sql`
-    select genre, n::int as count, backdrop_path from (
-      select distinct on (g) g as genre, backdrop_path, count(*) over (partition by g) as n
-      from (select unnest(genres) as g, backdrop_path, rating from ${table} where is_published and ${audienceIn(sql`audience`, scope)}) t
-      where g <> ''
-      order by g, (backdrop_path is null), rating desc nulls last
-    ) x
-    order by n desc, genre asc`);
-  return (res.rows as { genre: string; count: number; backdrop_path: string | null }[]).map((r) => ({
-    genre: r.genre,
-    count: r.count,
-    backdropPath: r.backdrop_path,
+  if (scope === "kids") {
+    const table = kind === "movie" ? sql`movies` : sql`shows`;
+    const res = await db.execute(sql`
+      select genre, n::int as count, backdrop_path from (
+        select distinct on (g) g as genre, backdrop_path, count(*) over (partition by g) as n
+        from (select unnest(genres) as g, backdrop_path, rating from ${table} where is_published and ${audienceIn(sql`audience`, scope)}) t
+        where g <> ''
+        order by g, (backdrop_path is null), rating desc nulls last
+      ) x
+      order by n desc, genre asc`);
+    return (res.rows as { genre: string; count: number; backdrop_path: string | null }[]).map((r) => ({
+      genre: r.genre,
+      count: r.count,
+      backdropPath: r.backdrop_path,
+    }));
+  }
+
+  const genreNames = kind === "show"
+    ? ["Drama", "Action & Adventure", "Comedy", "Crime"]
+    : ["Action", "Comedy", "Drama", "Thriller"];
+  return genreNames.map((genre) => ({
+    genre,
+    count: 100,
+    backdropPath: null,
   }));
 }
+
