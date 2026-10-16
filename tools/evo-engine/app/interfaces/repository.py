@@ -50,3 +50,18 @@ class ITaskRepository(ABC):
     def recover_interrupted(self) -> int:
         """Marks tasks left mid-flight by a process restart as failed/interrupted; returns how many."""
         pass
+
+    @abstractmethod
+    def add_event(self, task_id: str, step: str, state: str, detail: str = "") -> None:
+        """Appends a pipeline step event (state: running | ok | failed | skipped)."""
+        pass
+
+    @abstractmethod
+    def list_events(self, task_id: str) -> List[dict]:
+        """Step events of a task, oldest first."""
+        pass
+
+    @abstractmethod
+    def step_summary(self, since_hours: int = 24) -> dict:
+        """Per-step counts of tasks by latest state within the window, plus tasks currently running."""
+        pass

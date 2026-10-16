@@ -14,6 +14,22 @@ class IngestStatus(str, Enum):
     FAILED = "FAILED"
 
 
+# Pipeline steps in flow order. The admin graph and the engine share these ids.
+STEPS = [
+    "request",
+    "extract",
+    "resolve",
+    "subtitles",
+    "stream",
+    "cdn_check",
+    "download",
+    "verify",
+    "upload",
+    "subtitle_sync",
+    "webhook",
+]
+
+
 class MediaType(str, Enum):
     MOVIE = "movie"
     TV = "tv"

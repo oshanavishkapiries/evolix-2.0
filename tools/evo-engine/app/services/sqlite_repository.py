@@ -80,6 +80,20 @@ class SQLiteTaskRepository(ITaskRepository):
                 CREATE INDEX IF NOT EXISTS idx_tmdb_media_se ON ingest_tasks(tmdb_id, media_type, season, episode);
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS task_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL,
+                    step TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    detail TEXT NOT NULL DEFAULT '',
+                    ts TEXT NOT NULL
+                );
+                """
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_ts ON task_events(ts);")
             conn.commit()
 
     def save(self, task: IngestTask) -> None:
@@ -290,3 +304,40 @@ class SQLiteTaskRepository(ITaskRepository):
             ).rowcount
             conn.commit()
         return failed + streaming
+
+    def add_event(self, task_id: str, step: str, state: str, detail: str = "") -> None:
+        with self._get_connection() as conn:
+            conn.execute(
+                "INSERT INTO task_events (task_id, step, state, detail, ts) VALUES (?, ?, ?, ?, ?)",
+                (task_id, step, state, detail[:500], datetime.utcnow().isoformat()),
+            )
+            conn.commit()
+
+    def list_events(self, task_id: str) -> List[dict]:
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                "SELECT step, state, detail, ts FROM task_events WHERE task_id = ? ORDER BY id",
+                (task_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+    def step_summary(self, since_hours: int = 24) -> dict:
+        from datetime import timedelta
+
+        since = (datetime.utcnow() - timedelta(hours=since_hours)).isoformat()
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT task_id, step, state FROM task_events WHERE ts >= ? ORDER BY id", (since,)
+            ).fetchall()
+            running_tasks = conn.execute(
+                "SELECT COUNT(*) FROM ingest_tasks WHERE status IN ('PENDING', 'EXTRACTING', 'DOWNLOADING', 'UPLOADING')"
+            ).fetchone()[0]
+        # A step's outcome for a task is its latest event.
+        latest: dict = {}
+        for r in rows:
+            latest[(r["task_id"], r["step"])] = r["state"]
+        steps: dict = {}
+        for (_, step), state in latest.items():
+            bucket = steps.setdefault(step, {"ok": 0, "failed": 0, "running": 0, "skipped": 0})
+            bucket[state] = bucket.get(state, 0) + 1
+        return {"window_hours": since_hours, "steps": steps, "tasks_in_flight": running_tasks}
