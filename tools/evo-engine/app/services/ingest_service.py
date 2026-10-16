@@ -70,6 +70,8 @@ class IngestService:
         runtime_minutes: Optional[int] = None,
         synopsis: Optional[str] = None,
         characters: Optional[List[str]] = None,
+        title: Optional[str] = None,
+        imdb_id: Optional[str] = None,
     ) -> IngestTask:
         with self._create_lock:
             # Join a job that is already done or in flight for this exact media & quality.
@@ -99,6 +101,8 @@ class IngestService:
                 runtime_minutes=runtime_minutes,
                 synopsis=synopsis,
                 characters=characters or [],
+                title=title,
+                imdb_id=imdb_id,
             )
             self.repository.save(task)
             self._event(task, "request", "ok", f"{media_type.value} tmdb {tmdb_id}" + (f" S{season}E{episode}" if season is not None else "") + f" · asked {requested_quality}")
@@ -322,8 +326,9 @@ class IngestService:
             # Resolve quality with fallback cascade
             selected_stream = self._select_stream_with_fallback(streams, task.requested_quality)
             task.resolved_quality = selected_stream.quality
-            task.title = selected_stream.title or f"Media_{task.tmdb_id}"
-            task.imdb_id = selected_stream.imdb_id
+            # The app's canonical title / IMDb id win: providers name titles after their own site, or omit the IMDb id.
+            task.title = task.title or selected_stream.title or f"Media_{task.tmdb_id}"
+            task.imdb_id = task.imdb_id or selected_stream.imdb_id
             task.upstream_stream_url = selected_stream.url
             task.upstream_headers = selected_stream.headers
             task.available_qualities = [s.quality for s in streams]

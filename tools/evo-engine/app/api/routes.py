@@ -5,6 +5,7 @@ from app.domain.models import IngestStatus
 from app.services.ingest_service import IngestService
 from app.services.cinesrc_extractor import CineSrcStreamExtractor
 from app.services.composite_extractor import CompositeStreamExtractor
+from app.services.stream_validator import validate_streams
 from app.services.ythd_extractor import YtHdStreamExtractor
 from app.services.ffmpeg_downloader import FFmpegStreamDownloader
 from app.services.pixeldrain_storage import PixeldrainStorageProvider
@@ -28,7 +29,7 @@ _subtitle_service = SubtitleService()
 _hls_proxy = HlsProxyService()
 _cinesrc_extractor = CineSrcStreamExtractor()
 _ythd_extractor = YtHdStreamExtractor()
-_extractor = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor])
+_extractor = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor], validator=validate_streams)
 _downloader = FFmpegStreamDownloader()
 _storage = PixeldrainStorageProvider(api_key=settings.PIXELDRAIN_API_KEY)
 _translator = SinhalaTranslator(repository=_repository)
@@ -58,6 +59,8 @@ def trigger_media_ingestion(
         runtime_minutes=request.runtime_minutes,
         synopsis=request.synopsis,
         characters=request.characters,
+        title=request.title,
+        imdb_id=request.imdb_id,
     )
     if task.status == IngestStatus.PENDING:
         background_tasks.add_task(_service_instance.process_task, task.task_id)

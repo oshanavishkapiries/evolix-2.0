@@ -7,3 +7,8 @@ temp/
 *.sqlite3
 *.log
 *.png
+
+# Third-party recon artifacts (another site's code and captured traffic): keep locally, never commit
+test/cinesrc_*
+test/300726c-prod.js
+test/donut.js
