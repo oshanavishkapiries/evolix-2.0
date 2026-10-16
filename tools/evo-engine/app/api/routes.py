@@ -121,6 +121,20 @@ def list_ingest_tasks(limit: int = Query(50, ge=1, le=200)):
     ]
 
 
+@router.get("/tasks/{task_id}/events", dependencies=[Depends(verify_secret_token)])
+def get_task_events(task_id: str):
+    """Step-by-step pipeline events of one task (admin flow view)."""
+    if not _service_instance.get_task(task_id):
+        raise HTTPException(status_code=404, detail="Ingest task not found")
+    return _repository.list_events(task_id)
+
+
+@router.get("/pipeline/summary", dependencies=[Depends(verify_secret_token)])
+def get_pipeline_summary(hours: int = Query(24, ge=1, le=168)):
+    """Per-step outcome counts over a window, for the overview graph."""
+    return _repository.step_summary(hours)
+
+
 # ==============================================================================
 # HLS Instant Streaming Proxy Endpoints
 # ==============================================================================

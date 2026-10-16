@@ -89,6 +89,7 @@ class IngestService:
                 runtime_minutes=runtime_minutes,
             )
             self.repository.save(task)
+            self._event(task, "request", "ok", f"{media_type.value} tmdb {tmdb_id}" + (f" S{season}E{episode}" if season is not None else "") + f" · asked {requested_quality}")
             return task
 
     def get_task(self, task_id: str) -> Optional[IngestTask]:
@@ -120,6 +121,13 @@ class IngestService:
 
         # 3. Default to first stream
         return streams[0]
+
+    def _event(self, task: IngestTask, step: str, state: str, detail: str = "") -> None:
+        """Records a pipeline step transition for the admin flow view. Never breaks the pipeline."""
+        try:
+            self.repository.add_event(task.task_id, step, state, detail)
+        except Exception as e:
+            logger.warning(f"[{task.task_id}] could not record event {step}/{state}: {e}")
 
     def _set(self, task: IngestTask, status: Optional[IngestStatus] = None, message: Optional[str] = None, pct: Optional[int] = None) -> None:
         if status is not None:
@@ -176,7 +184,14 @@ class IngestService:
         self._set(task, IngestStatus.COMPLETED, message)
         logger.info(f"[{task.task_id}] Persistent task completed: {result_url}")
         # The app registers the file as a source; if this is lost its status poll reconciles.
-        self.webhook.notify_completed(task)
+        if not settings.EVO_WEBHOOK_URL:
+            self._event(task, "webhook", "skipped", "No webhook configured")
+            return
+        self._event(task, "webhook", "running", "Registering in the app")
+        if self.webhook.notify_completed(task):
+            self._event(task, "webhook", "ok", "App registered the source")
+        else:
+            self._event(task, "webhook", "failed", "App did not acknowledge (its status poll will reconcile)")
 
     def process_task(self, task_id: str) -> None:
         task = self.repository.get_by_id(task_id)
@@ -185,9 +200,11 @@ class IngestService:
             return
 
         local_file: Optional[Path] = None
+        step = "extract"
         try:
             # 1. Extraction Phase (bounded: each one drives a headless browser)
             self._set(task, IngestStatus.EXTRACTING, "Decrypting stream sources...")
+            self._event(task, "extract", "running", "Waiting for a browser slot")
             logger.info(f"[{task_id}] Extracting streams for TMDB {task.tmdb_id} (S{task.season}E{task.episode})")
 
             with self._extract_slots:
@@ -199,6 +216,8 @@ class IngestService:
                 )
             if not streams:
                 raise RuntimeError("No streams found for media")
+            self._event(task, "extract", "ok", f"{len(streams)} stream(s): " + ", ".join(x.quality for x in streams))
+            step = "resolve"
 
             # Resolve quality with fallback cascade
             selected_stream = self._select_stream_with_fallback(streams, task.requested_quality)
@@ -209,22 +228,34 @@ class IngestService:
             task.upstream_headers = selected_stream.headers
             task.available_qualities = [s.quality for s in streams]
             task.variants = {s.quality: s.url for s in streams}
+            self._event(
+                task, "resolve", "ok",
+                f"asked {task.requested_quality} -> {task.resolved_quality}" if task.requested_quality != task.resolved_quality else f"{task.resolved_quality} available",
+            )
+            step = "subtitles"
 
             # 2. Subtitles Phase (best effort, languages fetched in parallel)
+            self._event(task, "subtitles", "running", "Searching 10 languages")
             try:
                 task.subtitles = self.subtitle_service.fetch_subtitles(
                     task.imdb_id,
                     season=task.season,
                     episode=task.episode,
                 )
+                self._event(task, "subtitles", "ok", f"{len(task.subtitles)} track(s)")
             except Exception as sub_err:
                 logger.warning(f"[{task_id}] Subtitle fetch failed: {sub_err}")
                 task.subtitles = []
+                self._event(task, "subtitles", "failed", f"{sub_err} (playback continues without subtitles)")
+            step = "stream"
 
             # 3. INSTANT STREAM READY: playback does not wait for the CDN copy.
             task.stream_url = f"/api/v1/media/stream/{task.task_id}/master.m3u8"
             self._set(task, IngestStatus.STREAMING, f"Stream ready for instant playback ({task.resolved_quality})", 100)
             logger.info(f"[{task_id}] Stream is READY for instant playback: {task.stream_url} ({len(task.subtitles)} subs)")
+            self._event(task, "stream", "ok", f"Viewers can watch now ({task.resolved_quality})")
+            step = "cdn_check"
+            self._event(task, "cdn_check", "running", "Checking for an existing CDN copy and free disk")
 
             # A different request can resolve to a quality we already cached (asked 1080p, only 720p exists).
             twin = self.repository.find_completed(
@@ -233,6 +264,9 @@ class IngestService:
             )
             if twin and twin.result_url:
                 logger.info(f"[{task_id}] {task.resolved_quality} is already cached by {twin.task_id}; reusing it")
+                self._event(task, "cdn_check", "skipped", f"{task.resolved_quality} already cached by {twin.task_id[:8]}")
+                for reused in ("download", "verify", "upload", "subtitle_sync"):
+                    self._event(task, reused, "skipped", "Reused the cached copy")
                 self._finish_completed(task, twin.result_url, twin.cdn_subtitles, f"Already cached ({task.resolved_quality})")
                 return
 
@@ -240,6 +274,7 @@ class IngestService:
             free_gb = shutil.disk_usage(settings.DOWNLOAD_DIR).free / 1024**3
             if free_gb < settings.MIN_FREE_DISK_GB:
                 raise RuntimeError(f"Only {free_gb:.1f} GB free; skipping CDN cache")
+            self._event(task, "cdn_check", "ok", f"No copy yet · {free_gb:.0f} GB free")
 
             clean_title = sanitize_filename(task.title)
             se_suffix = f".S{task.season:02d}E{task.episode:02d}" if task.season is not None and task.episode is not None else ""
@@ -256,21 +291,40 @@ class IngestService:
                     task.updated_at = datetime.utcnow()
                     self.repository.save(task)
 
+                step = "download"
+                self._event(task, "download", "running", f"Remuxing {task.resolved_quality} HLS to MP4")
                 self.downloader.download_stream(selected_stream, local_file, progress_callback=on_download_progress)
+                self._event(task, "download", "ok", f"{local_file.stat().st_size / 1024 / 1024:.0f} MB")
+
+                step = "verify"
+                self._event(task, "verify", "running", "Checking size and duration")
                 self._verify_download(task, local_file)
+                self._event(task, "verify", "ok", "File looks complete")
 
                 # 5. CDN upload (the CDN file keeps the clean name, not the scratch name)
                 final_file = local_file.with_name(formatted_filename)
                 local_file.rename(final_file)
                 local_file = final_file
+                step = "upload"
+                self._event(task, "upload", "running", "Uploading to Pixeldrain")
                 upload_res = self.storage.upload_file(local_file)
+                self._event(task, "upload", "ok", upload_res.direct_url)
 
             # 6. Subtitles follow the video onto the CDN, then the task is complete
-            subs = self._upload_subtitles(task, base_name) if task.subtitles else []
+            step = "subtitle_sync"
+            if task.subtitles:
+                self._event(task, "subtitle_sync", "running", f"Uploading {len(task.subtitles)} track(s)")
+                subs = self._upload_subtitles(task, base_name)
+                self._event(task, "subtitle_sync", "ok" if subs else "failed", f"{len(subs)}/{len(task.subtitles)} track(s) on the CDN")
+            else:
+                subs = []
+                self._event(task, "subtitle_sync", "skipped", "No subtitles to sync")
+            step = "webhook"
             self._finish_completed(task, upload_res.direct_url, subs, f"Cloud sync complete: {formatted_filename}")
 
         except Exception as e:
             logger.exception(f"[{task_id}] Ingestion / background cache encountered error: {e}")
+            self._event(task, step, "failed", str(e))
             if task.stream_url:
                 # Streaming is already healthy; only the CDN copy is missing, and a new request may retry it.
                 task.cache_failed = True
