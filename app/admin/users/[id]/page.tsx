@@ -7,8 +7,6 @@ import { isAdminEmail } from "@/lib/auth/admin";
 import { PageHeader } from "../../_components/page-header";
 import { UserActions } from "../../_components/user-actions";
 
-export const dynamic = "force-dynamic";
-
 const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
