@@ -45,7 +45,7 @@ function cardQuery(kind: CardKind, f: Filters) {
       : { table: shows, title: shows.name, original: shows.originalName, date: shows.firstAirDate };
   const { table } = t;
   return {
-    where: whereFor(table.isPublished, table.audience, table.genres, table.backdropPath, [t.title, t.original], f),
+    where: whereFor(table.isPublished, table.audience, table.genres, table.backdropPath, [t.title, t.original], f, hasSourcesOf(kind)),
     select: () =>
       db
         .select({
@@ -94,8 +94,9 @@ const toList = (v: unknown): string[] => {
 export const audienceIn = (col: AnyColumn | SQL, scope: Scope | "all" = "main") =>
   scope === "all" ? sql`true` : scope === "kids" ? sql`${col} in ('kids', 'both')` : sql`${col} in ('general', 'both')`;
 
-function whereFor(published: AnyColumn, audience: AnyColumn, genres: AnyColumn, backdrop: AnyColumn, textColumns: AnyColumn[], f: Filters): SQL | undefined {
-  const parts: (SQL | undefined)[] = [eq(published, true), audienceIn(audience, f.scope)];
+function whereFor(published: AnyColumn, audience: AnyColumn, genres: AnyColumn, backdrop: AnyColumn, textColumns: AnyColumn[], f: Filters, cached: SQL): SQL | undefined {
+  // Evo creates a row for every title someone plays or bookmarks; only titles with a cached source are catalog entries.
+  const parts: (SQL | undefined)[] = [eq(published, true), cached, audienceIn(audience, f.scope)];
   if (f.withBackdrop) parts.push(sql`${backdrop} is not null`);
   const q = f.q?.trim();
   if (q && q.length >= MIN_QUERY) {
@@ -184,7 +185,7 @@ async function browseDb(p: BrowseParams = {}): Promise<{ items: Card[]; total: n
         logoPath,
         rating,
         dubs: dubList,
-        isEvo: kind === "movie" ? !hasSources : false,
+        isEvo: !hasSources,
       };
     }),
     total,

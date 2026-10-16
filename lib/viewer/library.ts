@@ -27,14 +27,17 @@ export type ContinueItem = {
   target: { kind: "movie" | "show"; id: string };
 };
 
+/** Bookmarked ids; every title is listed under its row id and its "tmdb-N" id, since cards carry either form. */
 export async function bookmarkIds(userId: string) {
   const rows = await db
-    .select({ movieId: bookmarks.movieId, showId: bookmarks.showId })
+    .select({ movieId: bookmarks.movieId, showId: bookmarks.showId, movieTmdb: movies.tmdbId, showTmdb: shows.tmdbId })
     .from(bookmarks)
+    .leftJoin(movies, eq(movies.id, bookmarks.movieId))
+    .leftJoin(shows, eq(shows.id, bookmarks.showId))
     .where(eq(bookmarks.userId, userId));
   return {
-    movies: rows.flatMap((r) => (r.movieId ? [r.movieId] : [])),
-    shows: rows.flatMap((r) => (r.showId ? [r.showId] : [])),
+    movies: rows.flatMap((r) => (r.movieId ? [r.movieId, `tmdb-${r.movieTmdb}`] : [])),
+    shows: rows.flatMap((r) => (r.showId ? [r.showId, `tmdb-${r.showTmdb}`] : [])),
   };
 }
 

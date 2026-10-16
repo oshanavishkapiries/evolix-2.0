@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { AUDIO_COOKIE } from "@/lib/audio";
 import { chooseAudio } from "@/lib/viewer/audio";
+import { ensureMovie } from "@/lib/evo/ensure";
 import { isUuid, parseMediaId } from "@/lib/viewer/ids";
 import { runtimeText, yearOf } from "@/lib/viewer/format";
 import { resumePosition } from "@/lib/viewer/library";
@@ -31,7 +32,9 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
   const movie = await getMovieWatch(id);
   if (!movie) notFound();
   const userId = await currentUserId();
-  const startAt = userId ? await resumePosition(userId, { movieId: movie.id }) : 0;
+  // Evo titles start as TMDB-only ("tmdb-123"); signed-in viewers get a catalog row so progress and reports have something to attach to.
+  const rowId = isUuid(movie.id) ? movie.id : userId ? await ensureMovie(movie.tmdbId).catch(() => null) : null;
+  const startAt = userId && rowId ? await resumePosition(userId, { movieId: rowId }) : 0;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const audio = chooseAudio(movie.sources, { source: one(sp.source), lang: one(sp.lang), saved: (await cookies()).get(AUDIO_COOKIE)?.value });
 
@@ -49,9 +52,9 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
       mediaType="movie"
       backdropPath={movie.backdropPath}
       audio={audio}
-      track={isUuid(movie.id) ? { kind: "movie", id: movie.id } : undefined}
+      track={rowId ? { kind: "movie", id: rowId } : undefined}
       startAt={startAt}
-      report={isUuid(movie.id) ? { kind: "movie", id: movie.id, title: movie.title } : undefined}
+      report={rowId ? { kind: "movie", id: rowId, title: movie.title } : undefined}
       info={{
         title: movie.title,
         meta: [yearOf(movie.releaseDate), runtimeText(movie.runtimeMinutes), movie.rating ? `★ ${movie.rating.toFixed(1)}` : ""].filter(Boolean).join(" · "),

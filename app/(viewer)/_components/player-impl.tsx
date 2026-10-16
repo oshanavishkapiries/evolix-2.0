@@ -5,6 +5,7 @@ import "vidstack/player/styles/default/layouts/video.css";
 import { MediaPlayer, MediaProvider, Track, type MediaPlayerInstance, type MediaProviderAdapter } from "@vidstack/react";
 import { defaultLayoutIcons, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
 import { isHLSProvider } from "vidstack";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
 import { imageUrl } from "@/lib/images";
@@ -36,7 +37,7 @@ export default function PlayerImpl({
   info,
 }: {
   title: string;
-  source: Pick<WatchSource, "kind" | "url">;
+  source: Pick<WatchSource, "kind" | "url"> & { id?: string };
   subtitles: WatchSubtitle[];
   /** What to save progress against; omitted = no tracking. */
   track?: ProgressTarget;
@@ -101,6 +102,26 @@ export default function PlayerImpl({
   const [hint, setHint] = useState<PlayerType | null>(null);
   const pdId = pixeldrainId(source.url);
 
+  // A CDN copy that no longer exists is deactivated server-side (it checks with the CDN); the refresh then
+  // lands on another quality or a fresh Evo ingest. Other failures (codec, network) are left to the viewer.
+  const router = useRouter();
+  const [healChecked, setHealChecked] = useState(false);
+  const healable = Boolean(pdId && source.id && /^[0-9a-f-]{36}$/i.test(source.id));
+  useEffect(() => {
+    if (!failed || !healable) return;
+    fetchWithRefresh("/api/evo/heal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceId: source.id }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { healed?: boolean } | null) => {
+        if (d?.healed) router.refresh();
+        else setHealChecked(true);
+      })
+      .catch(() => setHealChecked(true));
+  }, [failed, healable, source.id, router]);
+
   // Pixeldrain links carry no extension; ask its info API for the real file type (best effort).
   useEffect(() => {
     if (!pdId) return;
@@ -123,6 +144,15 @@ export default function PlayerImpl({
   const [switchingQuality, setSwitchingQuality] = useState<string | null>(null);
   const switchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(switchTimer.current), []);
+
+  if (failed && healable && !healChecked) {
+    return (
+      <div className="v-player-msg" role="status">
+        <strong>Finding a fresh copy…</strong>
+        <p className="v-muted">This copy stopped responding, checking it now.</p>
+      </div>
+    );
+  }
 
   if (failed || insecure) {
     return (

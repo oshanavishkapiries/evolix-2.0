@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { AUDIO_COOKIE } from "@/lib/audio";
 import { chooseAudio } from "@/lib/viewer/audio";
+import { ensureEpisode } from "@/lib/evo/ensure";
 import { isUuid, parseMediaId, parseNumber } from "@/lib/viewer/ids";
 import { resumePosition } from "@/lib/viewer/library";
 import { currentUserId } from "@/lib/viewer/user";
@@ -43,7 +44,9 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
   if (!data) notFound();
   const { current, prev, next } = data;
   const userId = await currentUserId();
-  const startAt = userId ? await resumePosition(userId, { episodeId: current.id }) : 0;
+  // Evo episodes start as TMDB-only ids; signed-in viewers get catalog rows so progress and reports can attach.
+  const episodeId = isUuid(current.id) ? current.id : userId ? (await ensureEpisode(current.tmdbId, p.season, p.episode).catch(() => null))?.episodeId ?? null : null;
+  const startAt = userId && episodeId ? await resumePosition(userId, { episodeId }) : 0;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const audio = chooseAudio(data.sources, { source: one(sp.source), lang: one(sp.lang), saved: (await cookies()).get(AUDIO_COOKIE)?.value });
   const href = (e: EpisodeRef) => `/watch/tv/${p.id}/${e.seasonNumber}/${e.episodeNumber}`;
@@ -64,9 +67,9 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       episode={p.episode}
       backdropPath={current.backdropPath}
       audio={audio}
-      track={isUuid(current.id) ? { kind: "episode", id: current.id } : undefined}
+      track={episodeId ? { kind: "episode", id: episodeId } : undefined}
       startAt={startAt}
-      report={isUuid(current.id) ? { kind: "episode", id: current.id, title: `${current.showName} ${code(p.season, p.episode)}` } : undefined}
+      report={episodeId ? { kind: "episode", id: episodeId, title: `${current.showName} ${code(p.season, p.episode)}` } : undefined}
       info={{
         title: current.showName,
         meta: `S${p.season}:E${p.episode}${current.name ? ` · ${current.name}` : ""}`,
