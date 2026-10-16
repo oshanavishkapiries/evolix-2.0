@@ -13,7 +13,7 @@ from app.services.subtitle_service import SubtitleService
 
 logger = logging.getLogger("evo.ingest")
 
-QUALITY_FALLBACK_ORDER = ["1080p", "720p", "480p", "360p"]
+QUALITY_FALLBACK_ORDER = ["720p", "1080p", "480p", "360p"]
 
 
 def sanitize_filename(title: str) -> str:
@@ -45,7 +45,7 @@ class IngestService:
         self,
         tmdb_id: int,
         media_type: MediaType = MediaType.MOVIE,
-        requested_quality: str = "1080p",
+        requested_quality: str = "720p",
         season: Optional[int] = None,
         episode: Optional[int] = None,
     ) -> IngestTask:
@@ -136,6 +136,8 @@ class IngestService:
             task.imdb_id = selected_stream.imdb_id
             task.upstream_stream_url = selected_stream.url
             task.upstream_headers = selected_stream.headers
+            task.available_qualities = [s.quality for s in streams]
+            task.variants = {s.quality: s.url for s in streams}
 
             # 2. Subtitles Phase (Non-blocking, best effort)
             try:

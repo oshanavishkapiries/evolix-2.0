@@ -6,7 +6,7 @@ from app.domain.models import IngestStatus, MediaType
 class IngestRequest(BaseModel):
     tmdb_id: int = Field(..., description="The TMDB ID of the movie or show", example=1148365)
     media_type: MediaType = Field(default=MediaType.MOVIE, description="Type: movie or tv")
-    quality: str = Field(default="1080p", description="Desired quality: 1080p, 720p, 480p, etc. Automatically falls back if unavailable")
+    quality: str = Field(default="720p", description="Desired quality: 1080p, 720p, 480p, etc. Automatically falls back if unavailable")
     season: Optional[int] = Field(default=None, description="Season number for TV shows", example=1)
     episode: Optional[int] = Field(default=None, description="Episode number for TV shows", example=1)
 
@@ -19,6 +19,7 @@ class IngestResponse(BaseModel):
     stream_url: Optional[str] = None
     result_url: Optional[str] = None
     subtitles: Optional[List[Dict[str, Any]]] = None
+    available_qualities: Optional[List[str]] = None
 
 
 class TaskStatusResponse(BaseModel):
@@ -36,3 +37,4 @@ class TaskStatusResponse(BaseModel):
     stream_url: Optional[str] = None
     result_url: Optional[str] = None
     subtitles: Optional[List[Dict[str, Any]]] = None
+    available_qualities: Optional[List[str]] = None

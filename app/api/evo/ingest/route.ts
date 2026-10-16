@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { tmdbId, mediaType = "movie", quality = "1080p", season, episode } = body;
+    const { tmdbId, mediaType = "movie", quality = "720p", season, episode } = body;
 
     if (!tmdbId) {
       return NextResponse.json({ error: "Missing tmdbId" }, { status: 400 });

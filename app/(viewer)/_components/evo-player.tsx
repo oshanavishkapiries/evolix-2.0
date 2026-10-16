@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { EvoProgressScreen } from "./evo-progress-screen";
-import { EvoQualityPicker, type EvoQuality } from "./evo-quality-picker";
+import { imageUrl } from "@/lib/images";
 import { WatchPlayer } from "./watch-player";
 import { SafePlayerBoundary } from "./safe-player-boundary";
 import type { PauseInfo, ProgressTarget } from "./player-impl";
@@ -25,7 +24,7 @@ type Props = {
 };
 
 type TaskStatus = "PENDING" | "EXTRACTING" | "STREAMING" | "DOWNLOADING" | "UPLOADING" | "COMPLETED" | "FAILED";
-type PlayerStage = "SELECT_QUALITY" | "INGESTING" | "READY";
+type PlayerStage = "INGESTING" | "READY";
 
 function formatSubtitles(rawSubs: unknown[]): WatchSubtitle[] {
   if (!Array.isArray(rawSubs)) return [];
@@ -57,28 +56,26 @@ export function EvoPlayer({
   startAt,
   info,
 }: Props) {
-  const [selectedQuality, setSelectedQuality] = useState<EvoQuality>("1080p");
-  const [stage, setStage] = useState<PlayerStage>(initialSource?.url ? "READY" : "SELECT_QUALITY");
+  const [stage, setStage] = useState<PlayerStage>(initialSource?.url ? "READY" : "INGESTING");
   const [activeSource, setActiveSource] = useState<Pick<WatchSource, "id" | "kind" | "url"> | null>(
     initialSource ?? null
   );
   const [activeSubtitles, setActiveSubtitles] = useState<WatchSubtitle[]>(initialSubtitles || []);
   const [taskId, setTaskId] = useState<string | null>(null);
-  const [status, setStatus] = useState<TaskStatus>("PENDING");
+  const [, setStatus] = useState<TaskStatus>("PENDING");
   const [progressPct, setProgressPct] = useState(0);
-  const [message, setMessage] = useState("Connecting to Evo Engine...");
+  const [message, setMessage] = useState("Loading stream (720p)...");
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Trigger ingestion
+  // Trigger ingestion with 720p default
   const startIngest = useCallback(
-    async (qualityToUse?: EvoQuality) => {
-      const targetQuality = qualityToUse ?? selectedQuality;
+    async (qualityToUse: string = "720p") => {
       setError(null);
       setStage("INGESTING");
       setStatus("PENDING");
       setProgressPct(0);
-      setMessage(`Resolving stream (${targetQuality})...`);
+      setMessage(`Connecting stream (${qualityToUse})...`);
 
       try {
         const res = await fetch("/api/evo/ingest", {
@@ -89,12 +86,12 @@ export function EvoPlayer({
             mediaType,
             season,
             episode,
-            quality: targetQuality,
+            quality: qualityToUse,
           }),
         });
 
         if (!res.ok) {
-          const errJson = await res.json().catch(() => ({ error: "Failed to queue ingestion" }));
+          const errJson = await res.json().catch(() => ({ error: "Failed to queue stream" }));
           throw new Error(errJson.error || `HTTP ${res.status}`);
         }
 
@@ -113,7 +110,7 @@ export function EvoPlayer({
         if (data.stream_url) {
           const streamUrl = data.stream_url.replace(/^\/api\/v1\/media\/stream/, "/api/evo/stream");
           setActiveSource({
-            id: `evo-stream-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            id: `stream-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
             kind: "hls",
             url: streamUrl,
           });
@@ -124,7 +121,7 @@ export function EvoPlayer({
         // 2. Persistent CDN File already available
         if (data.status === "COMPLETED" && data.result_url) {
           const ready = normalizeSource({
-            id: `evo-cdn-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            id: `cdn-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
             kind: "direct",
             url: data.result_url,
           });
@@ -145,8 +142,15 @@ export function EvoPlayer({
         setStatus("FAILED");
       }
     },
-    [tmdbId, mediaType, season, episode, selectedQuality]
+    [tmdbId, mediaType, season, episode]
   );
+
+  // Auto-start ingest on mount if no active source
+  useEffect(() => {
+    if (!activeSource && stage === "INGESTING" && !taskId) {
+      startIngest("720p");
+    }
+  }, [activeSource, stage, taskId, startIngest]);
 
   // Poll status while ingesting
   useEffect(() => {
@@ -175,7 +179,7 @@ export function EvoPlayer({
         if (data.status === "STREAMING" && data.stream_url) {
           const streamUrl = data.stream_url.replace(/^\/api\/v1\/media\/stream/, "/api/evo/stream");
           setActiveSource({
-            id: `evo-stream-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            id: `stream-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
             kind: "hls",
             url: streamUrl,
           });
@@ -186,7 +190,7 @@ export function EvoPlayer({
         // Cloud sync completed directly
         if (data.status === "COMPLETED" && data.result_url) {
           const ready = normalizeSource({
-            id: `evo-cdn-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
+            id: `cdn-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
             kind: "direct",
             url: data.result_url,
           });
@@ -200,7 +204,7 @@ export function EvoPlayer({
         }
 
         if (data.status === "FAILED") {
-          setError(data.message || "Ingestion failed");
+          setError(data.message || "Unable to load stream");
           return;
         }
 
@@ -227,7 +231,9 @@ export function EvoPlayer({
         backHref={backHref}
         onReset={() => {
           setActiveSource(null);
-          setStage("SELECT_QUALITY");
+          setTaskId(null);
+          setStage("INGESTING");
+          startIngest("720p");
         }}
       >
         <WatchPlayer
@@ -242,31 +248,38 @@ export function EvoPlayer({
     );
   }
 
-  // 2. Quality selection stage
-  if (stage === "SELECT_QUALITY") {
-    return (
-      <EvoQualityPicker
-        title={title}
-        backdropPath={backdropPath}
-        selectedQuality={selectedQuality}
-        onSelectQuality={setSelectedQuality}
-        onConfirm={() => startIngest(selectedQuality)}
-        backHref={backHref}
-      />
-    );
-  }
+  // 2. In-player loading dialogue stage
+  const bg = backdropPath ? imageUrl(backdropPath, "w1280") : null;
 
-  // 3. Ingestion progress stage
   return (
-    <EvoProgressScreen
-      title={title}
-      backdropPath={backdropPath}
-      status={status === "STREAMING" ? "COMPLETED" : status}
-      progressPct={progressPct}
-      message={message}
-      error={error}
-      onRetry={() => startIngest(selectedQuality)}
-      backHref={backHref}
-    />
+    <div className="v-player-loading-overlay">
+      {bg && <div className="v-player-loading-bg" style={{ backgroundImage: `url("${bg}")` }} />}
+      <div className="v-player-loading-card">
+        {!error ? (
+          <>
+            <div className="v-player-spinner" aria-hidden="true" />
+            <h3 className="v-player-loading-title">{title}</h3>
+            <p className="v-player-loading-status">{message || "Loading video stream..."}</p>
+            {progressPct > 0 && progressPct < 100 && (
+              <div className="v-player-loading-progress" aria-hidden="true">
+                <div className="v-player-loading-fill" style={{ width: `${progressPct}%` }} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="v-player-loading-error">
+            <h3 className="v-player-loading-title">Playback Error</h3>
+            <p>{error}</p>
+            <button
+              type="button"
+              className="v-btn v-btn-primary"
+              onClick={() => startIngest("720p")}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

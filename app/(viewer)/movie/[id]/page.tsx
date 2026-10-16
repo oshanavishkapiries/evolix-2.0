@@ -36,7 +36,7 @@ export default async function MoviePage({ params }: Props) {
     ? null
     : resume
       ? { href, label: "Resume", detail: resume.leftMinutes ? left(resume.leftMinutes) : undefined, percent: resume.percent }
-      : { href, label: movie.isEvo ? "Watch with Evo" : "Play" };
+      : { href, label: "Play" };
 
   return (
     <PageMotion>
