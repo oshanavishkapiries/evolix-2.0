@@ -1,0 +1,1093 @@
+[
+  {
+    "url": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+    "method": "GET",
+    "headers": {
+      "upgrade-insecure-requests": "1",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\""
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/media/797e433ab948586e-s.p.29207c2f.woff2",
+    "method": "GET",
+    "headers": {
+      "origin": "https://cinesrc.st",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
+    "method": "GET",
+    "headers": {
+      "origin": "https://cinesrc.st",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2",
+    "method": "GET",
+    "headers": {
+      "origin": "https://cinesrc.st",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/5acdb61ae9d3e34d.css",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/38b70fa5641fea6e.css",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/090f2656dc5d0e47.css",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/bc59313b9106dcf9.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/d1cc58c9a36a055b.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/7416a5e7895a96f5.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/a5ca7aece8e5dba2.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/96d6975ee8751e00.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/turbopack-1c94315b897a4e17.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/c49dea1758b0d67e.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/ff1a16fafef87110.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/48ddb51b61c23f93.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/ad01bee8645099b6.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/850a110d632bde52.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/7d40f1de8ff7c095.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/14c7dc12455c277c.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/f32ba640f0b58282.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/693f69582a5d99f6.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/82833103ff1460c9.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://a.cineflix.st/js/pa-YfhvAp4Y0BV8sK6K2mYZX.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://a2.cineflix.st/api/script.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/300726c-prod.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/pow-worker-v3.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/pow-v3.wasm",
+    "method": "GET",
+    "headers": {
+      "origin": "https://cinesrc.st",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://api.themoviedb.org/3/movie/969681?api_key=2799a709bcb08967701e88df3fd71fcd",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://api.themoviedb.org/3/movie/969681/images?api_key=2799a709bcb08967701e88df3fd71fcd&include_image_language=en,null",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/42a20b36afe4266b.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/fbdfbc7f04eb681f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/293bf483f137cda2.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/chunks/b9b02b0279bea42b.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "next-action": "00709a44ddb018c921339ab3213396ad85c0dc0237",
+      "referer": "https://cinesrc.st/",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0",
+      "next-router-state-tree": "%5B%22%22%2C%7B%22children%22%3A%5B%22embed%22%2C%7B%22children%22%3A%5B%5B%22type%22%2C%22movie%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%5B%22id%22%2C%22969681%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "accept": "text/x-component",
+      "content-type": "text/plain;charset=UTF-8"
+    },
+    "post_data": "[]"
+  },
+  {
+    "url": "https://a2.cineflix.st/api/site/tracking-config/898090b38938",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/burger.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://image.tmdb.org/t/p/w1280/4tjxYg2AbOzzG9G1YuiT2NzYhlH.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/donut.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://a2.cineflix.st/api/track",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "content-type": "application/json",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": "{\"site_id\":\"898090b38938\",\"hostname\":\"cinesrc.st\",\"pathname\":\"/embed/movie/969681\",\"querystring\":\"?color=%239b5cff&controls=true&continueprompt=true\",\"screenWidth\":1280,\"screenHeight\":720,\"language\":\"en-US\",\"page_title\":\"CineSrc - Free Video Streaming API | Embed Movies & TV Shows\",\"referrer\":\"\",\"_bs\":6,\"_bsm\":541,\"type\":\"pageview\",\"event_name\":\"\"}"
+  },
+  {
+    "url": "https://cinesrc.st/api/c/bootstrap",
+    "method": "POST",
+    "headers": {
+      "x-cs-q": "WyJtb3ZpZSIsIjk2OTY4MSIsbnVsbCxudWxsXQ",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "blob:https://cinesrc.st/dd4c8076-a1cb-43e1-b37e-c52b8444883b",
+    "method": "GET",
+    "headers": {
+      "accept": "*/*",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "blob:https://cinesrc.st/887a1f0a-43c0-4b6d-aa64-0bc3384031ec",
+    "method": "GET",
+    "headers": {
+      "accept": "*/*",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/api/c/issue",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0",
+      "x-cs-p": "eyJ2IjoxLCJuIjoiNzJJaVRzd1I0alduZmZyZFF1dVh1dkVVIiwidCI6MTc5MjEyMzQxNzU0Mn0.PfBz43i-X-j7emkG_cxBXLmiyNJuh6RUPzTKjfvSLZI",
+      "x-cs-q": "WyJtb3ZpZSIsIjk2OTY4MSIsbnVsbCxudWxsXQ",
+      "x-cs-r": "v1.6b5yTxnru-FgmcC_mvs8cSyiz2EQL3dK.mvag0eyu.kRyw4Ehy6CTWm6Yg9MuroXri.J2KVBA06u_ULhuY36Pq_6F3HPGwM8mXGbU93yxjFgmw",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/api/c/stage2/issue",
+    "method": "GET",
+    "headers": {
+      "x-cs-q": "WyJtb3ZpZSIsIjk2OTY4MSIsbnVsbCxudWxsXQ",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "x-cs-r": "v1.6b5yTxnru-FgmcC_mvs8cSyiz2EQL3dK.mvag0eyu.kRyw4Ehy6CTWm6Yg9MuroXri.J2KVBA06u_ULhuY36Pq_6F3HPGwM8mXGbU93yxjFgmw",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/api/c/pk",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/pow-worker-v3.js",
+    "method": "GET",
+    "headers": {
+      "accept": "*/*",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://usrpubtrk.com/ut/hb.php?cb=0.7034272524421232&v=1",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "content-type": "text/plain; charset=utf-8",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://adexchangerapid.com/script/suurl5.php?r=11531602&chu=%22Not%3AA-Brand%22%3Bv%3D8%2C%20%22Chromium%22%3Bv%3D156%2C%20%22HeadlessChrome%22%3Bv%3D156&chmob=%3F0&chp=Windows&chpv=10.0&chuafv=156.0.8078.4&cbur=0.4593290214929612&cbiframe=0&cbWidth=1280&cbHeight=720&cbtitle=CineSrc%20-%20Free%20Video%20Streaming%20API%20%7C%20Embed%20Movies%20%26%20TV%20Shows&cbpage=https%3A%2F%2Fcinesrc.st%2Fembed%2Fmovie%2F969681%3Fcolor%3D%25239b5cff%26controls%3Dtrue%26continueprompt%3Dtrue&cbref=&cbdescription=CineSrc%20offers%20a%20free%20video%20streaming%20API%20with%20minimal%20ads.%20Easily%20embed%20movies%20and%20TV%20shows%20into%20your%20website%20using%20TMDB%20IDs.%20Built%20by%20the%20ShuttleTV%20team.&cbkeywords=video%20streaming%20API%2Cembed%20movies%2Cembed%20TV%20shows%2Cfree%20streaming%2CTMDB%2Cmovie%20API%2CTV%20show%20API%2Cstreaming%20embed%2CCineSrc%2CShuttleTV%2Cvidsrc%2Cmoviesapi%20club&cbcdn=wwpvpbktgoets.space&ufp=Linux%20x86_64%2FMozilla%2FNetscape%2Ftrue%2Ffalse%2FGoogle%20Inc.1280x7200en-US16424%20bits&ts=1792123417632&srs=2eb1f6ec284d604203e847d9482c7000&atv=83.1-pb&btp=0.98&abtg=1&adbv=3-browser-cdn-js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "blob:https://cinesrc.st/459f0924-1456-49ed-ba20-8e32d057f7fa",
+    "method": "GET",
+    "headers": {
+      "accept": "*/*",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "blob:https://cinesrc.st/459f0924-1456-49ed-ba20-8e32d057f7fa",
+    "method": "GET",
+    "headers": {
+      "accept": "*/*",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "blob:https://cinesrc.st/459f0924-1456-49ed-ba20-8e32d057f7fa",
+    "method": "GET",
+    "headers": {
+      "accept": "*/*",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "blob:https://cinesrc.st/459f0924-1456-49ed-ba20-8e32d057f7fa",
+    "method": "GET",
+    "headers": {
+      "accept": "*/*",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/pow-v3.wasm",
+    "method": "GET",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "referer": "https://cinesrc.st/pow-worker-v3.js"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "next-action": "7e278c7b1a4440a99a81b5c121b5f93193ce0a3f64",
+      "referer": "https://cinesrc.st/",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0",
+      "next-router-state-tree": "%5B%22%22%2C%7B%22children%22%3A%5B%22embed%22%2C%7B%22children%22%3A%5B%5B%22type%22%2C%22movie%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%5B%22id%22%2C%22969681%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "accept": "text/x-component",
+      "content-type": "text/plain;charset=UTF-8"
+    },
+    "post_data": "[\"969681\",\"movie\",\"$undefined\",\"$undefined\",\"s1~rxHlOmTxmE10SvwkPEz2mT3H9UC3TBYo89BLUbYvEK/+89FYcsj2/4DNmCJj57ypzDr4Kuzvlz914wegIEOsT7jkooEjRjq5UTZzSCRhaGB9BAwK+dxQ/af99hW2CCXl+CkXY8s8klCuJx5r+ZsncHV5qBRl0v7hrtfbfkYdYno+rnzPNLSnhbx4txHIrUc+JTKaLa04sOM8oSd320pv0ywMR4XDGtlXrWqWU5syUTv6UekfMMuROqPzgre5ptASwMfKo+KQaSEhN7rgcsGHWu6mW80zEbMRIjYMt/ydzJOZrY+jW8Dugovln5y13bLlYJ/7UrrNzDINWAkwNnvEhg==~vXAkLLzaBm/1ee45~qvhD8OFTgclPou0CCnNp2T2wItQNg4RevCVaUb8eUff5xLmgNruGVUInlXDYX6WrZq21kJbInhFPAXgKKyKZd+nsBqsYCLfNzvQGZzXgRTYxPbBzvjrxnB7e5abtieJbyzO+QP7XHkOGNolQHPBN5TiVDaw/J3gdIF6rFvhZI7z0Ip13pUvWjnHNf+brnp9M3ElRai/LM5q77FN72wqudd/icPwikE294SETHhFHywxbRCHrba4UM9loO860xIvplZ5S6K+uEFRVOmz91W71K/dQyuSTwPUxf5dZVdTybUIXGbHIM/w2qFgh0eYEEQQpZQFY66AU8n0QTKp5QzFdiuc17UWj7/szk8hMiUv4wVACfU54A8n0VYvlQKIr+vyAl5HoizPvloorYp0OideAj2FUObgf6eOfilL5uxR1IqSwFipV3pD/uVKBh5DRlfSKbs4UY4vABhgJtDjnNV09CG+CUKQbjiGUVCW/Jb1nCz/hhbPiZ4kYdtVah/reYF8ReeSxxKwwspFMZe0RR6cU920Jr5yvsCn+tAB9VcNdCBQBuLImKb8TXD8SLzPHan9xPySA3CKYI8EtcE0gto1g6YiPDED6o/unWGnwj1ibJ5PvUkzkFanspGWRVbwr1ZoXGY6b9a+YgN9VF6DAt0WgQM2wg7tLsGVl1edRKuQJeY52rn507gHV4Gbr512DG1wTSv+PAZQmyUEMoKcYEwSw99v8gInficW1K6M5lk5MTzD4SNMRg448yT7rjRlONY5MVrZyWUOFeFbf0bKqfjoEdPOSZ6Tw8AA9SVDxeZF4helYWIL/704AL5TYY4mYOANTjiYwHNGBYn2JeAAxMclmBfLsldH3ZfSmpd1dmq/SHBrZmBE3lVN9rjyAgcTOjzbahxFsX39i+oGseuOD9z1wdsd3lDrZAAURHUNDc6bW7h8VKzHXijMGvZpK3e2Yvrx0dPo0gw+ryVa/e6JFspMgN2vvJIiIziUe0xuNZsKT73N4sfdXumUm7FhEg6B7yZxVjGNcmIEhT2XbvoyXfE8Oh0ZAIOrPaw5z2Ig2V/ZxgQ0uMp+SuD2G+1pfDhtGvnA71raQOP+uVNb2fo2fkkrNUysAqbPOO3FYeR2ImXCLMsJdYKuy0MQRi0mA7HNOcZax7NFBGQuxE/5tELI5Ff13gmfmaJMrBz9TCwIt29I/Spd3B8zOWzG08azg4e5lT+qPqLAB4gnNSDLjgfz1Gd9x5xMRfrXwV5HqniICnjQPszzzJF+b82jo6jAt9Y08Sl893x6uUligEPo0oq3MMuBHCTn/fOQRFBMEJyyuUrNmsmFfCzT9NJHCWqfn7+s5fHm1ZwhrCoaReqw+6nwpENk1AYOJcaLwI65qIuxm9EndqnAZLbeKzb+sKo/ICf1VCMqKfYmkKhvSddXK3HWntvOzIHKoYvKSu2XX4DnXJD4uhDxk3MbmJxLdyI5mYF7zAzkrgnnJ/lg58siAWTgcOV0/FfqQ0IYqJzvKTitKW0PkFOFMg4HI0Quc0mJ7qVnl5ojtQe//ZwbhekqetajuCqkuiKV2Wyn0Z8mKA4K8iPa0JLHF39oHttD/Cs9NzG2ErfL6hJ0eEIIFf0YnTMy23Vr5fYrAFQp7oCgpi+g60j0muECsz96YOkNmGoYukyeEt4Fv1L5ZopABF9UQjZqyZapscm/2ePSmrF2I9Q5k5PbhSWtpQUjnSRJQd4/gWYhNP6KrRFsFHOp7VjXtEnz4yER9dNLDHtsYkZez3UaHxx5yLwn9TAIWh1SZd/vYYehsYGhVfkcXV0sZIWcipFQRUFmE/7AV70BFdrVGIRIpxTr1H1X7I+UaMRxg8TgM3LfuX0jbHx/YTN0DMJSSVt14UvyuPs21wK7fq7vMYmD279ApMvv4HKCgTKhsl5erZlkjBKClNQPH8rU+InMShliRFunSTDHdw1iRPwAqFbibh1D8kfOWTth4254DvPDSl0XkeKJT/Pm3PTn/DGaZkdPK6vLTURHPRHru9Fl8dOIwtAKRIfZNpgkZK7eE5D/42zWgvfxF1RdnDzfVI55pNz8yKs2ZOtw39IzygSeYrrBhgDHSZkwJBu/zFg1J9Pw9+E2NPPZWwCaJE8iKFP8SGYINU46Lcqk49+xL7ndTVzfk+SBvHoyGRZu4ImtTOSlRRBVUYGJSu7eUCaA99SaCTYQGjG5gXXsFdJ1xpSiunFpUMyZEVue4VFf5gSmuDFgseH3ctkEieppAE17lP0PykQ1wSDQb5hMBawxSqQvuHI2JiZC09GUDLxkOrPz3TW6ZWo2RXFHID8Qxrog8hHbkIxOJVcrKK8ypng==::c2::c2~Oo4JsJOhz_LA2b9lf_pq-LrV8ofMW7rtzL5Lo6nr9Ts90Q5q9GH9E21Z8rH_cXYi75ZtSVzOaFznFl6IsJ6BtYCmIhOhR8SNPgZcrgVc0bzN3Ns_NT7_NcZZ7dcrN_0NHHLtGgKWXda57BLb_qnuuuz82H47YZtmSJVQiEZKYJg~cT07izY5N8QL4ZnN~nAIVBvI0aLume397a-O5OcuL7FZ2gQthK89auB-l8wPhL9AI4aTSeMNRVhEDKgg38ZqfBHPF-5Uc7WWkHcG1uMwdBNaZpAWs48fOyFQLsU-g856x81dgSb7sdfX4MIClrZU__DWQlqr5uZKTx8Gd0WTsV5LgStxFxcpx79ZCzXcTwx-90epDVxbNkYGPWO8o3EPbk1h5L2__aF_dL_XHXrSnaqLvgdhfVEzWQv1ZW9HVcDRkBZNvLnf8WVl60aR4b8kCVwknxcd3cplGu6Vii8K413LvDCCoh7SxncS0OfBIJZk4X_KzsCEqVDxyaO972gBdPDJtqUTxNTgDgPfyCZHf4u7IajM4ym2CTHSD_ekfi0bbhGo0HDlxKQziQwSM1pVD8ChCVl96U8TXhlY4ofvOjOEJTiiYE1SFQ6EZQWyrlZ7BULF9NOLvt9OHjWU3_JwLfhAtrZrUItQshQ4kXVaEcrl-mqNECgO5kwJffRDBoDG-7cUnyq-ZwI8pQ_rDMBe8HsabZB1tENn2OlFF-X4dJQn_Yk4h1HZUVafx9yk-GjZwDfwsXxpke-dDk2XFf4GLi1gUN9lUcI7DrGTmw4Hh-dvrVYgpNRnEN3toD9jhKy4bQY8kzQ8nlp9EquQrc6TocM-j6LHxGvlb_vjnZvsgQHTr79khi6ecCKHs2RnU9dnwlHGlVkfRl17nsQvruS4txZXPZsxb_Syl90YL1MhG-ZW78Iv4dQ6PPnvkMQIY3hJ602Ez6E2-HDH901LImEHjVsjxqi6izRRQyLwPj1ll7SOwnXB0LGGe3J0NE-NXqE5ULfj3MIx5Z6ZMQqw2Z6uYE2MFEk3jNyK7HIHpQjCjWQtCStp5ct9pocEMcq_5tDCOjDJ3kuiY8Vhp_55ocrrMp4SHyoG67lYd-OjGW5PCCeTYk_zWIsEHFiCDbwxfRxZ0M1L9_JLMEzvsTxpWmj191stG3HmIm8X25E8ccnAUltPmq7YQgHm48UOd0y0mkv-3eANw2Z4U9oT3TDqYJh_4DXCm8hz42PEn3gdCVkacpXQ8EMXqOLxkl4KK3vhzp05SBMcLKWig_SCSqwJ6B4LhKekcl3IVtbd7DsbQRMrW7lo6HVX1_O32M7hCsUztHX5XmaTUFUdm0o4_KK7tOIEjiIVAK3H3AxlM2g0Ls25Ao7R1BFkyeGGNTgLWTpaUFl-StSiBSvbgxJJdjCKbWnbPGa7T3P7KZYqg5x9ZqlyZDiWIMNBj8xMvuyf4morYKwuniDaEJbzBBVsIrlOJ2dwI3uT5AbsvX4L3EwuU-ixFGcon1D527WNWwMNThndQseW0PX0JtkMFWqhp3-07DcIP1MbblJvQs7rvCYGF_teOnwoh3KTZIaOzB5OEUHLXJbW15oN8wBMCF6WjnH6uy9Z6JKCkvDhKcXB50OqpmPo36psGUU5sPKRiIbntWDbOKMclEkyXi4-f_G32Jvumgo6UmMfv3cpILTieOv85Hps4-dUDSzAZjqmyZ01BVXrEKRtIYXVEdiLslvEEWOUbouJLh0qIBBxrROgixyc6Vk56gbl20KjqkMlPzso_18ZmgWLAvVOAZ_53KUVjuUSBPAT2dUHMfGEfXFZPwonyqmfGrXdHOnTz84pW0lvZk0tnMt0n10fHz8Hib83c2vQzUNYSN8isf0C65pj2lqhh9mJ7ypkaa2e7Bzaa77dDXG44yYo9ArbGV58vlprQbBrbngl3Z0n3jzR1jok9Jd6Yi3lU6oFfQC26KlGRNCMOGGkqpx0zixvD9toSFLEIEMwgheKwELI8u9caFxk8B1DL7y0SKXTaI4XCqixIQsC2kmFoSbFuD3QMi1AWlM4SO_UuALA-5s5Ibvc5gdHP0fUD2w::c3::v1.6b5yTxnru-FgmcC_mvs8cSyiz2EQL3dK.mvag0eyu.kRyw4Ehy6CTWm6Yg9MuroXri.J2KVBA06u_ULhuY36Pq_6F3HPGwM8mXGbU93yxjFgmw\",\"nebula\"]"
+  },
+  {
+    "url": "https://image.tmdb.org/t/p/w500/dGMb0iSnNp7UMAHkKX63Kh6AJvy.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/media/ce62453a442c7f35-s.124b2306.woff2",
+    "method": "GET",
+    "headers": {
+      "origin": "https://cinesrc.st",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/_next/static/chunks/5acdb61ae9d3e34d.css",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/_next/static/media/cinesrc.ca57b7ef.svg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/api/subtitles/search",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "content-type": "application/json",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": "{\"tmdbId\":\"969681\",\"builtInSubtitles\":[{\"id\":\"nebula-0-en\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_eng_2.vtt\",\"language\":\"en\",\"display\":\"English (UK)\",\"format\":\"vtt\",\"forced\":false,\"default\":true},{\"id\":\"nebula-1-bg\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_bul_3.vtt\",\"language\":\"bg\",\"display\":\"\u0431\u044a\u043b\u0433\u0430\u0440\u0441\u043a\u0438\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-2-cs\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_cze_4.vtt\",\"language\":\"cs\",\"display\":\"\u010ce\u0161tina\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-3-da\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_dan_5.vtt\",\"language\":\"da\",\"display\":\"dansk\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-4-de\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_ger_6.vtt\",\"language\":\"de\",\"display\":\"Deutsch (Deutschland)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-5-el\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_gre_7.vtt\",\"language\":\"el\",\"display\":\"\u0395\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-6-en\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_eng_8.vtt\",\"language\":\"en\",\"display\":\"English (CC)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-7-es\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_spa_9.vtt\",\"language\":\"es\",\"display\":\"Espa\u00f1ol (Espa\u00f1a)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-8-es\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_spa_10.vtt\",\"language\":\"es\",\"display\":\"Espa\u00f1ol (Latinoam\u00e9rica)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-9-et\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_est_11.vtt\",\"language\":\"et\",\"display\":\"eesti\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-10-fi\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_fin_12.vtt\",\"language\":\"fi\",\"display\":\"Suomi\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-11-fr\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_fre_13.vtt\",\"language\":\"fr\",\"display\":\"Fran\u00e7ais (France)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-12-heb\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_heb_14.vtt\",\"language\":\"heb\",\"display\":\"\u05e2\u05d1\u05e8\u05d9\u05ea\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-13-hr\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_hrv_15.vtt\",\"language\":\"hr\",\"display\":\"Hrvatski\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-14-hu\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_hun_16.vtt\",\"language\":\"hu\",\"display\":\"magyar\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-15-ind\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_ind_17.vtt\",\"language\":\"ind\",\"display\":\"Bahasa Indonesia\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-16-is\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_ice_18.vtt\",\"language\":\"is\",\"display\":\"\u00edslenska\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-17-it\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_ita_19.vtt\",\"language\":\"it\",\"display\":\"Italiano\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-18-jpn\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_jpn_20.vtt\",\"language\":\"jpn\",\"display\":\"\u65e5\u672c\u8a9e\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-19-kor\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_kor_21.vtt\",\"language\":\"kor\",\"display\":\"\ud55c\uad6d\uc5b4\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-20-lt\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_lit_22.vtt\",\"language\":\"lt\",\"display\":\"lietuvi\u0173\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-21-lv\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_lav_23.vtt\",\"language\":\"lv\",\"display\":\"latvie\u0161u\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-22-nl\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_dut_24.vtt\",\"language\":\"nl\",\"display\":\"Nederlands (Nederland)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-23-nor\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_nor_25.vtt\",\"language\":\"nor\",\"display\":\"norsk\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-24-pl\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_pol_26.vtt\",\"language\":\"pl\",\"display\":\"polski\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-25-pt\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_por_27.vtt\",\"language\":\"pt\",\"display\":\"Portugu\u00eas (Brasil)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-26-pt\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_por_28.vtt\",\"language\":\"pt\",\"display\":\"portugu\u00eas (Portugal)\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-27-ro\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_rum_29.vtt\",\"language\":\"ro\",\"display\":\"rom\u00e2n\u0103\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-28-sk\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_slo_30.vtt\",\"language\":\"sk\",\"display\":\"Sloven\u010dina\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-29-sl\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_slv_31.vtt\",\"language\":\"sl\",\"display\":\"sloven\u0161\u010dina\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-30-srp\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_srp_32.vtt\",\"language\":\"srp\",\"display\":\"\u0441\u0440\u043f\u0441\u043a\u0438\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-31-sv\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_swe_33.vtt\",\"language\":\"sv\",\"display\":\"Svenska\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-32-tha\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_tha_34.vtt\",\"language\":\"tha\",\"display\":\"\u0e44\u0e17\u0e22\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-33-tr\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_tur_35.vtt\",\"language\":\"tr\",\"display\":\"T\u00fcrk\u00e7e\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-34-vie\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_vie_36.vtt\",\"language\":\"vie\",\"display\":\"Ti\u1ebfng Vi\u1ec7t\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-35-chi\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_chi_37.vtt\",\"language\":\"chi\",\"display\":\"\u4e2d\u6587\uff08\u7b80\u4f53\uff09\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-36-chi\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_chi_38.vtt\",\"language\":\"chi\",\"display\":\"\u5ee3\u6771\u8a71\",\"format\":\"vtt\",\"forced\":false,\"default\":false},{\"id\":\"nebula-37-chi\",\"url\":\"https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_chi_39.vtt\",\"language\":\"chi\",\"display\":\"\u4e2d\u6587\uff08\u7e41\u9ad4\uff09\",\"format\":\"vtt\",\"forced\":false,\"default\":false}]}"
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/thumbnails/thumbnails.vtt",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/embed/movie/969681?color=%239b5cff&controls=true&continueprompt=true",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "next-action": "00709a44ddb018c921339ab3213396ad85c0dc0237",
+      "referer": "https://cinesrc.st/",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0",
+      "next-router-state-tree": "%5B%22%22%2C%7B%22children%22%3A%5B%22embed%22%2C%7B%22children%22%3A%5B%5B%22type%22%2C%22movie%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%5B%22id%22%2C%22969681%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "accept": "text/x-component",
+      "content-type": "text/plain;charset=UTF-8"
+    },
+    "post_data": "[]"
+  },
+  {
+    "url": "https://cinesrc.st/api/playlist/XwpBTnRdI1fpbqCuobBv7Ts9PxO4YE5qtNvo2Yy7fofTe1oq2AuPGzq0dyt2-irTU-oUWuRkY37_a8srRpYLSRkq7xoSU_ZTdPZVeKm-WCQUaUgM0pxH2Wlblen7VN9WaYixmU-kAkk5IA3I0ZF8tWLqGeRIDhdZEwJhVE1Wdi4H6SccARurA04QFh3Gcju2O8TaSwNcoCnHETYIX84UgWO9HA7KLA.m3u8",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/api/playlist/YImA_mo-4Qo8KHOOHnuWxmGeicmWLMnOS1u1Us3H9rKPnyOfBvxGHIc4BnvkIKKSCS5JIIe-mlwHyW1bfa_UcIQMvVtHI4RgV0MsUEUI-6q2nzLlxSu4PfoInGg52rbJpOPhy1fWh1VCin_OtQX0JTR9yPGS9M1GrPtZviQYKKvLJOs1pilzcAtrZA5GiBrNNkIleshEZByB6bIlQygVTIzgOiGuTol5xKN61w.m3u8",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/subtitles/sub_eng_8.vtt",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/thumbnails/sprite.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "blob:https://cinesrc.st/663c431c-8311-44d9-aa2f-8bff0674e976",
+    "method": "GET",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "referer": "https://cinesrc.st/"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/720p/init.mp4",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/720p/playlist_000.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://cinesrc.st/api/playlist/zqp_eiHXsLqqI0SlMsHfYag7JrTS4qD9XlkzhU9cB4ISaVjHwYMoWR-ebGpo2XPHPwDid9fhMqgrovcYwZYMv6jaR_VweXw68dv4BkhLbEnlktFHttoeoROaGrPNp6ii4oUDf4itJA0S4ML1NXXfbJgJX4vh0GOinzUmAi8vONYVmeD5lJ7tVnaZcIgim5yuutEsGL2kzUM20VEhkEGmD7cGihfdfDhPfhVVLE4.m3u8",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/init.mp4",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_001.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_002.jpeg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_003.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_004.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_005.jpeg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_006.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_007.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_008.jpeg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_009.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_010.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_011.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_012.jpeg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_013.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_014.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_015.jpeg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_016.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_017.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_018.jpeg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_019.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  },
+  {
+    "url": "https://nebula.bright67.online/hls/90f5f74b-c238-43fc-a95d-eb4271ea7a1f/1080p/playlist_020.jpg",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"Windows\"",
+      "referer": "https://cinesrc.st/",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"HeadlessChrome\";v=\"156\"",
+      "sec-ch-ua-mobile": "?0"
+    },
+    "post_data": null
+  }
+]
