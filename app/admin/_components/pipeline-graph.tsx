@@ -13,6 +13,12 @@ const nodeById = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<StepI
 function edgePath(from: StepId, to: StepId) {
   const a = nodeById[from];
   const b = nodeById[to];
+  if (a.y === b.y && b.x - a.x > NODE_W * 2) {
+    // Same row but not adjacent (subtitles -> translate): arc over the nodes in between.
+    const x1 = a.x + NODE_W / 2;
+    const x2 = b.x + NODE_W / 2;
+    return `M ${x1} ${a.y} C ${x1} ${a.y - 40}, ${x2} ${a.y - 40}, ${x2} ${a.y}`;
+  }
   if (a.y === b.y) {
     const x1 = a.x + NODE_W;
     const y = a.y + NODE_H / 2;
@@ -77,23 +83,39 @@ export function TaskFlow({ taskId, initial }: { taskId: string; initial: { task:
   const [data, setData] = useState(initial);
   const [selected, setSelected] = useState<StepId | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [watching, setWatching] = useState(false);
+  const [note, setNote] = useState("");
   const done = terminal(data.task);
+  const folded = useMemo(() => foldEvents(data.events), [data.events]);
+  const busy = (["translate", "subtitle_sync", "webhook"] as StepId[]).some((id) => folded[id].state === "running");
 
   useEffect(() => {
-    if (done) return;
+    if (done && !watching) return;
     let live = true;
+    let polls = 0;
     const tick = setInterval(async () => {
+      polls++;
       const res = await fetchWithRefresh(`/api/admin/evo/tasks/${taskId}`, { cache: "no-store" }).catch(() => null);
       const body = res?.ok ? await res.json() : null;
       if (live && body?.task) setData({ task: body.task, events: body.events ?? [] });
+      // Give a manually started translation a couple of polls to show up, then stop once it settles.
+      if (live && watching && polls >= 3 && body && !(["translate", "subtitle_sync", "webhook"] as StepId[]).some((id) => foldEvents(body.events ?? [])[id].state === "running")) setWatching(false);
     }, 2000);
     return () => {
       live = false;
       clearInterval(tick);
     };
-  }, [taskId, done]);
+  }, [taskId, done, watching]);
 
-  const folded = useMemo(() => foldEvents(data.events), [data.events]);
+  async function translate() {
+    setNote("Asking the engine…");
+    const res = await fetchWithRefresh(`/api/admin/evo/tasks/${taskId}/translate`, { method: "POST" }).catch(() => null);
+    const body = await res?.json().catch(() => null);
+    if (res?.ok) {
+      setNote("Translation queued: watch the Sinhala subtitles node.");
+      setWatching(true);
+    } else setNote(body?.message ?? "Could not start the translation");
+  }
   const running = STEP_IDS.some((id) => folded[id].state === "running");
   useEffect(() => {
     if (!running) return;
@@ -119,8 +141,16 @@ export function TaskFlow({ taskId, initial }: { taskId: string; initial: { task:
       <Legend />
       <p className="flow-status" role="status">
         <strong>{data.task.status}</strong> — {data.task.message}
-        {!done && <span className="flow-live"> · live</span>}
+        {(!done || watching) && <span className="flow-live"> · live</span>}
       </p>
+      {data.task.status === "COMPLETED" && (
+        <p className="flow-actions">
+          <button type="button" className="btn-secondary" disabled={busy || watching} onClick={translate}>
+            {folded.translate.state === "ok" ? "Re-run Sinhala subtitles" : "Translate subtitles to Sinhala"}
+          </button>
+          {note && <span className="flow-hint"> {note}</span>}
+        </p>
+      )}
       <StepLog id={selected} view={sel} />
     </>
   );

@@ -64,6 +64,8 @@ class SQLiteTaskRepository(ITaskRepository):
                 ("cdn_subtitles", "TEXT DEFAULT '[]'"),
                 ("runtime_minutes", "INTEGER"),
                 ("cache_failed", "INTEGER NOT NULL DEFAULT 0"),
+                ("synopsis", "TEXT"),
+                ("characters", "TEXT DEFAULT '[]'"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE ingest_tasks ADD COLUMN {col[0]} {col[1]};")
@@ -92,6 +94,19 @@ class SQLiteTaskRepository(ITaskRepository):
                 );
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS api_usage (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT,
+                    model TEXT NOT NULL,
+                    cost_usd REAL NOT NULL,
+                    tokens INTEGER NOT NULL DEFAULT 0,
+                    ts TEXT NOT NULL
+                );
+                """
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_api_usage_ts ON api_usage(ts);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_ts ON task_events(ts);")
             conn.commit()
@@ -106,8 +121,8 @@ class SQLiteTaskRepository(ITaskRepository):
                     requested_quality, resolved_quality, title, status, progress_pct,
                     message, stream_url, result_url, subtitles, available_qualities,
                     variants, upstream_stream_url, upstream_headers, cdn_subtitles, runtime_minutes,
-                    cache_failed, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    cache_failed, synopsis, characters, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(task_id) DO UPDATE SET
                     season=excluded.season,
                     episode=excluded.episode,
@@ -128,6 +143,8 @@ class SQLiteTaskRepository(ITaskRepository):
                     cdn_subtitles=excluded.cdn_subtitles,
                     runtime_minutes=excluded.runtime_minutes,
                     cache_failed=excluded.cache_failed,
+                    synopsis=excluded.synopsis,
+                    characters=excluded.characters,
                     updated_at=excluded.updated_at;
                 """,
                 (
@@ -153,6 +170,8 @@ class SQLiteTaskRepository(ITaskRepository):
                     json.dumps(task.cdn_subtitles),
                     task.runtime_minutes,
                     1 if task.cache_failed else 0,
+                    task.synopsis,
+                    json.dumps(task.characters),
                     task.created_at.isoformat(),
                     task.updated_at.isoformat(),
                 ),
@@ -197,6 +216,13 @@ class SQLiteTaskRepository(ITaskRepository):
             except Exception:
                 cdn_subs = []
 
+        characters = []
+        if "characters" in keys and row["characters"]:
+            try:
+                characters = json.loads(row["characters"])
+            except Exception:
+                characters = []
+
         return IngestTask(
             task_id=row["task_id"],
             tmdb_id=row["tmdb_id"],
@@ -220,6 +246,8 @@ class SQLiteTaskRepository(ITaskRepository):
             cdn_subtitles=cdn_subs,
             runtime_minutes=row["runtime_minutes"] if "runtime_minutes" in keys else None,
             cache_failed=bool(row["cache_failed"]) if "cache_failed" in keys else False,
+            synopsis=row["synopsis"] if "synopsis" in keys else None,
+            characters=characters,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -341,3 +369,17 @@ class SQLiteTaskRepository(ITaskRepository):
             bucket = steps.setdefault(step, {"ok": 0, "failed": 0, "running": 0, "skipped": 0})
             bucket[state] = bucket.get(state, 0) + 1
         return {"window_hours": since_hours, "steps": steps, "tasks_in_flight": running_tasks}
+
+    def add_usage(self, task_id: Optional[str], model: str, cost_usd: float, tokens: int) -> None:
+        with self._get_connection() as conn:
+            conn.execute(
+                "INSERT INTO api_usage (task_id, model, cost_usd, tokens, ts) VALUES (?, ?, ?, ?, ?)",
+                (task_id, model, cost_usd, tokens, datetime.utcnow().isoformat()),
+            )
+            conn.commit()
+
+    def usage_today(self) -> float:
+        start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        with self._get_connection() as conn:
+            row = conn.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM api_usage WHERE ts >= ?", (start,)).fetchone()
+        return float(row[0])

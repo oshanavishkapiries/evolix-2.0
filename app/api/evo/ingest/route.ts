@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { episodes, movies } from "@/db/schema";
+import { episodes, movies, seasons, shows, type CastMember } from "@/db/schema";
 import { fail, json, parseBody } from "@/lib/auth/http";
 import { env } from "@/lib/env";
 import { engineHeaders } from "@/lib/evo/engine";
@@ -21,6 +21,10 @@ const body = z
   })
   .refine((b) => b.mediaType === "movie" || (b.season !== undefined && b.episode !== undefined), "season and episode are required for tv");
 
+/** Character names (not actor names) from TMDB's cast, cleaned up: they anchor Sinhala spellings in the translation. */
+const characterNames = (cast: CastMember[]) =>
+  [...new Set(cast.map((c) => c.character.replace(/\s*\((?:voice|uncredited|archive footage)[^)]*\)/gi, "").trim()).filter(Boolean))].slice(0, 12);
+
 const INGESTS_PER_WINDOW = 12;
 const WINDOW_MS = 10 * 60_000;
 
@@ -34,14 +38,28 @@ export async function POST(req: NextRequest) {
   const { tmdbId, mediaType, quality, season, episode } = parsed.data;
 
   let runtimeMinutes: number | null = null;
+  let synopsis = "";
+  let characters: string[] = [];
   try {
     if (mediaType === "movie") {
       const id = await ensureMovie(tmdbId);
-      runtimeMinutes = (await db.select({ r: movies.runtimeMinutes }).from(movies).where(eq(movies.id, id)).limit(1))[0]?.r ?? null;
+      const [m] = await db.select({ r: movies.runtimeMinutes, overview: movies.overview, cast: movies.cast }).from(movies).where(eq(movies.id, id)).limit(1);
+      runtimeMinutes = m?.r ?? null;
+      synopsis = m?.overview ?? "";
+      characters = characterNames(m?.cast ?? []);
     } else {
       const ep = await ensureEpisode(tmdbId, season!, episode!);
       if (!ep) return fail(404, "NOT_FOUND", "Episode not found");
-      runtimeMinutes = (await db.select({ r: episodes.runtimeMinutes }).from(episodes).where(eq(episodes.id, ep.episodeId)).limit(1))[0]?.r ?? null;
+      const [row] = await db
+        .select({ r: episodes.runtimeMinutes, epOverview: episodes.overview, showOverview: shows.overview, cast: shows.cast })
+        .from(episodes)
+        .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+        .innerJoin(shows, eq(shows.id, seasons.showId))
+        .where(eq(episodes.id, ep.episodeId))
+        .limit(1);
+      runtimeMinutes = row?.r ?? null;
+      synopsis = [row?.showOverview, row?.epOverview].filter(Boolean).join(" ");
+      characters = characterNames(row?.cast ?? []);
     }
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
@@ -52,7 +70,7 @@ export async function POST(req: NextRequest) {
     const res = await fetch(`${env.EVO_ENGINE_URL}/api/v1/media/ingest`, {
       method: "POST",
       headers: engineHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: runtimeMinutes }),
+      body: JSON.stringify({ tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: runtimeMinutes, synopsis: synopsis.slice(0, 1500) || undefined, characters }),
       cache: "no-store",
     });
     if (!res.ok) return json(res.status, { error: `Evo engine returned ${res.status}` });

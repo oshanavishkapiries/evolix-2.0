@@ -31,6 +31,18 @@ class Settings(BaseSettings):
     # Delete leftover files in DOWNLOAD_DIR at startup (they belong to tasks that died with the process).
     CLEAN_ORPHANS_ON_START: bool = False
 
+    # Sinhala subtitle translation (English SRT -> casual spoken Sinhala) through OpenRouter.
+    # Disabled while OPENROUTER_API_KEY is empty.
+    OPENROUTER_API_KEY: str = ""
+    TRANSLATE_MODEL: str = "google/gemini-3.1-flash-lite"
+    TRANSLATE_CHUNK_CUES: int = 50
+    TRANSLATE_CONTEXT_CUES: int = 4
+    TRANSLATE_CONCURRENCY: int = 4
+    # Hard stop for the day (UTC); translation resumes tomorrow or when raised.
+    TRANSLATE_DAILY_BUDGET_USD: float = 1.0
+    # How long the CDN sync step waits for a running translation before shipping without it.
+    TRANSLATE_SYNC_WAIT_SECONDS: int = 900
+
     # Browsers never call the engine directly (Next.js proxies it); list origins here only if that changes.
     CORS_ORIGINS: str = ""
 

@@ -151,3 +151,5 @@ body:has(.adm) { background: #1f1f1f; }
 .adm .flow-pill[data-state="running"] { background: rgb(245 166 35 / .16); color: #f5b84a; }
 .adm .flow-pill[data-state="failed"] { background: rgb(255 107 97 / .16); color: #ff8a80; }
 @media (prefers-reduced-motion: reduce) { .adm .flow-edge[data-state="active"], .adm .flow-node[data-state="running"] .flow-box { animation: none; } }
+.adm .flow-actions { margin-top: .6rem; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.adm .flow-actions button { padding: .4rem .9rem; font-size: .85rem; }

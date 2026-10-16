@@ -27,6 +27,8 @@ STEPS = [
     "upload",
     "subtitle_sync",
     "webhook",
+    # Runs beside the main chain (English subtitles -> Sinhala) and feeds subtitle_sync.
+    "translate",
 ]
 
 
@@ -77,6 +79,9 @@ class IngestTask:
     cdn_subtitles: List[dict] = field(default_factory=list)
     # Expected length, used to reject truncated downloads before they are published.
     runtime_minutes: Optional[int] = None
+    # Context for the Sinhala translation (names, plot), supplied by the app from TMDB.
+    synopsis: Optional[str] = None
+    characters: List[str] = field(default_factory=list)
     # Streaming works but the CDN copy failed or was interrupted (a new request retries the cache).
     cache_failed: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)

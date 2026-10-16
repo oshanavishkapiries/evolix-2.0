@@ -10,6 +10,8 @@ class IngestRequest(BaseModel):
     season: Optional[int] = Field(default=None, ge=0, le=10000, description="Season number for TV shows", example=1)
     episode: Optional[int] = Field(default=None, ge=0, le=100000, description="Episode number for TV shows", example=1)
     runtime_minutes: Optional[int] = Field(default=None, ge=1, le=1000, description="Expected runtime, used to reject truncated downloads")
+    synopsis: Optional[str] = Field(default=None, max_length=1500, description="Plot summary, context for the Sinhala subtitle translation")
+    characters: List[str] = Field(default_factory=list, max_length=20, description="Character names, context for the Sinhala subtitle translation")
 
 
 class IngestResponse(BaseModel):

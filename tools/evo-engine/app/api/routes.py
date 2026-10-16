@@ -3,12 +3,15 @@ from typing import Optional
 from app.api.schemas import IngestRequest, IngestResponse, TaskStatusResponse, TaskSummary
 from app.domain.models import IngestStatus
 from app.services.ingest_service import IngestService
+from app.services.cinesrc_extractor import CineSrcStreamExtractor
+from app.services.composite_extractor import CompositeStreamExtractor
 from app.services.ythd_extractor import YtHdStreamExtractor
 from app.services.ffmpeg_downloader import FFmpegStreamDownloader
 from app.services.pixeldrain_storage import PixeldrainStorageProvider
 from app.services.sqlite_repository import SQLiteTaskRepository
 from app.services.subtitle_service import SubtitleService
 from app.services.hls_proxy import HlsProxyService
+from app.services.translation_service import SinhalaTranslator
 from app.core.config import settings
 
 router = APIRouter(prefix="/api/v1/media", tags=["Media Ingestion & Streaming"])
@@ -23,9 +26,12 @@ def verify_secret_token(x_evo_secret: Optional[str] = Header(None, alias="X-Evo-
 _repository = SQLiteTaskRepository(db_path=settings.SQLITE_DB_PATH)
 _subtitle_service = SubtitleService()
 _hls_proxy = HlsProxyService()
-_extractor = YtHdStreamExtractor()
+_cinesrc_extractor = CineSrcStreamExtractor()
+_ythd_extractor = YtHdStreamExtractor()
+_extractor = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor])
 _downloader = FFmpegStreamDownloader()
 _storage = PixeldrainStorageProvider(api_key=settings.PIXELDRAIN_API_KEY)
+_translator = SinhalaTranslator(repository=_repository)
 
 _service_instance = IngestService(
     extractor=_extractor,
@@ -33,6 +39,7 @@ _service_instance = IngestService(
     storage=_storage,
     repository=_repository,
     subtitle_service=_subtitle_service,
+    translator=_translator,
 )
 
 
@@ -49,6 +56,8 @@ def trigger_media_ingestion(
         season=request.season,
         episode=request.episode,
         runtime_minutes=request.runtime_minutes,
+        synopsis=request.synopsis,
+        characters=request.characters,
     )
     if task.status == IngestStatus.PENDING:
         background_tasks.add_task(_service_instance.process_task, task.task_id)
@@ -119,6 +128,20 @@ def list_ingest_tasks(limit: int = Query(50, ge=1, le=200)):
         )
         for t in _repository.list_all(limit)
     ]
+
+
+@router.post("/tasks/{task_id}/translate", dependencies=[Depends(verify_secret_token)])
+def translate_task_subtitles(task_id: str, background_tasks: BackgroundTasks):
+    """Adds a Sinhala subtitle track to a finished task (backfill, or retry after a failed translation)."""
+    task = _service_instance.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Ingest task not found")
+    if not _translator.enabled:
+        raise HTTPException(status_code=503, detail="Translation is not configured (OPENROUTER_API_KEY)")
+    if not task.result_url:
+        raise HTTPException(status_code=409, detail="The task has not finished caching yet")
+    background_tasks.add_task(_service_instance.translate_existing, task_id)
+    return {"queued": True}
 
 
 @router.get("/tasks/{task_id}/events", dependencies=[Depends(verify_secret_token)])
