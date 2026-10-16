@@ -50,6 +50,13 @@
       "when": 1791728149995,
       "tag": "0006_kids_and_dubs",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792123064158,
+      "tag": "0007_curvy_quicksilver",
+      "breakpoints": true
     }
   ]
 }
