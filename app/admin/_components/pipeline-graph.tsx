@@ -79,7 +79,8 @@ export type TaskInfo = { status: string; message: string; cache_failed?: boolean
 const terminal = (t: TaskInfo) => t.status === "COMPLETED" || t.status === "FAILED" || Boolean(t.cache_failed);
 
 /** One task's journey through the pipeline. Polls the engine until the task settles. */
-export function TaskFlow({ taskId, initial }: { taskId: string; initial: { task: TaskInfo; events: FlowEvent[] } }) {
+/** `subtitleJob`: an on-demand Sinhala subtitle run (no video of its own, so the video-task Translate button does not apply). */
+export function TaskFlow({ taskId, initial, subtitleJob = false }: { taskId: string; initial: { task: TaskInfo; events: FlowEvent[] }; subtitleJob?: boolean }) {
   const [data, setData] = useState(initial);
   const [selected, setSelected] = useState<StepId | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -143,7 +144,7 @@ export function TaskFlow({ taskId, initial }: { taskId: string; initial: { task:
         <strong>{data.task.status}</strong> — {data.task.message}
         {(!done || watching) && <span className="flow-live"> · live</span>}
       </p>
-      {data.task.status === "COMPLETED" && (
+      {data.task.status === "COMPLETED" && !subtitleJob && (
         <p className="flow-actions">
           <button type="button" className="btn-secondary" disabled={busy || watching} onClick={translate}>
             {folded.translate.state === "ok" ? "Re-run Sinhala subtitles" : "Translate subtitles to Sinhala"}

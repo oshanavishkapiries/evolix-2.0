@@ -22,9 +22,14 @@ Kids is TMDB-driven like the main catalog: movies are TMDB discover with US cert
 
 ## Sinhala subtitles
 
-When the engine finds an English track it also translates it to casual spoken Sinhala (OpenRouter, `TRANSLATE_MODEL`, default `google/gemini-3.1-flash-lite`). It runs beside the main chain (the `translate` node in the flow graph) and the CDN sync step waits for it, so the CDN gets both tracks and the app registers `si` ("Sinhala (AI)") as a subtitle row. The player selects Sinhala by default when it exists.
+Sinhala is translated **on demand**, the first time a viewer picks it, not by the ingest pipeline (titles nobody watches in Sinhala cost nothing). The English track is translated to casual spoken Sinhala through OpenRouter (`TRANSLATE_MODEL`, default `google/gemini-3.1-flash-lite`).
 
-- Timestamps never reach the model: it sees `[id] text` lines and the VTT is rebuilt around the original timing. Ads/credits cues are dropped, `<i>` tags restored, over-long lines wrapped. Cues the model fails to return stay in English.
+- **Player**: the subtitle menu lists "Sinhala (AI)" whenever the title has an English subtitle. If a `si` row exists it is a normal track (default-selected, no API call). If not, picking it calls `POST /api/evo/translate` and playback carries on with English; a banner ("Preparing Sinhala subtitles…", chunk progress, Retry on error, dismissable) shows while `GET /api/evo/translate` is polled every 3 s. When the track is ready it is loaded and selected. No English subtitle: the option is hidden and the subtitle panel says why.
+- **App route** (`app/api/evo/translate`): signed-in only, rate limited (6 starts / 10 min per account), keyed by `tmdbId` + `mediaType` + `season`/`episode`; no engine task id is needed. It answers from the DB when the `si` row exists, otherwise forwards title, IMDb id, synopsis and characters to the engine. A finished job is registered by the poll as well, so a lost webhook cannot lose the track.
+- **Engine** (`POST/GET /api/v1/media/subtitles/si`): one job per title/episode, stored as a task with `requested_quality = "sub:si"` so it shows in `/admin/evo` with its own flow (extract…upload `skipped`, then `subtitles`, `translate` with chunk progress, `subtitle_sync`, `webhook`). Concurrent requests join the running job (and the per-subtitle lock keeps even an admin re-run from translating twice); a failed job is retried by the next request; a finished job whose CDN file has vanished is redone. The result is uploaded to Pixeldrain and reported through the usual completion webhook as a subtitles-only payload (no `quality`/`resultUrl`), which `promote()` registers as the `si` row.
+- **Pipeline**: ingest no longer translates; its `translate` node reads `skipped (on demand)`.
+- States returned to the player: `running`, `done`, `failed`, `unavailable` (daily cap reached, or no `OPENROUTER_API_KEY`).
+
 - A tiny glossary call fixes Sinhala name spellings (from TMDB character names + synopsis, sent by `/api/evo/ingest`) so parallel chunks stay consistent.
 - One translation per title/episode (the cached file is keyed by the English subtitle id); other qualities reuse it.
 - Spend is ledgered (`api_usage`) and capped per UTC day by `TRANSLATE_DAILY_BUDGET_USD`. Typical cost: about $0.07 for a 1,100-cue film, $0.12 for a 2,400-cue one.
@@ -46,3 +51,8 @@ When the engine finds an English track it also translates it to casual spoken Si
 `/admin/evo` shows engine health, a live **pipeline graph** (per-step outcome counts for the last 24h, refreshed every 5s), recent tasks and cached sources. Click a task for its own graph (`/admin/evo/<taskId>`): an n8n-style node view where each step lights up as it runs (running = pulsing gold with a live timer, ok = green, failed = red, skipped = grey, pending = dashed). Click a node for its event log. The page polls every 2s until the task settles.
 
 The engine records one event per step transition (`task_events` in its SQLite; steps listed in `app/domain/models.py::STEPS`, mirrored in `lib/evo/flow.ts`). Endpoints: `GET /api/v1/media/tasks/{id}/events`, `GET /api/v1/media/pipeline/summary`. When adding a pipeline step, add it to both lists and emit events from `IngestService`.
+
+## Tests
+
+- Engine (stdlib `unittest`, fakes for the extractor, CDN, subtitles and model; no network, no spend): from `tools/evo-engine`, `test/.venv/bin/python -m unittest discover -s tests -t .`. Covers the on-demand Sinhala job (dedup, budget cap, retry, subtitles-only webhook, HTTP validation) and that ingest no longer translates.
+- Player (Playwright, all `/api/evo/*` calls and the CDN mocked): `pnpm build && pnpm start`, then `tests/e2e/run.sh`. It mints a throwaway session and removes it (and the source-less catalog row for TMDB 680) afterwards.
