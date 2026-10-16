@@ -26,7 +26,7 @@ export const NODES: { id: StepId; label: string; hint: string; x: number; y: num
   { id: "upload", label: "Upload video", hint: "Pixeldrain CDN", x: X0 + COL * 3, y: ROW2 },
   { id: "subtitle_sync", label: "Sync subtitles", hint: "Re-host on the CDN", x: X0 + COL * 4, y: ROW2 },
   { id: "webhook", label: "Register in app", hint: "Source row in the DB", x: X0 + COL * 5, y: ROW2 },
-  { id: "translate", label: "Sinhala subtitles", hint: "AI translation (async)", x: X0 + COL * 5, y: ROW1 },
+  { id: "translate", label: "Sinhala subtitles", hint: "AI translation, on demand", x: X0 + COL * 5, y: ROW1 },
 ];
 export const VIEW_W = X0 * 2 + COL * 5 + NODE_W;
 export const VIEW_H = ROW2 + NODE_H + 24;

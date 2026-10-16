@@ -18,13 +18,16 @@ export const promotionInput = z.object({
   mediaType: z.enum(["movie", "tv"]),
   season: z.number().int().min(0).max(10_000).nullish(),
   episode: z.number().int().min(0).max(100_000).nullish(),
-  quality: z.string().regex(/^\d{3,4}p$/),
-  resultUrl: pixeldrainUrl,
+  // Both absent for a subtitles-only completion (on-demand Sinhala translation: no video was cached).
+  quality: z.string().regex(/^\d{3,4}p$/).optional(),
+  resultUrl: pixeldrainUrl.optional(),
   subtitles: z
     .array(z.object({ language: z.string().min(2).max(10), label: z.string().min(1).max(100), url: pixeldrainUrl }))
     .max(30)
     .default([]),
-});
+})
+  .refine((b) => (b.quality === undefined) === (b.resultUrl === undefined), "quality and resultUrl go together")
+  .refine((b) => b.resultUrl !== undefined || b.subtitles.length > 0, "Nothing to register");
 export type PromotionInput = z.infer<typeof promotionInput>;
 
 /**
@@ -43,22 +46,24 @@ export async function promote(input: PromotionInput) {
     parent = { episodeId: ep.episodeId };
   }
 
-  await db
-    .insert(sources)
-    .values({
-      ...parent,
-      label: input.quality,
-      kind: "direct",
-      url: input.resultUrl,
-      quality: input.quality,
-      audioLanguage: "en",
-      sortOrder: RANK[input.quality] ?? 9,
-      isActive: true,
-    })
-    .onConflictDoUpdate({
-      target: "movieId" in parent ? [sources.movieId, sources.quality] : [sources.episodeId, sources.quality],
-      set: { url: input.resultUrl, kind: "direct", isActive: true },
-    });
+  if (input.quality && input.resultUrl) {
+    await db
+      .insert(sources)
+      .values({
+        ...parent,
+        label: input.quality,
+        kind: "direct",
+        url: input.resultUrl,
+        quality: input.quality,
+        audioLanguage: "en",
+        sortOrder: RANK[input.quality] ?? 9,
+        isActive: true,
+      })
+      .onConflictDoUpdate({
+        target: "movieId" in parent ? [sources.movieId, sources.quality] : [sources.episodeId, sources.quality],
+        set: { url: input.resultUrl, kind: "direct", isActive: true },
+      });
+  }
 
   for (const [i, sub] of input.subtitles.entries()) {
     await db

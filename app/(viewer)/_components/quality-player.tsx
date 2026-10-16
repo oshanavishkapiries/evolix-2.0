@@ -151,6 +151,7 @@ export function QualityPlayer({
         track={track}
         startAt={at}
         info={info}
+        sinhala={{ tmdbId, mediaType, season, episode }}
         qualityMenu={{ current: active.quality, options: qualities.map((q) => ({ quality: q, cached: Boolean(cached(q)) })), onSelect: select }}
       />
     </SafePlayerBoundary>

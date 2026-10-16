@@ -11,7 +11,7 @@ export function PlayerBanner({
   onAction,
   onClose,
 }: {
-  place: "top" | "side";
+  place: "top" | "side" | "start";
   title: string;
   text?: string;
   action?: string;

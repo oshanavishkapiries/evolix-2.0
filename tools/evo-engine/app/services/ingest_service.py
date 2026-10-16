@@ -3,7 +3,7 @@ import re
 import shutil
 import threading
 import uuid
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -13,12 +13,19 @@ from app.interfaces.repository import ITaskRepository
 from app.domain.models import IngestTask, IngestStatus, MediaType, StreamSource
 from app.core.config import settings
 from app.services.subtitle_service import SubtitleService
+import requests
+
 from app.services.translation_service import SinhalaTranslator
 from app.services.webhook import WebhookNotifier
 
 logger = logging.getLogger("evo.ingest")
 
 QUALITY_FALLBACK_ORDER = ["720p", "1080p", "480p", "360p"]
+
+# On-demand Sinhala subtitle jobs are stored as tasks (so the admin flow view shows them) under this marker
+# instead of a real quality; no video request ever asks for it, so the two kinds never join each other.
+SUBTITLE_JOB = "sub:si"
+_CHUNK = re.compile(r"Chunk (\d+)/(\d+)")
 
 
 def sanitize_filename(title: str) -> str:
@@ -49,9 +56,8 @@ class IngestService:
         self.subtitle_service = subtitle_service or SubtitleService()
         self.webhook = webhook or WebhookNotifier()
         self.translator = translator
-        # Translation runs beside the main chain; the CDN sync step waits for it (bounded) so the Sinhala track ships too.
+        # Sinhala subtitles are translated on demand (first viewer who picks them), never by the ingest pipeline.
         self._tr_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="translate")
-        self._translations: dict[str, Future] = {}
         self._tr_locks: dict[str, threading.Lock] = {}
         self._tr_locks_guard = threading.Lock()
         # Create-or-join must be atomic or two viewers asking for the same quality start two jobs.
@@ -204,62 +210,178 @@ class IngestService:
         with self._tr_locks_guard:
             return self._tr_locks.setdefault(key, threading.Lock())
 
-    def _start_translation(self, task: IngestTask) -> None:
-        if not (self.translator and self.translator.enabled):
-            self._event(task, "translate", "skipped", "Translation is not configured (OPENROUTER_API_KEY)")
-            return
-        if not any(s.get("language") == "en" for s in task.subtitles):
-            self._event(task, "translate", "skipped", "No English subtitles to translate")
-            return
-        self._event(task, "translate", "running", "Queued")
-        self._translations[task.task_id] = self._tr_pool.submit(self._run_translation, task)
+    def _translate_track(self, task: IngestTask, force: bool = False) -> Optional[dict]:
+        """Translates the task's English track once per title/episode and returns the Sinhala track.
 
-    def _run_translation(self, task: IngestTask, force: bool = False) -> Optional[dict]:
-        """Translates the task's English track once per title/episode; returns the Sinhala track or None."""
+        Raises on failure (BudgetExceeded when the daily cap is hit). The per-subtitle lock makes concurrent
+        requests for one title share a single translation: the later ones find the cached result.
+        """
         en = next((s for s in task.subtitles if s.get("language") == "en"), None)
         if not en or not self.translator:
             return None
         si_id = en["id"].replace("_en_", "_si_", 1)
         track = {"id": si_id, "label": "Sinhala (AI)", "language": "si", "format": "vtt", "url": f"/api/v1/media/subtitles/{si_id}.vtt"}
+        with self._tr_lock(si_id):
+            if force:
+                self.subtitle_service.delete_vtt(si_id)
+            if self.subtitle_service.has_vtt(si_id):
+                self._event(task, "translate", "skipped", "Already translated for this title")
+            else:
+                vtt = self.subtitle_service.get_vtt(en["id"])
+                if not vtt:
+                    raise RuntimeError("English subtitle could not be read")
+                self._event(task, "translate", "running", "Translating to Sinhala")
+                res = self.translator.translate_vtt(
+                    vtt,
+                    task.title or f"Media_{task.tmdb_id}",
+                    task.synopsis or "",
+                    task.characters,
+                    task_id=task.task_id,
+                    progress=lambda done, total: self._event(task, "translate", "running", f"Chunk {done}/{total}"),
+                )
+                self.subtitle_service.save_vtt(si_id, res.vtt)
+                note = f" · {'; '.join(res.warnings)}" if res.warnings else ""
+                self._event(task, "translate", "ok", f"{res.translated}/{res.cues} cues · ${res.cost_usd:.3f} · {res.seconds:.0f}s{note}")
+        task.subtitles = [s for s in task.subtitles if s.get("language") != "si"] + [track]
+        self.repository.save(task)
+        return track
+
+    def _run_translation(self, task: IngestTask, force: bool = False) -> Optional[dict]:
+        """Like _translate_track, but a failure is recorded as an event and reported as None."""
         try:
-            with self._tr_lock(si_id):
-                if force:
-                    self.subtitle_service.delete_vtt(si_id)
-                if self.subtitle_service.has_vtt(si_id):
-                    self._event(task, "translate", "skipped", "Already translated for this title")
-                else:
-                    vtt = self.subtitle_service.get_vtt(en["id"])
-                    if not vtt:
-                        raise RuntimeError("English subtitle could not be read")
-                    self._event(task, "translate", "running", "Translating to Sinhala")
-                    res = self.translator.translate_vtt(
-                        vtt,
-                        task.title or f"Media_{task.tmdb_id}",
-                        task.synopsis or "",
-                        task.characters,
-                        task_id=task.task_id,
-                        progress=lambda done, total: self._event(task, "translate", "running", f"Chunk {done}/{total}"),
-                    )
-                    self.subtitle_service.save_vtt(si_id, res.vtt)
-                    note = f" · {'; '.join(res.warnings)}" if res.warnings else ""
-                    self._event(task, "translate", "ok", f"{res.translated}/{res.cues} cues · ${res.cost_usd:.3f} · {res.seconds:.0f}s{note}")
-            task.subtitles = [s for s in task.subtitles if s.get("language") != "si"] + [track]
-            self.repository.save(task)
-            return track
+            return self._translate_track(task, force)
         except Exception as e:
             logger.warning(f"[{task.task_id}] translation failed: {e}")
             self._event(task, "translate", "failed", str(e))
             return None
 
-    def _await_translation(self, task: IngestTask) -> Optional[dict]:
-        fut = self._translations.pop(task.task_id, None)
-        if fut is None:
-            return None
+    # ---- On-demand Sinhala subtitles: a viewer picked "Sinhala (AI)" on a title that has no Sinhala track yet
+
+    def sinhala_budget_left(self) -> bool:
+        return not self.translator or self.translator.repository is None or self.translator.repository.usage_today() < settings.TRANSLATE_DAILY_BUDGET_USD
+
+    @staticmethod
+    def _cdn_alive(url: str) -> bool:
+        """Best effort: a Pixeldrain file that answers 404 is gone; any other outcome (network trouble) counts as alive."""
+        m = re.search(r"pixeldrain\.com/api/file/([A-Za-z0-9_-]+)", url or "")
+        if not m:
+            return True
         try:
-            return fut.result(timeout=settings.TRANSLATE_SYNC_WAIT_SECONDS)
+            return requests.get(f"https://pixeldrain.com/api/file/{m.group(1)}/info", timeout=6).status_code != 404
+        except Exception:
+            return True
+
+    def find_sinhala_job(self, tmdb_id: int, media_type: MediaType, season: Optional[int], episode: Optional[int]) -> Optional[IngestTask]:
+        return self.repository.get_by_tmdb_id(tmdb_id, media_type.value, SUBTITLE_JOB, season=season, episode=episode)
+
+    def request_sinhala(
+        self,
+        tmdb_id: int,
+        media_type: MediaType = MediaType.MOVIE,
+        season: Optional[int] = None,
+        episode: Optional[int] = None,
+        title: Optional[str] = None,
+        imdb_id: Optional[str] = None,
+        synopsis: Optional[str] = None,
+        characters: Optional[List[str]] = None,
+    ) -> dict:
+        """Starts (or joins) the Sinhala translation of one title/episode; returns its status (see sinhala_status).
+
+        Works from the TMDB/IMDb ids alone, no video task needed. One job per title: a running one is joined, a
+        finished one is returned as is (unless its CDN file vanished), a failed one is retried.
+        """
+        if not (self.translator and self.translator.enabled):
+            return {"state": "unavailable", "message": "Sinhala subtitles are not available right now"}
+        with self._create_lock:
+            job = self.find_sinhala_job(tmdb_id, media_type, season, episode)
+            if job and job.status in (IngestStatus.PENDING, IngestStatus.UPLOADING):
+                return self.sinhala_status(job)
+            if job and job.status == IngestStatus.COMPLETED and job.cdn_subtitles and self._cdn_alive(job.cdn_subtitles[0]["url"]):
+                return self.sinhala_status(job)
+            if not self.sinhala_budget_left():
+                return {"state": "unavailable", "message": "Sinhala subtitles are unavailable right now, try again tomorrow"}
+            job = IngestTask(
+                task_id=str(uuid.uuid4()),
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                requested_quality=SUBTITLE_JOB,
+                season=season,
+                episode=episode,
+                title=title,
+                imdb_id=imdb_id,
+                synopsis=synopsis,
+                characters=characters or [],
+                message="Queued",
+            )
+            self.repository.save(job)
+            self._event(job, "request", "ok", f"Sinhala subtitles · {media_type.value} tmdb {tmdb_id}" + (f" S{season}E{episode}" if season is not None else ""))
+            for step in ("extract", "resolve", "stream", "cdn_check", "download", "verify", "upload"):
+                self._event(job, step, "skipped", "Not needed: subtitles only")
+            self._tr_pool.submit(self.process_sinhala_job, job.task_id)
+        return self.sinhala_status(job)
+
+    def sinhala_status(self, job: Optional[IngestTask]) -> dict:
+        if job is None:
+            return {"state": "none", "message": ""}
+        out: dict = {"job_id": job.task_id, "message": job.message}
+        if job.status == IngestStatus.COMPLETED and job.cdn_subtitles:
+            sub = next((s for s in job.cdn_subtitles if s.get("language") == "si"), job.cdn_subtitles[0])
+            return {**out, "state": "done", "subtitle": {"language": "si", "label": sub.get("label", "Sinhala (AI)"), "url": sub["url"]}}
+        if job.status == IngestStatus.FAILED:
+            return {**out, "state": "unavailable" if job.message.startswith("Daily translation budget") else "failed"}
+        progress = None
+        for e in reversed(self.repository.list_events(job.task_id)):
+            m = e["step"] == "translate" and _CHUNK.search(e["detail"])
+            if m:
+                progress = {"done": int(m.group(1)), "total": int(m.group(2))}
+                break
+        return {**out, "state": "running", "progress": progress}
+
+    def process_sinhala_job(self, job_id: str) -> None:
+        job = self.repository.get_by_id(job_id)
+        if not job:
+            return
+        step = "subtitles"
+        try:
+            self._set(job, IngestStatus.UPLOADING, "Finding the English subtitle")
+            self._event(job, "subtitles", "running", "Searching 10 languages")
+            tracks = self.subtitle_service.fetch_subtitles(job.imdb_id, season=job.season, episode=job.episode)
+            job.subtitles = tracks
+            if not any(t.get("language") in ("en", "si") for t in tracks):
+                raise RuntimeError("This title has no English subtitle to translate from")
+            self._event(job, "subtitles", "ok", f"{len(tracks)} track(s)")
+            step = "translate"
+
+            native = next((t for t in tracks if t.get("language") == "si"), None)
+            if native:
+                self._event(job, "translate", "skipped", "A Sinhala subtitle already exists, no translation needed")
+                track = native
+            else:
+                self._set(job, message="Translating to Sinhala")
+                track = self._translate_track(job)
+                if not track:
+                    raise RuntimeError("Translation produced no subtitle")
+
+            step = "subtitle_sync"
+            self._set(job, message="Uploading the Sinhala track")
+            self._event(job, "subtitle_sync", "running", "Uploading the Sinhala track")
+            uploaded = self._upload_subtitles(job, self._base_name(job), only=[track])
+            if not uploaded:
+                raise RuntimeError("Sinhala track could not be uploaded")
+            job.cdn_subtitles = uploaded
+            self._event(job, "subtitle_sync", "ok", "Sinhala track on the CDN")
+
+            if settings.EVO_WEBHOOK_URL:
+                self._event(job, "webhook", "running", "Registering in the app")
+                ok = self.webhook.notify_subtitles(job)
+                self._event(job, "webhook", "ok" if ok else "failed", "App registered the track" if ok else "App did not acknowledge (its next poll registers it)")
+            else:
+                self._event(job, "webhook", "skipped", "No webhook configured")
+            self._set(job, IngestStatus.COMPLETED, "Sinhala subtitles ready", 100)
         except Exception as e:
-            logger.warning(f"[{task.task_id}] gave up waiting for translation: {e}")
-            return None
+            logger.warning(f"[{job_id}] Sinhala subtitle job failed: {e}")
+            self._event(job, step, "failed", str(e))
+            self._set(job, IngestStatus.FAILED, str(e))
 
     def translate_existing(self, task_id: str) -> None:
         """Adds a Sinhala track to a finished task (cached before translation existed, or a failed translation)."""
@@ -352,7 +474,7 @@ class IngestService:
                 logger.warning(f"[{task_id}] Subtitle fetch failed: {sub_err}")
                 task.subtitles = []
                 self._event(task, "subtitles", "failed", f"{sub_err} (playback continues without subtitles)")
-            self._start_translation(task)
+            self._event(task, "translate", "skipped", "Skipped (on demand): translated when a viewer picks Sinhala")
             step = "stream"
 
             # 3. INSTANT STREAM READY: playback does not wait for the CDN copy.
@@ -374,12 +496,7 @@ class IngestService:
                 for reused in ("download", "verify", "upload"):
                     self._event(task, reused, "skipped", "Reused the cached copy")
                 twin_subs = list(twin.cdn_subtitles)
-                si_track = self._await_translation(task)
-                if si_track and not any(x.get("language") == "si" for x in twin_subs):
-                    twin_subs += self._upload_subtitles(task, self._base_name(task), only=[si_track])
-                    self._event(task, "subtitle_sync", "ok", "Added the Sinhala track")
-                else:
-                    self._event(task, "subtitle_sync", "skipped", "Reused the cached copy")
+                self._event(task, "subtitle_sync", "skipped", "Reused the cached copy")
                 self._finish_completed(task, twin.result_url, twin_subs, f"Already cached ({task.resolved_quality})")
                 return
 
@@ -423,7 +540,6 @@ class IngestService:
 
             # 6. Subtitles follow the video onto the CDN, then the task is complete
             step = "subtitle_sync"
-            self._await_translation(task)
             if task.subtitles:
                 self._event(task, "subtitle_sync", "running", f"Uploading {len(task.subtitles)} track(s)")
                 subs = self._upload_subtitles(task, base_name)

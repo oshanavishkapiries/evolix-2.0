@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header, Response, Query
 from typing import Optional
-from app.api.schemas import IngestRequest, IngestResponse, TaskStatusResponse, TaskSummary
-from app.domain.models import IngestStatus
+from app.api.schemas import IngestRequest, IngestResponse, SinhalaSubtitleRequest, TaskStatusResponse, TaskSummary
+from app.domain.models import IngestStatus, MediaType
 from app.services.ingest_service import IngestService
 from app.services.cinesrc_extractor import CineSrcStreamExtractor
 from app.services.composite_extractor import CompositeStreamExtractor
@@ -145,6 +145,35 @@ def translate_task_subtitles(task_id: str, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=409, detail="The task has not finished caching yet")
     background_tasks.add_task(_service_instance.translate_existing, task_id)
     return {"queued": True}
+
+
+@router.post("/subtitles/si", dependencies=[Depends(verify_secret_token)])
+def request_sinhala_subtitles(request: SinhalaSubtitleRequest):
+    """Starts (or joins) the Sinhala translation of a title/episode, identified by TMDB/IMDb ids alone.
+
+    Returns {state: running | done | failed | unavailable, progress?, subtitle?}; poll GET /subtitles/si for it.
+    """
+    return _service_instance.request_sinhala(
+        tmdb_id=request.tmdb_id,
+        media_type=request.media_type,
+        season=request.season,
+        episode=request.episode,
+        title=request.title,
+        imdb_id=request.imdb_id,
+        synopsis=request.synopsis,
+        characters=request.characters,
+    )
+
+
+@router.get("/subtitles/si", dependencies=[Depends(verify_secret_token)])
+def get_sinhala_subtitles_status(
+    tmdb_id: int = Query(..., gt=0),
+    media_type: MediaType = Query(MediaType.MOVIE),
+    season: Optional[int] = Query(None, ge=0, le=10000),
+    episode: Optional[int] = Query(None, ge=0, le=100000),
+):
+    """Progress of the Sinhala translation for a title (state "none" when nobody asked for it yet)."""
+    return _service_instance.sinhala_status(_service_instance.find_sinhala_job(tmdb_id, media_type, season, episode))
 
 
 @router.get("/tasks/{task_id}/events", dependencies=[Depends(verify_secret_token)])

@@ -19,6 +19,7 @@ import {
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { loadStyle, saveStyle, styleVars, type SubStyle } from "./subtitle-style";
 import { PlayerBanner, useQualityAdvisor } from "./player-banner";
+import { useSinhalaSubtitles, type SinhalaTarget } from "./sinhala-subtitles";
 import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
@@ -51,6 +52,7 @@ export default function PlayerImpl({
   startAt = 0,
   info,
   qualityMenu,
+  sinhala,
 }: {
   title: string;
   source: Pick<WatchSource, "kind" | "url"> & { id?: string };
@@ -61,8 +63,12 @@ export default function PlayerImpl({
   startAt?: number;
   info?: PauseInfo;
   qualityMenu?: QualityMenu;
+  /** Which title the "Sinhala (AI)" subtitles are made for on demand; omitted = no such option. */
+  sinhala?: SinhalaTarget;
 }) {
   const player = useRef<MediaPlayerInstance>(null);
+  const si = useSinhalaSubtitles({ target: sinhala, subtitles: subtitles ?? [], player });
+  const allSubtitles = si.tracks;
   const lastSave = useRef(0);
   const seekTo = useRef(startAt);
 
@@ -157,7 +163,7 @@ export default function PlayerImpl({
   const candidates = playbackCandidates(source.kind, source.url, hint);
   const current = candidates[Math.min(attempt, candidates.length - 1)];
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
-  const defaultSub = ((subtitles ?? []).find((s) => isSinhala(s.language)) ?? (subtitles ?? []).find((s) => isEnglish(s.language)))?.id;
+  const defaultSub = (allSubtitles.find((s) => s.url && isSinhala(s.language)) ?? allSubtitles.find((s) => isEnglish(s.language)))?.id;
 
   // ---- quality: never switched behind the viewer's back. HLS starts on 720p and stays there (no adaptive
   // switching, no "switching" toast); a better-fitting quality is only ever suggested (see the advisor below).
@@ -262,6 +268,7 @@ export default function PlayerImpl({
         clearTimeout(noteTimer.current);
         noteTimer.current = setTimeout(() => setStartNote(false), START_NOTE_MS);
       }}
+      onTextTrackChange={si.onTrackChange}
       onWaiting={() => {
         const st = player.current?.state;
         if (started && st && !st.seeking && !st.paused) advisor.noteStall();
@@ -299,10 +306,10 @@ export default function PlayerImpl({
       }}
     >
       <MediaProvider>
-        {subtitles.map((s) => (
+        {allSubtitles.map((s) => (
           <Track
             key={s.id}
-            src={s.url}
+            {...(s.url ? { src: s.url } : { content: "WEBVTT\n" })}
             kind="subtitles"
             type={s.format}
             label={s.label}
@@ -313,6 +320,7 @@ export default function PlayerImpl({
         ))}
       </MediaProvider>
       {info && paused && !subOpen && <PauseOverlay info={info} />}
+      {si.banner}
       {startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
       {advisor.advice && (
         <PlayerBanner
@@ -328,7 +336,7 @@ export default function PlayerImpl({
         icons={defaultLayoutIcons}
         noScrubGesture={false}
         slots={{
-          ...(subtitles.length > 0 ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> } : {}),
+          ...(allSubtitles.length > 0 ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> } : {}),
           ...(qualityMenu
             ? {
                 settingsMenuItemsStart: (
@@ -347,7 +355,7 @@ export default function PlayerImpl({
             : {}),
         }}
       />
-      {subtitles.length > 0 && (
+      {allSubtitles.length > 0 && (
         <SubtitleTools
           open={subOpen}
           tab={subTab}
@@ -355,6 +363,7 @@ export default function PlayerImpl({
           onClose={closeSubPanel}
           style={subStyle}
           onStyle={changeSubStyle}
+          note={si.unavailableNote}
         />
       )}
     </MediaPlayer>

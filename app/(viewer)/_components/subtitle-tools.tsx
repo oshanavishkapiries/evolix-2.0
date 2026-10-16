@@ -61,6 +61,7 @@ export function SubtitleTools({
   onClose,
   style,
   onStyle,
+  note,
 }: {
   open: boolean;
   tab: SubTab;
@@ -68,6 +69,8 @@ export function SubtitleTools({
   onClose: () => void;
   style: SubStyle;
   onStyle: (s: SubStyle) => void;
+  /** Explains a missing option (e.g. why there is no Sinhala subtitle). */
+  note?: string | null;
 }) {
   const player = useMediaPlayer();
   const track = useActiveTextTrack(KINDS);
@@ -173,7 +176,7 @@ export function SubtitleTools({
           </button>
         </header>
         <div className="v-sub-body">
-          <LanguagePicker />
+          <LanguagePicker note={note} />
           {open && tab === "style" && <StyleTab style={style} onStyle={onStyle} />}
           {open && tab === "sync" &&
             (!track ? (
@@ -189,7 +192,7 @@ export function SubtitleTools({
   );
 }
 
-function LanguagePicker() {
+function LanguagePicker({ note }: { note?: string | null }) {
   const options = useCaptionOptions({ off: "Off" });
   if (options.length <= 1) return null;
   return (
@@ -202,6 +205,7 @@ function LanguagePicker() {
           </button>
         ))}
       </div>
+      {note && <p className="v-sub-note">{note}</p>}
     </div>
   );
 }

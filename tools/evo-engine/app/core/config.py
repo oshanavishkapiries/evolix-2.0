@@ -40,8 +40,6 @@ class Settings(BaseSettings):
     TRANSLATE_CONCURRENCY: int = 4
     # Hard stop for the day (UTC); translation resumes tomorrow or when raised.
     TRANSLATE_DAILY_BUDGET_USD: float = 1.0
-    # How long the CDN sync step waits for a running translation before shipping without it.
-    TRANSLATE_SYNC_WAIT_SECONDS: int = 900
 
     # Browsers never call the engine directly (Next.js proxies it); list origins here only if that changes.
     CORS_ORIGINS: str = ""

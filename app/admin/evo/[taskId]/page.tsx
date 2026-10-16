@@ -27,11 +27,11 @@ async function Task({ params }: Props) {
       <Breadcrumbs items={[{ label: "Evo pipeline", href: "/admin/evo" }, { label: `${task.title ?? `TMDB ${task.tmdb_id}`}${se}` }]} />
       <PageHeader title={`${task.title ?? `TMDB ${task.tmdb_id}`}${se}`} />
       <p className="text-sm">
-        asked {task.requested_quality}
+        {task.requested_quality === "sub:si" ? "Sinhala subtitles (on demand)" : `asked ${task.requested_quality}`}
         {task.resolved_quality && task.resolved_quality !== task.requested_quality ? `, got ${task.resolved_quality}` : ""} · task <code>{task.task_id}</code>
       </p>
       <div className="mt-4">
-        <TaskFlow taskId={task.task_id} initial={{ task: { status: task.status, message: task.message, cache_failed: task.cache_failed }, events }} />
+        <TaskFlow subtitleJob={task.requested_quality === "sub:si"} taskId={task.task_id} initial={{ task: { status: task.status, message: task.message, cache_failed: task.cache_failed }, events }} />
       </div>
     </>
   );

@@ -1,15 +1,12 @@
 import { NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/db";
-import { episodes, movies, seasons, shows, type CastMember } from "@/db/schema";
 import { fail, json, parseBody } from "@/lib/auth/http";
 import { env } from "@/lib/env";
 import { engineHeaders } from "@/lib/evo/engine";
-import { ensureEpisode, ensureMovie } from "@/lib/evo/ensure";
+import { titleContext } from "@/lib/evo/context";
 import { allow, viewerId } from "@/lib/evo/guard";
 import { promote, promotionFromTask, QUALITIES } from "@/lib/evo/promote";
-import { getImdbId, TmdbError } from "@/lib/tmdb";
+import { TmdbError } from "@/lib/tmdb";
 
 const body = z
   .object({
@@ -20,10 +17,6 @@ const body = z
     episode: z.number().int().min(0).max(100_000).optional(),
   })
   .refine((b) => b.mediaType === "movie" || (b.season !== undefined && b.episode !== undefined), "season and episode are required for tv");
-
-/** Character names (not actor names) from TMDB's cast, cleaned up: they anchor Sinhala spellings in the translation. */
-const characterNames = (cast: CastMember[]) =>
-  [...new Set(cast.map((c) => c.character.replace(/\s*\((?:voice|uncredited|archive footage)[^)]*\)/gi, "").trim()).filter(Boolean))].slice(0, 12);
 
 const INGESTS_PER_WINDOW = 12;
 const WINDOW_MS = 10 * 60_000;
@@ -37,47 +30,22 @@ export async function POST(req: NextRequest) {
   if ("error" in parsed) return parsed.error;
   const { tmdbId, mediaType, quality, season, episode } = parsed.data;
 
-  let runtimeMinutes: number | null = null;
-  let synopsis = "";
-  let characters: string[] = [];
   // Canonical name and IMDb id come from us, not from whichever provider the engine extracts from: providers name
   // titles after their own site, and without an IMDb id there are no subtitles (and nothing to translate).
-  let title = "";
-  let imdbId: string | null = null;
+  let ctx;
   try {
-    if (mediaType === "movie") {
-      const id = await ensureMovie(tmdbId);
-      const [m] = await db.select({ r: movies.runtimeMinutes, overview: movies.overview, cast: movies.cast, title: movies.title }).from(movies).where(eq(movies.id, id)).limit(1);
-      runtimeMinutes = m?.r ?? null;
-      synopsis = m?.overview ?? "";
-      characters = characterNames(m?.cast ?? []);
-      title = m?.title ?? "";
-    } else {
-      const ep = await ensureEpisode(tmdbId, season!, episode!);
-      if (!ep) return fail(404, "NOT_FOUND", "Episode not found");
-      const [row] = await db
-        .select({ r: episodes.runtimeMinutes, epOverview: episodes.overview, showOverview: shows.overview, cast: shows.cast, showName: shows.name })
-        .from(episodes)
-        .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-        .innerJoin(shows, eq(shows.id, seasons.showId))
-        .where(eq(episodes.id, ep.episodeId))
-        .limit(1);
-      runtimeMinutes = row?.r ?? null;
-      synopsis = [row?.showOverview, row?.epOverview].filter(Boolean).join(" ");
-      characters = characterNames(row?.cast ?? []);
-      title = row?.showName ?? "";
-    }
-    imdbId = await getImdbId(mediaType === "movie" ? "movie" : "tv", tmdbId).catch(() => null);
+    ctx = await titleContext(mediaType, tmdbId, season, episode);
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
     throw e;
   }
+  if (!ctx) return fail(404, "NOT_FOUND", "Episode not found");
 
   try {
     const res = await fetch(`${env.EVO_ENGINE_URL}/api/v1/media/ingest`, {
       method: "POST",
       headers: engineHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: runtimeMinutes, synopsis: synopsis.slice(0, 1500) || undefined, characters, title: title || undefined, imdb_id: imdbId ?? undefined }),
+      body: JSON.stringify({ tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: ctx.runtimeMinutes, synopsis: ctx.synopsis.slice(0, 1500) || undefined, characters: ctx.characters, title: ctx.title || undefined, imdb_id: ctx.imdbId ?? undefined }),
       cache: "no-store",
     });
     if (!res.ok) return json(res.status, { error: `Evo engine returned ${res.status}` });

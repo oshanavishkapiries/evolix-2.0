@@ -67,7 +67,7 @@ async function EvoOverview() {
                     <Link href={`/admin/evo/${t.task_id}`}>{t.title ?? `TMDB ${t.tmdb_id}`}</Link>
                     <div className="text-xs">{code(t.season, t.episode)}</div>
                   </td>
-                  <td>{t.resolved_quality ?? t.requested_quality}</td>
+                  <td>{t.requested_quality === "sub:si" ? "Sinhala subtitles" : (t.resolved_quality ?? t.requested_quality)}</td>
                   <td>{t.cache_failed ? `${t.status} (cache failed)` : t.status}</td>
                   <td style={{ maxWidth: "24rem", overflowWrap: "anywhere" }}>{t.message}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{fmt(t.updated_at)}</td>

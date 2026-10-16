@@ -15,6 +15,17 @@ class WebhookNotifier:
     """Tells the app a quality finished caching so it can register the CDN file as a source."""
 
     def notify_completed(self, task: IngestTask) -> bool:
+        return self._post(task, {
+            "quality": task.resolved_quality or task.requested_quality,
+            "resultUrl": task.result_url,
+            "subtitles": task.cdn_subtitles,
+        })
+
+    def notify_subtitles(self, task: IngestTask) -> bool:
+        """A subtitle-only completion (on-demand Sinhala): no video, so the app only registers the tracks."""
+        return self._post(task, {"subtitles": task.cdn_subtitles})
+
+    def _post(self, task: IngestTask, body: dict) -> bool:
         if not settings.EVO_WEBHOOK_URL:
             logger.info("EVO_WEBHOOK_URL not set; skipping completion webhook")
             return False
@@ -24,9 +35,7 @@ class WebhookNotifier:
             "mediaType": task.media_type.value,
             "season": task.season,
             "episode": task.episode,
-            "quality": task.resolved_quality or task.requested_quality,
-            "resultUrl": task.result_url,
-            "subtitles": task.cdn_subtitles,
+            **body,
         }
         headers = {"X-Evo-Secret": settings.EVO_SECRET_TOKEN} if settings.EVO_SECRET_TOKEN else {}
         for delay in RETRY_DELAYS:

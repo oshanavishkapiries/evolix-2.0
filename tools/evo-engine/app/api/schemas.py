@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List, Dict, Any
 from app.domain.models import IngestStatus, MediaType
 
@@ -14,6 +14,25 @@ class IngestRequest(BaseModel):
     imdb_id: Optional[str] = Field(default=None, pattern=r"^tt\d{5,10}$", description="IMDb id; needed to find subtitles")
     synopsis: Optional[str] = Field(default=None, max_length=1500, description="Plot summary, context for the Sinhala subtitle translation")
     characters: List[str] = Field(default_factory=list, max_length=20, description="Character names, context for the Sinhala subtitle translation")
+
+
+class SinhalaSubtitleRequest(BaseModel):
+    """Identifies the title by ids alone: no video task has to exist (or still exist) for a translation."""
+
+    tmdb_id: int = Field(..., gt=0)
+    media_type: MediaType = MediaType.MOVIE
+    season: Optional[int] = Field(default=None, ge=0, le=10000)
+    episode: Optional[int] = Field(default=None, ge=0, le=100000)
+    title: Optional[str] = Field(default=None, max_length=300)
+    imdb_id: Optional[str] = Field(default=None, pattern=r"^tt\d{5,10}$", description="IMDb id; needed to find the English subtitle")
+    synopsis: Optional[str] = Field(default=None, max_length=1500)
+    characters: List[str] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def _tv_needs_episode(self):
+        if self.media_type == MediaType.TV and (self.season is None or self.episode is None):
+            raise ValueError("season and episode are required for tv")
+        return self
 
 
 class IngestResponse(BaseModel):

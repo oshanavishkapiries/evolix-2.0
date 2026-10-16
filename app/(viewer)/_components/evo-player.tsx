@@ -222,31 +222,6 @@ export function EvoPlayer({
     return () => clearTimeout(pollTimer.current);
   }, [taskId, activeSource, tmdbId, season, episode, stage]);
 
-  // The Sinhala translation finishes after playback has started: keep looking for the track for a while.
-  useEffect(() => {
-    if (stage !== "READY" || !taskId || activeSubtitles.some((s) => s.language === "si")) return;
-    let live = true;
-    let polls = 0;
-    const tick = setInterval(async () => {
-      if (++polls > 60) return clearInterval(tick); // ~8 minutes
-      try {
-        const res = await fetch(`/api/evo/status/${taskId}`, { cache: "no-store" });
-        const data = res.ok ? await res.json() : null;
-        const si = Array.isArray(data?.subtitles) ? formatSubtitles(data.subtitles).filter((s) => s.language === "si") : [];
-        if (live && si.length) {
-          setActiveSubtitles((prev) => [...prev, ...si.filter((n) => !prev.some((p) => p.id === n.id))]);
-          clearInterval(tick);
-        }
-      } catch {
-        // transient; try again on the next tick
-      }
-    }, 8000);
-    return () => {
-      live = false;
-      clearInterval(tick);
-    };
-  }, [stage, taskId, activeSubtitles]);
-
   // Clean up poll timer on unmount
   useEffect(() => {
     return () => clearTimeout(pollTimer.current);
@@ -271,6 +246,7 @@ export function EvoPlayer({
           track={track}
           startAt={startAt}
           info={info}
+          sinhala={{ tmdbId, mediaType, season, episode }}
         />
       </SafePlayerBoundary>
     );
