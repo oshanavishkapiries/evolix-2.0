@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { engineOverview, recentCachedSources } from "@/lib/cms/evo";
+import { engineOverview, engineSummary, recentCachedSources } from "@/lib/cms/evo";
+import { SummaryFlow } from "../_components/pipeline-graph";
 import { PageHeader } from "../_components/page-header";
 
 const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
@@ -18,7 +19,7 @@ export default function EvoPage() {
 }
 
 async function EvoOverview() {
-  const [engine, cached] = await Promise.all([engineOverview(), recentCachedSources()]);
+  const [engine, cached, summary] = await Promise.all([engineOverview(), recentCachedSources(), engineSummary()]);
   const failed = engine.tasks.filter((t) => t.status === "FAILED" || t.cache_failed);
 
   return (
@@ -39,6 +40,11 @@ async function EvoOverview() {
         </p>
       )}
 
+      <h2 className="mt-6">Pipeline</h2>
+      <div className="mt-2">
+        <SummaryFlow initial={summary} />
+      </div>
+
       <h2 className="mt-6">Engine tasks</h2>
       {!engine.tasks.length ? (
         <p className="mt-2 text-sm">No tasks yet.</p>
@@ -58,7 +64,7 @@ async function EvoOverview() {
               {engine.tasks.map((t) => (
                 <tr key={t.task_id}>
                   <td>
-                    {t.title ?? `TMDB ${t.tmdb_id}`}
+                    <Link href={`/admin/evo/${t.task_id}`}>{t.title ?? `TMDB ${t.tmdb_id}`}</Link>
                     <div className="text-xs">{code(t.season, t.episode)}</div>
                   </td>
                   <td>{t.resolved_quality ?? t.requested_quality}</td>

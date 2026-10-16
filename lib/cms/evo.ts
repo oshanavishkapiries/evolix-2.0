@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { episodes, movies, seasons, shows, sources } from "@/db/schema";
 import { env } from "@/lib/env";
 import { engineHeaders } from "@/lib/evo/engine";
+import type { FlowEvent, Summary } from "@/lib/evo/flow";
 
 export type EngineTask = {
   task_id: string;
@@ -69,3 +70,25 @@ export async function recentCachedSources(limit = 40) {
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, limit);
 }
+
+const engineGet = async <T>(path: string): Promise<T | null> => {
+  try {
+    const res = await fetch(`${env.EVO_ENGINE_URL}${path}`, { headers: engineHeaders(), cache: "no-store", signal: AbortSignal.timeout(5000) });
+    return res.ok ? ((await res.json()) as T) : null;
+  } catch {
+    return null;
+  }
+};
+
+export type TaskDetail = EngineTask & { progress_pct: number; imdb_id?: string | null; subtitles?: unknown[] | null; cdn_subtitles?: unknown[] | null };
+
+/** One engine task with its step events; null when the engine is down or the task is unknown. */
+export async function engineTaskDetail(taskId: string): Promise<{ task: TaskDetail; events: FlowEvent[] } | null> {
+  const [task, events] = await Promise.all([
+    engineGet<TaskDetail>(`/api/v1/media/status/${taskId}`),
+    engineGet<FlowEvent[]>(`/api/v1/media/tasks/${taskId}/events`),
+  ]);
+  return task ? { task, events: events ?? [] } : null;
+}
+
+export const engineSummary = () => engineGet<Summary>("/api/v1/media/pipeline/summary?hours=24");
