@@ -16,7 +16,9 @@ class SQLiteTaskRepository(ITaskRepository):
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn = sqlite3.connect(str(self.db_path), check_same_thread=False, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -106,6 +108,7 @@ class SQLiteTaskRepository(ITaskRepository):
                 );
                 """
             )
+            conn.execute("CREATE TABLE IF NOT EXISTS runtime_config (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_api_usage_ts ON api_usage(ts);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_ts ON task_events(ts);")
@@ -383,3 +386,38 @@ class SQLiteTaskRepository(ITaskRepository):
         with self._get_connection() as conn:
             row = conn.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM api_usage WHERE ts >= ?", (start,)).fetchone()
         return float(row[0])
+
+
+    # ---- admin controls: runtime settings, task removal, CDN bookkeeping
+
+    def get_config(self) -> dict:
+        import json
+        with self._get_connection() as conn:
+            return {r["key"]: json.loads(r["value"]) for r in conn.execute("SELECT key, value FROM runtime_config")}
+
+    def set_config(self, key: str, value) -> None:
+        import json
+        with self._get_connection() as conn:
+            conn.execute("INSERT INTO runtime_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, json.dumps(value)))
+            conn.commit()
+
+    def delete_config(self, key: str) -> None:
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM runtime_config WHERE key = ?", (key,))
+            conn.commit()
+
+    def delete_task(self, task_id: str) -> None:
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM task_events WHERE task_id = ?", (task_id,))
+            conn.execute("DELETE FROM ingest_tasks WHERE task_id = ?", (task_id,))
+            conn.commit()
+
+    def clear_cdn_url(self, url: str) -> int:
+        """Forgets a CDN file that was deleted: its tasks are no longer 'completed', so a new request re-caches."""
+        with self._get_connection() as conn:
+            n = conn.execute(
+                "UPDATE ingest_tasks SET result_url = NULL, status = 'FAILED', message = 'CDN file removed by an admin', updated_at = ? WHERE result_url = ?",
+                (datetime.utcnow().isoformat(), url),
+            ).rowcount
+            conn.commit()
+        return n

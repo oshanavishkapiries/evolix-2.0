@@ -17,8 +17,7 @@ const target = z
   })
   .refine((b) => b.mediaType === "movie" || (b.season !== undefined && b.episode !== undefined), "season and episode are required for tv");
 
-// A translation costs money, so starting one is tight; looking at its progress is cheap.
-const START_PER_WINDOW = 6;
+// Starting a translation is not rate limited for now (no spend cap either); only progress polling is.
 const POLL_PER_WINDOW = 200;
 const WINDOW_MS = 10 * 60_000;
 
@@ -33,7 +32,6 @@ const engineUrl = (t: SinhalaTarget) =>
 export async function POST(req: NextRequest) {
   const userId = await viewerId(req);
   if (!userId) return fail(401, "UNAUTHORIZED", "Not authenticated");
-  if (!allow(`translate:${userId}`, START_PER_WINDOW, WINDOW_MS)) return fail(429, "RATE_LIMITED", "Too many subtitle requests, try again in a few minutes");
   const parsed = await parseBody(req, target);
   if ("error" in parsed) return parsed.error;
   const t: SinhalaTarget = parsed.data;

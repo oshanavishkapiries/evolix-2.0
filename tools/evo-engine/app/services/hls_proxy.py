@@ -17,7 +17,7 @@ class HlsProxyService:
     """Proxies HLS playlists and media segments from upstream tokenized CDNs."""
 
     def __init__(self):
-        self._session = requests.Session(impersonate="chrome124")
+        self._session = requests.AsyncSession(impersonate="chrome124", max_clients=200)
         # Child URLs are signed so the segment/variant endpoints can only fetch what a playlist we served pointed at
         # (otherwise they would fetch any URL a caller supplies). Without a shared secret the key is per-process.
         self._key = (settings.EVO_SECRET_TOKEN or secrets.token_hex(32)).encode()
@@ -42,7 +42,7 @@ class HlsProxyService:
         "360p": {"bandwidth": 650000, "resolution": "640x360", "name": "360p"},
     }
 
-    def rewrite_master_playlist(
+    async def rewrite_master_playlist(
         self,
         task: IngestTask,
         proxy_base_path: str,
@@ -81,7 +81,7 @@ class HlsProxyService:
 
         headers = task.upstream_headers or {}
         try:
-            r = self._session.get(upstream_url, headers=headers, timeout=10)
+            r = await self._session.get(upstream_url, headers=headers, timeout=10)
             if r.status_code != 200:
                 logger.error(f"Failed to fetch upstream playlist ({r.status_code}) from {upstream_url}")
                 return None
@@ -113,7 +113,7 @@ class HlsProxyService:
             logger.exception(f"Error rewriting master playlist for task {task.task_id}: {e}")
             return None
 
-    def rewrite_variant_playlist(
+    async def rewrite_variant_playlist(
         self,
         variant_url: str,
         task: IngestTask,
@@ -122,7 +122,7 @@ class HlsProxyService:
         """Fetches upstream variant playlist and rewrites segment URLs to route through proxy."""
         headers = task.upstream_headers or {}
         try:
-            r = self._session.get(variant_url, headers=headers, timeout=10)
+            r = await self._session.get(variant_url, headers=headers, timeout=10)
             if r.status_code != 200:
                 logger.error(f"Failed to fetch variant playlist ({r.status_code}) from {variant_url}")
                 return None
@@ -155,7 +155,7 @@ class HlsProxyService:
             logger.exception(f"Error rewriting variant playlist {variant_url}: {e}")
             return None
 
-    def fetch_segment(
+    async def fetch_segment(
         self,
         segment_url: str,
         task: IngestTask,
@@ -166,6 +166,6 @@ class HlsProxyService:
         if range_header:
             headers["Range"] = range_header
 
-        r = self._session.get(segment_url, headers=headers, timeout=15)
+        r = await self._session.get(segment_url, headers=headers, timeout=15)
         content_type = r.headers.get("Content-Type", "video/mp2t")
         return r.status_code, {"Content-Type": content_type}, r.content

@@ -4,7 +4,7 @@ import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import router as media_router, _repository
+from app.api.routes import router as media_router, _repository, load_runtime_config
 from app.core.config import settings
 
 logger = logging.getLogger("evo.main")
@@ -20,6 +20,7 @@ logging.basicConfig(
 async def lifespan(_: FastAPI):
     if not settings.EVO_SECRET_TOKEN:
         logger.warning("EVO_SECRET_TOKEN is empty: the engine accepts unauthenticated requests")
+    load_runtime_config()
     # Background jobs die with the process; without this they would look in-flight forever.
     recovered = _repository.recover_interrupted()
     if recovered:

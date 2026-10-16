@@ -1,5 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header, Response, Query
 from typing import Optional
+from pydantic import BaseModel
 from app.api.schemas import IngestRequest, IngestResponse, SinhalaSubtitleRequest, TaskStatusResponse, TaskSummary
 from app.domain.models import IngestStatus, MediaType
 from app.services.ingest_service import IngestService
@@ -14,6 +15,7 @@ from app.services.subtitle_service import SubtitleService
 from app.services.hls_proxy import HlsProxyService
 from app.services.translation_service import SinhalaTranslator
 from app.core.config import settings
+from app.core import runtime_config
 
 router = APIRouter(prefix="/api/v1/media", tags=["Media Ingestion & Streaming"])
 
@@ -44,6 +46,24 @@ _service_instance = IngestService(
 )
 
 
+_stream_cache: dict = {}
+
+
+def _stream_task(task_id: str):
+    """Task lookup for the hot streaming path (a playlist/segment request per few seconds per viewer): cached for 10s."""
+    import time
+    now = time.monotonic()
+    hit = _stream_cache.get(task_id)
+    if hit and now - hit[0] < 10:
+        return hit[1]
+    task = _service_instance.get_task(task_id)
+    if len(_stream_cache) > 2000:
+        _stream_cache.clear()
+    if task:
+        _stream_cache[task_id] = (now, task)
+    return task
+
+
 @router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(verify_secret_token)])
 def trigger_media_ingestion(
     request: IngestRequest,
@@ -62,8 +82,11 @@ def trigger_media_ingestion(
         title=request.title,
         imdb_id=request.imdb_id,
     )
-    if task.status == IngestStatus.PENDING:
-        background_tasks.add_task(_service_instance.process_task, task.task_id)
+    if task.status == IngestStatus.PENDING and not _service_instance.enqueue(task.task_id):
+        task.status = IngestStatus.FAILED
+        task.message = "Engine is busy, try again shortly"
+        _repository.save(task)
+        raise HTTPException(status_code=503, detail="Engine is busy, try again shortly", headers={"Retry-After": "30"})
 
     return IngestResponse(
         task_id=task.task_id,
@@ -196,14 +219,14 @@ def get_pipeline_summary(hours: int = Query(24, ge=1, le=168)):
 
 
 @router.get("/stream/{task_id}/master.m3u8", dependencies=[Depends(verify_secret_token)])
-def get_proxy_master_playlist(task_id: str):
+async def get_proxy_master_playlist(task_id: str):
     """Proxies and rewrites upstream master HLS playlist for instant streaming."""
-    task = _service_instance.get_task(task_id)
+    task = _stream_task(task_id)
     if not task or (not task.upstream_stream_url and not task.variants):
         raise HTTPException(status_code=404, detail="Stream not ready")
 
     proxy_base = f"/api/v1/media/stream/{task_id}"
-    rewritten = _hls_proxy.rewrite_master_playlist(task, proxy_base)
+    rewritten = await _hls_proxy.rewrite_master_playlist(task, proxy_base)
     if not rewritten:
         raise HTTPException(status_code=502, detail="Failed to fetch master stream playlist")
 
@@ -218,14 +241,14 @@ def get_proxy_master_playlist(task_id: str):
 
 
 @router.get("/stream/{task_id}/variant.m3u8", dependencies=[Depends(verify_secret_token)])
-def get_proxy_variant_playlist(
+async def get_proxy_variant_playlist(
     task_id: str,
     url: Optional[str] = Query(None),
     sig: Optional[str] = Query(None),
     quality: Optional[str] = Query(None),
 ):
     """Proxies and rewrites upstream variant quality HLS playlist."""
-    task = _service_instance.get_task(task_id)
+    task = _stream_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Stream task not found")
 
@@ -241,7 +264,7 @@ def get_proxy_variant_playlist(
         raise HTTPException(status_code=404, detail="Variant playlist URL not found")
 
     proxy_base = f"/api/v1/media/stream/{task_id}"
-    rewritten = _hls_proxy.rewrite_variant_playlist(variant_url, task, proxy_base)
+    rewritten = await _hls_proxy.rewrite_variant_playlist(variant_url, task, proxy_base)
     if not rewritten:
         raise HTTPException(status_code=502, detail="Failed to fetch variant stream playlist")
 
@@ -256,14 +279,14 @@ def get_proxy_variant_playlist(
 
 
 @router.api_route("/stream/{task_id}/segment", methods=["GET", "HEAD"], dependencies=[Depends(verify_secret_token)])
-def get_proxy_stream_segment(
+async def get_proxy_stream_segment(
     task_id: str,
     url: str = Query(...),
     sig: Optional[str] = Query(None),
     range_header: Optional[str] = Header(None, alias="Range"),
 ):
     """Proxies media chunk/segment from upstream CDN through engine session."""
-    task = _service_instance.get_task(task_id)
+    task = _stream_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Stream task not found")
 
@@ -271,7 +294,7 @@ def get_proxy_stream_segment(
         raise HTTPException(status_code=403, detail="Invalid segment signature")
 
     try:
-        status_code, headers, content = _hls_proxy.fetch_segment(url, task, range_header=range_header)
+        status_code, headers, content = await _hls_proxy.fetch_segment(url, task, range_header=range_header)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Upstream segment fetch failed: {e}")
     ct = headers.get("Content-Type", "")
@@ -309,3 +332,142 @@ def get_subtitle_track(sub_id: str):
             "Cache-Control": "public, max-age=86400",
         },
     )
+
+
+# ==============================================================================
+# Admin controls: runtime config, queue, task actions, CDN files
+# ==============================================================================
+
+_AUTH = [Depends(verify_secret_token)]
+
+
+def load_runtime_config() -> None:
+    """Applies admin overrides saved in SQLite (called at startup)."""
+    for key, value in _repository.get_config().items():
+        if key in runtime_config.BY_KEY:
+            runtime_config.apply(key, value)
+    _service_instance.apply_config()
+
+
+@router.get("/config", dependencies=_AUTH)
+def get_config():
+    return runtime_config.snapshot(_repository.get_config())
+
+
+@router.put("/config", dependencies=_AUTH)
+def update_config(values: dict):
+    """Body: {KEY: number, ...}. All values are validated before any is applied."""
+    try:
+        clean = {k: runtime_config.coerce(k, v) for k, v in values.items()}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    for k, v in clean.items():
+        _repository.set_config(k, v)
+        runtime_config.apply(k, v)
+    _service_instance.apply_config()
+    return runtime_config.snapshot(_repository.get_config())
+
+
+@router.delete("/config/{key}", dependencies=_AUTH)
+def reset_config(key: str):
+    """Back to the value from .env."""
+    if key not in runtime_config.BY_KEY:
+        raise HTTPException(status_code=404, detail="Unknown setting")
+    _repository.delete_config(key)
+    runtime_config.apply(key, None)
+    _service_instance.apply_config()
+    return runtime_config.snapshot(_repository.get_config())
+
+
+@router.get("/queue", dependencies=_AUTH)
+def queue_status():
+    return _service_instance.queue_status()
+
+
+@router.post("/queue/{action}", dependencies=_AUTH)
+def queue_action(action: str):
+    if action not in ("pause", "resume"):
+        raise HTTPException(status_code=404, detail="Unknown action")
+    _service_instance.paused = action == "pause"
+    return _service_instance.queue_status()
+
+
+_IN_FLIGHT = (IngestStatus.PENDING, IngestStatus.EXTRACTING, IngestStatus.DOWNLOADING, IngestStatus.UPLOADING)
+
+
+@router.post("/tasks/{task_id}/cancel", dependencies=_AUTH)
+def cancel_task(task_id: str):
+    if not _service_instance.cancel(task_id):
+        raise HTTPException(status_code=409, detail="Task not found or already finished")
+    return {"cancelled": True}
+
+
+@router.post("/tasks/{task_id}/retry", dependencies=_AUTH)
+def retry_task(task_id: str):
+    """Runs a failed / uncached task again as a fresh job with the same title and quality."""
+    old = _service_instance.get_task(task_id)
+    if not old:
+        raise HTTPException(status_code=404, detail="Ingest task not found")
+    if old.requested_quality == "sub:si":
+        raise HTTPException(status_code=409, detail="Use the translate action for subtitle jobs")
+    if old.status in _IN_FLIGHT:
+        raise HTTPException(status_code=409, detail="Task is still running")
+    _service_instance._cancelled.discard(task_id)
+    task = _service_instance.create_task(
+        tmdb_id=old.tmdb_id, media_type=old.media_type, requested_quality=old.requested_quality, season=old.season,
+        episode=old.episode, runtime_minutes=old.runtime_minutes, synopsis=old.synopsis, characters=old.characters,
+        title=old.title, imdb_id=old.imdb_id,
+    )
+    if task.status == IngestStatus.PENDING and not _service_instance.enqueue(task.task_id):
+        task.status = IngestStatus.FAILED
+        task.message = "Engine is busy, try again shortly"
+        _repository.save(task)
+        raise HTTPException(status_code=503, detail="Engine is busy")
+    return {"task_id": task.task_id, "status": task.status}
+
+
+@router.delete("/tasks/{task_id}", dependencies=_AUTH)
+def delete_task(task_id: str):
+    task = _service_instance.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Ingest task not found")
+    if task.status in _IN_FLIGHT:
+        raise HTTPException(status_code=409, detail="Cancel the task first")
+    _repository.delete_task(task_id)
+    return {"deleted": True}
+
+
+class CdnUrl(BaseModel):
+    url: str
+
+
+def _pixeldrain_id(url: str) -> str:
+    import re
+    m = re.fullmatch(r"https://pixeldrain\.com/api/file/([A-Za-z0-9_-]+)", url.strip())
+    if not m:
+        raise HTTPException(status_code=422, detail="Not a Pixeldrain file URL")
+    return m.group(1)
+
+
+@router.post("/cdn/delete", dependencies=_AUTH)
+def delete_cdn_file(body: CdnUrl):
+    """Deletes a file from the CDN account and forgets it, so the next play re-caches the title."""
+    file_id = _pixeldrain_id(body.url)
+    try:
+        _storage.delete_file(file_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    return {"deleted": True, "tasks_reset": _repository.clear_cdn_url(body.url.strip())}
+
+
+@router.get("/cdn/files", dependencies=_AUTH)
+def list_cdn_files():
+    try:
+        files = _storage.list_files()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    return [
+        {"id": f.get("id"), "name": f.get("name"), "size": f.get("size"), "views": f.get("views"), "date_upload": f.get("date_upload"),
+         "url": f"https://pixeldrain.com/api/file/{f.get('id')}"}
+        for f in files
+    ]

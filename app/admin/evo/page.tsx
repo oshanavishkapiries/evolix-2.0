@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { engineOverview, engineSummary, recentCachedSources } from "@/lib/cms/evo";
 import { SummaryFlow } from "../_components/pipeline-graph";
+import { SourceDeleteButton, TaskActions } from "../_components/evo-controls";
 import { PageHeader } from "../_components/page-header";
 
 const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
@@ -10,7 +11,15 @@ const code = (s: number | null, e: number | null) => (s !== null && e !== null ?
 export default function EvoPage() {
   return (
     <>
-      <PageHeader title="Evo pipeline" />
+      <PageHeader
+        title="Evo pipeline"
+        actions={
+          <>
+            <Link href="/admin/evo/settings" className="btn-link rounded-md border px-3 py-1.5 text-sm">Pipeline control</Link>
+            <Link href="/admin/evo/cdn" className="btn-link rounded-md border px-3 py-1.5 text-sm">CDN files</Link>
+          </>
+        }
+      />
       <Suspense fallback={<div className="skeleton mt-4 h-32" aria-busy="true" />}>
         <EvoOverview />
       </Suspense>
@@ -58,6 +67,7 @@ async function EvoOverview() {
                 <th>Status</th>
                 <th>Message</th>
                 <th>Updated</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -71,6 +81,9 @@ async function EvoOverview() {
                   <td>{t.cache_failed ? `${t.status} (cache failed)` : t.status}</td>
                   <td style={{ maxWidth: "24rem", overflowWrap: "anywhere" }}>{t.message}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{fmt(t.updated_at)}</td>
+                  <td>
+                    <TaskActions id={t.task_id} status={t.status} cacheFailed={t.cache_failed} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -90,6 +103,7 @@ async function EvoOverview() {
                 <th>Quality</th>
                 <th>State</th>
                 <th>Cached</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -102,6 +116,9 @@ async function EvoOverview() {
                   <td>{s.quality ?? "—"}</td>
                   <td>{s.isActive ? "active" : "disabled (file gone)"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{fmt(s.createdAt)}</td>
+                  <td>
+                    <SourceDeleteButton sourceId={s.id} label={`${s.title} ${s.context} ${s.quality ?? ""}`.trim()} />
+                  </td>
                 </tr>
               ))}
             </tbody>

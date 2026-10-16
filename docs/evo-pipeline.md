@@ -32,9 +32,16 @@ Sinhala is translated **on demand**, the first time a viewer picks it, not by th
 
 - A tiny glossary call fixes Sinhala name spellings (from TMDB character names + synopsis, sent by `/api/evo/ingest`) so parallel chunks stay consistent.
 - One translation per title/episode (the cached file is keyed by the English subtitle id); other qualities reuse it.
-- Spend is ledgered (`api_usage`) and capped per UTC day by `TRANSLATE_DAILY_BUDGET_USD`. Typical cost: about $0.07 for a 1,100-cue film, $0.12 for a 2,400-cue one.
+- Spend is ledgered (`api_usage`) and capped per UTC day by `TRANSLATE_DAILY_BUDGET_USD` (default `0` = unlimited for now; set a positive value to re-enable the cap). Typical cost: about $0.07 for a 1,100-cue film, $0.12 for a 2,400-cue one.
 - Backfill / re-run: `/admin/evo/<taskId>` has a "Translate subtitles to Sinhala" button (engine `POST /tasks/{id}/translate`, always re-translates).
 - Needs `OPENROUTER_API_KEY` in `.env`; without it the node shows "skipped".
+
+## Admin control
+
+- **Job queue**: ingest jobs run on two small worker pools (extract, CDN cache). Waiting jobs sit in a queue, not on request threads; `MAX_QUEUED_TASKS` beyond which `/ingest` answers 503 + `Retry-After`. The HLS proxy is async.
+- **`/admin/evo/settings`** (engine `GET/PUT /config`, `DELETE /config/{key}`): live-editable concurrency, queue limit, disk floor, translation budget (0 = unlimited). Stored in the engine's SQLite (`runtime_config`), loaded at startup, applied without restart. Queue pause/resume (`POST /queue/pause|resume`).
+- **Task actions** on `/admin/evo`: cancel (before the next stage), retry (fresh job, same title/quality), remove.
+- **`/admin/evo/cdn`**: files in the Pixeldrain account (needs `PIXELDRAIN_API_KEY`), delete any file; deleting a cached source's file (`POST /api/admin/evo/cdn/delete`) also removes the catalog row and resets the engine task so the next play re-caches.
 
 ## Invariants
 
