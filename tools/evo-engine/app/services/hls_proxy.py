@@ -1,9 +1,13 @@
+import hashlib
+import hmac
 import logging
 import re
+import secrets
 import urllib.parse
 from typing import Optional, Tuple, Iterator
 from curl_cffi import requests
 
+from app.core.config import settings
 from app.domain.models import IngestTask
 
 logger = logging.getLogger("evo.hls_proxy")
@@ -14,6 +18,22 @@ class HlsProxyService:
 
     def __init__(self):
         self._session = requests.Session(impersonate="chrome124")
+        # Child URLs are signed so the segment/variant endpoints can only fetch what a playlist we served pointed at
+        # (otherwise they would fetch any URL a caller supplies). Without a shared secret the key is per-process.
+        self._key = (settings.EVO_SECRET_TOKEN or secrets.token_hex(32)).encode()
+
+    def sign(self, task_id: str, url: str) -> str:
+        return hmac.new(self._key, f"{task_id}|{url}".encode(), hashlib.sha256).hexdigest()[:32]
+
+    def verify(self, task_id: str, url: str, sig: Optional[str]) -> bool:
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            return False
+        return bool(sig) and hmac.compare_digest(self.sign(task_id, url), sig)
+
+    def _child(self, base: str, task_id: str, kind: str, url: str) -> str:
+        """Proxy URL for an upstream playlist ("variant.m3u8") or media chunk ("segment")."""
+        return f"{base}/{kind}?url={urllib.parse.quote(url)}&sig={self.sign(task_id, url)}"
 
     QUALITY_PROFILES = {
         "1080p": {"bandwidth": 4500000, "resolution": "1920x1080", "name": "1080p"},
@@ -84,11 +104,9 @@ class HlsProxyService:
 
                 # Check if next level is a sub-playlist or direct video segment
                 if ".m3u8" in line or "/pl/" in line:
-                    encoded = urllib.parse.quote(full_url)
-                    rewritten_lines.append(f"{proxy_base_path}/variant.m3u8?url={encoded}")
+                    rewritten_lines.append(self._child(proxy_base_path, task.task_id, "variant.m3u8", full_url))
                 else:
-                    encoded = urllib.parse.quote(full_url)
-                    rewritten_lines.append(f"{proxy_base_path}/segment?url={encoded}")
+                    rewritten_lines.append(self._child(proxy_base_path, task.task_id, "segment", full_url))
 
             return "\n".join(rewritten_lines) + "\n"
         except Exception as e:
@@ -125,14 +143,12 @@ class HlsProxyService:
                         if m:
                             uri = m.group(1)
                             full_uri = uri if uri.startswith("http") else urllib.parse.urljoin(origin, uri)
-                            encoded_uri = urllib.parse.quote(full_uri)
-                            line = line.replace(f'URI="{uri}"', f'URI="{proxy_base_path}/segment?url={encoded_uri}"')
+                            line = line.replace(f'URI="{uri}"', f'URI="{self._child(proxy_base_path, task.task_id, "segment", full_uri)}"')
                     rewritten_lines.append(line)
                     continue
 
                 full_url = line if line.startswith("http") else urllib.parse.urljoin(origin, line)
-                encoded = urllib.parse.quote(full_url)
-                rewritten_lines.append(f"{proxy_base_path}/segment?url={encoded}")
+                rewritten_lines.append(self._child(proxy_base_path, task.task_id, "segment", full_url))
 
             return "\n".join(rewritten_lines) + "\n"
         except Exception as e:

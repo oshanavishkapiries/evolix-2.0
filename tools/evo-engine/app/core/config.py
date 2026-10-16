@@ -20,6 +20,20 @@ class Settings(BaseSettings):
     # Security: Shared token for Next.js / Vercel proxy
     EVO_SECRET_TOKEN: str = ""
 
+    # Where finished cache jobs are reported (Next.js POST /api/evo/complete). Empty = no webhook.
+    EVO_WEBHOOK_URL: str = ""
+
+    # Resource limits: extraction launches a headless browser, downloads/uploads move whole films.
+    MAX_CONCURRENT_EXTRACTIONS: int = 2
+    MAX_CONCURRENT_DOWNLOADS: int = 2
+    # Background caching is skipped (streaming still works) below this much free disk.
+    MIN_FREE_DISK_GB: float = 10.0
+    # Delete leftover files in DOWNLOAD_DIR at startup (they belong to tasks that died with the process).
+    CLEAN_ORPHANS_ON_START: bool = False
+
+    # Browsers never call the engine directly (Next.js proxies it); list origins here only if that changes.
+    CORS_ORIGINS: str = ""
+
     # Database integration (optional direct update)
     DATABASE_URL: str = ""
 

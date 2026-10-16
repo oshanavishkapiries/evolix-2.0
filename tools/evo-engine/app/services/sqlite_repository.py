@@ -61,6 +61,9 @@ class SQLiteTaskRepository(ITaskRepository):
                 ("variants", "TEXT DEFAULT '{}'"),
                 ("upstream_stream_url", "TEXT"),
                 ("upstream_headers", "TEXT DEFAULT '{}'"),
+                ("cdn_subtitles", "TEXT DEFAULT '[]'"),
+                ("runtime_minutes", "INTEGER"),
+                ("cache_failed", "INTEGER NOT NULL DEFAULT 0"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE ingest_tasks ADD COLUMN {col[0]} {col[1]};")
@@ -88,8 +91,9 @@ class SQLiteTaskRepository(ITaskRepository):
                     task_id, tmdb_id, media_type, season, episode, imdb_id,
                     requested_quality, resolved_quality, title, status, progress_pct,
                     message, stream_url, result_url, subtitles, available_qualities,
-                    variants, upstream_stream_url, upstream_headers, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    variants, upstream_stream_url, upstream_headers, cdn_subtitles, runtime_minutes,
+                    cache_failed, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(task_id) DO UPDATE SET
                     season=excluded.season,
                     episode=excluded.episode,
@@ -107,6 +111,9 @@ class SQLiteTaskRepository(ITaskRepository):
                     variants=excluded.variants,
                     upstream_stream_url=excluded.upstream_stream_url,
                     upstream_headers=excluded.upstream_headers,
+                    cdn_subtitles=excluded.cdn_subtitles,
+                    runtime_minutes=excluded.runtime_minutes,
+                    cache_failed=excluded.cache_failed,
                     updated_at=excluded.updated_at;
                 """,
                 (
@@ -129,6 +136,9 @@ class SQLiteTaskRepository(ITaskRepository):
                     json.dumps(task.variants),
                     task.upstream_stream_url,
                     json.dumps(task.upstream_headers),
+                    json.dumps(task.cdn_subtitles),
+                    task.runtime_minutes,
+                    1 if task.cache_failed else 0,
                     task.created_at.isoformat(),
                     task.updated_at.isoformat(),
                 ),
@@ -166,6 +176,13 @@ class SQLiteTaskRepository(ITaskRepository):
             except Exception:
                 up_headers = {}
 
+        cdn_subs = []
+        if "cdn_subtitles" in keys and row["cdn_subtitles"]:
+            try:
+                cdn_subs = json.loads(row["cdn_subtitles"])
+            except Exception:
+                cdn_subs = []
+
         return IngestTask(
             task_id=row["task_id"],
             tmdb_id=row["tmdb_id"],
@@ -186,6 +203,9 @@ class SQLiteTaskRepository(ITaskRepository):
             variants=variants,
             upstream_stream_url=row["upstream_stream_url"] if "upstream_stream_url" in keys else None,
             upstream_headers=up_headers,
+            cdn_subtitles=cdn_subs,
+            runtime_minutes=row["runtime_minutes"] if "runtime_minutes" in keys else None,
+            cache_failed=bool(row["cache_failed"]) if "cache_failed" in keys else False,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -231,3 +251,42 @@ class SQLiteTaskRepository(ITaskRepository):
                 (limit,),
             )
             return [self._row_to_task(r) for r in cur.fetchall()]
+
+    def find_completed(
+        self,
+        tmdb_id: int,
+        media_type: str,
+        resolved_quality: str,
+        season: Optional[int] = None,
+        episode: Optional[int] = None,
+        exclude_task_id: Optional[str] = None,
+    ) -> Optional[IngestTask]:
+        with self._get_connection() as conn:
+            query = (
+                "SELECT * FROM ingest_tasks WHERE tmdb_id = ? AND media_type = ? AND resolved_quality = ? "
+                "AND status = 'COMPLETED' AND result_url IS NOT NULL "
+                "AND season IS ? AND episode IS ?"
+            )
+            params: list = [tmdb_id, media_type, resolved_quality, season, episode]
+            if exclude_task_id:
+                query += " AND task_id != ?"
+                params.append(exclude_task_id)
+            row = conn.execute(query + " ORDER BY created_at DESC LIMIT 1", tuple(params)).fetchone()
+            return self._row_to_task(row) if row else None
+
+    def recover_interrupted(self) -> int:
+        now = datetime.utcnow().isoformat()
+        with self._get_connection() as conn:
+            failed = conn.execute(
+                "UPDATE ingest_tasks SET status = 'FAILED', message = 'Interrupted by engine restart', updated_at = ? "
+                "WHERE status IN ('PENDING', 'EXTRACTING', 'DOWNLOADING', 'UPLOADING')",
+                (now,),
+            ).rowcount
+            # Streaming keeps working (variants are persisted); only the CDN copy died, so allow a retry.
+            streaming = conn.execute(
+                "UPDATE ingest_tasks SET cache_failed = 1, message = 'Streaming (caching interrupted by restart)', updated_at = ? "
+                "WHERE status = 'STREAMING' AND result_url IS NULL",
+                (now,),
+            ).rowcount
+            conn.commit()
+        return failed + streaming

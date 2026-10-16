@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header, Response, Query
 from typing import Optional
-from app.api.schemas import IngestRequest, IngestResponse, TaskStatusResponse
+from app.api.schemas import IngestRequest, IngestResponse, TaskStatusResponse, TaskSummary
 from app.domain.models import IngestStatus
 from app.services.ingest_service import IngestService
 from app.services.ythd_extractor import YtHdStreamExtractor
@@ -48,6 +48,7 @@ def trigger_media_ingestion(
         requested_quality=request.quality,
         season=request.season,
         episode=request.episode,
+        runtime_minutes=request.runtime_minutes,
     )
     if task.status == IngestStatus.PENDING:
         background_tasks.add_task(_service_instance.process_task, task.task_id)
@@ -60,6 +61,8 @@ def trigger_media_ingestion(
         result_url=task.result_url,
         subtitles=task.subtitles,
         available_qualities=task.available_qualities,
+        resolved_quality=task.resolved_quality,
+        cdn_subtitles=task.cdn_subtitles,
         message=f"Media ingestion queued in background (Target quality: {task.requested_quality})"
         if task.status == IngestStatus.PENDING
         else f"Task already {task.status.value}",
@@ -89,7 +92,33 @@ def get_ingest_task_status(task_id: str):
         result_url=task.result_url,
         subtitles=task.subtitles,
         available_qualities=task.available_qualities,
+        cdn_subtitles=task.cdn_subtitles,
+        cache_failed=task.cache_failed,
     )
+
+
+@router.get("/tasks", response_model=list[TaskSummary], dependencies=[Depends(verify_secret_token)])
+def list_ingest_tasks(limit: int = Query(50, ge=1, le=200)):
+    """Recent tasks, newest first (admin operations view)."""
+    return [
+        TaskSummary(
+            task_id=t.task_id,
+            tmdb_id=t.tmdb_id,
+            media_type=t.media_type,
+            season=t.season,
+            episode=t.episode,
+            title=t.title,
+            requested_quality=t.requested_quality,
+            resolved_quality=t.resolved_quality,
+            status=t.status,
+            message=t.message,
+            result_url=t.result_url,
+            cache_failed=t.cache_failed,
+            created_at=t.created_at.isoformat(),
+            updated_at=t.updated_at.isoformat(),
+        )
+        for t in _repository.list_all(limit)
+    ]
 
 
 # ==============================================================================
@@ -97,7 +126,7 @@ def get_ingest_task_status(task_id: str):
 # ==============================================================================
 
 
-@router.get("/stream/{task_id}/master.m3u8")
+@router.get("/stream/{task_id}/master.m3u8", dependencies=[Depends(verify_secret_token)])
 def get_proxy_master_playlist(task_id: str):
     """Proxies and rewrites upstream master HLS playlist for instant streaming."""
     task = _service_instance.get_task(task_id)
@@ -119,10 +148,11 @@ def get_proxy_master_playlist(task_id: str):
     )
 
 
-@router.get("/stream/{task_id}/variant.m3u8")
+@router.get("/stream/{task_id}/variant.m3u8", dependencies=[Depends(verify_secret_token)])
 def get_proxy_variant_playlist(
     task_id: str,
     url: Optional[str] = Query(None),
+    sig: Optional[str] = Query(None),
     quality: Optional[str] = Query(None),
 ):
     """Proxies and rewrites upstream variant quality HLS playlist."""
@@ -131,6 +161,8 @@ def get_proxy_variant_playlist(
         raise HTTPException(status_code=404, detail="Stream task not found")
 
     variant_url = url
+    if variant_url and not _hls_proxy.verify(task_id, variant_url, sig):
+        raise HTTPException(status_code=403, detail="Invalid playlist signature")
     if not variant_url and quality and task.variants:
         variant_url = task.variants.get(quality)
     if not variant_url:
@@ -154,10 +186,11 @@ def get_proxy_variant_playlist(
     )
 
 
-@router.api_route("/stream/{task_id}/segment", methods=["GET", "HEAD"])
+@router.api_route("/stream/{task_id}/segment", methods=["GET", "HEAD"], dependencies=[Depends(verify_secret_token)])
 def get_proxy_stream_segment(
     task_id: str,
     url: str = Query(...),
+    sig: Optional[str] = Query(None),
     range_header: Optional[str] = Header(None, alias="Range"),
 ):
     """Proxies media chunk/segment from upstream CDN through engine session."""
@@ -165,7 +198,13 @@ def get_proxy_stream_segment(
     if not task:
         raise HTTPException(status_code=404, detail="Stream task not found")
 
-    status_code, headers, content = _hls_proxy.fetch_segment(url, task, range_header=range_header)
+    if not _hls_proxy.verify(task_id, url, sig):
+        raise HTTPException(status_code=403, detail="Invalid segment signature")
+
+    try:
+        status_code, headers, content = _hls_proxy.fetch_segment(url, task, range_header=range_header)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Upstream segment fetch failed: {e}")
     ct = headers.get("Content-Type", "")
     if not ct or ct.startswith("text/"):
         ct = "video/mp2t"
@@ -186,7 +225,7 @@ def get_proxy_stream_segment(
 # ==============================================================================
 
 
-@router.get("/subtitles/{sub_id}.vtt")
+@router.get("/subtitles/{sub_id}.vtt", dependencies=[Depends(verify_secret_token)])
 def get_subtitle_track(sub_id: str):
     """Delivers converted WebVTT subtitle track."""
     vtt = _subtitle_service.get_vtt(sub_id)

@@ -1,3 +1,4 @@
+import json
 import logging
 import subprocess
 from pathlib import Path
@@ -15,8 +16,24 @@ class FFmpegStreamDownloader(IMediaDownloader):
     using FFmpeg without CPU-heavy re-encoding.
     """
 
-    def __init__(self, ffmpeg_bin: str = "ffmpeg"):
+    def __init__(self, ffmpeg_bin: str = "ffmpeg", ffprobe_bin: str = "ffprobe", timeout_seconds: int = 4 * 3600):
         self.ffmpeg_bin = ffmpeg_bin
+        self.ffprobe_bin = ffprobe_bin
+        self.timeout_seconds = timeout_seconds
+
+    def probe_duration(self, path: Path) -> Optional[float]:
+        """Container duration in seconds, or None when ffprobe is unavailable or cannot read the file."""
+        try:
+            out = subprocess.run(
+                [self.ffprobe_bin, "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            return float(json.loads(out.stdout)["format"]["duration"])
+        except Exception as e:
+            logger.warning(f"ffprobe failed for {path.name}: {e}")
+            return None
 
     def download_stream(
         self,
@@ -35,12 +52,21 @@ class FFmpegStreamDownloader(IMediaDownloader):
             "-y",
             "-headers",
             headers_str,
+            "-reconnect",
+            "1",
+            "-reconnect_streamed",
+            "1",
+            "-reconnect_delay_max",
+            "5",
             "-i",
             stream.url,
             "-c",
             "copy",
             "-bsf:a",
             "aac_adtstoasc",
+            # moov atom up front: the CDN copy can start playing (and seek) before it has fully downloaded.
+            "-movflags",
+            "+faststart",
             str(output_path),
         ]
 
@@ -52,7 +78,12 @@ class FFmpegStreamDownloader(IMediaDownloader):
             text=True,
         )
 
-        _, stderr = process.communicate()
+        try:
+            _, stderr = process.communicate(timeout=self.timeout_seconds)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            raise RuntimeError(f"FFmpeg timed out after {self.timeout_seconds}s")
 
         if process.returncode != 0:
             logger.error(f"FFmpeg failed with return code {process.returncode}: {stderr[-400:]}")
