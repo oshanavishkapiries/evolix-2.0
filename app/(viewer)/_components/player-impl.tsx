@@ -2,7 +2,7 @@
 
 import "vidstack/player/styles/default/theme.css";
 import "vidstack/player/styles/default/layouts/video.css";
-import { MediaPlayer, MediaProvider, Menu, Track, type MediaPlayerInstance, type MediaProviderAdapter } from "@vidstack/react";
+import { MediaPlayer, MediaProvider, Menu, Track, useMediaState, type MediaPlayerInstance, type MediaProviderAdapter } from "@vidstack/react";
 import { defaultLayoutIcons, DefaultMenuButton, DefaultMenuRadioGroup, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
 import { isHLSProvider } from "vidstack";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ import {
 } from "@/lib/viewer/providers";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { loadStyle, saveStyle, styleVars, type SubStyle } from "./subtitle-style";
+import { PlayerBanner, useQualityAdvisor } from "./player-banner";
 import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
@@ -34,6 +35,9 @@ export type QualityMenu = {
   onSelect: (quality: string, at: number) => void;
 };
 const SAVE_EVERY_MS = 15_000;
+/** Streams start (and stay) here unless the viewer picks otherwise. */
+const DEFAULT_HEIGHT = 720;
+const START_NOTE_MS = 6000;
 const PAUSE_OVERLAY_DELAY_MS = 1500;
 
 const isSinhala = (lang: string) => /^si(n)?(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "sinhala";
@@ -141,9 +145,10 @@ export default function PlayerImpl({
     const ctrl = new AbortController();
     fetch(pixeldrainInfoUrl(pdId), { signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : null))
-      .then((info: { name?: string; mime_type?: string } | null) => {
+      .then((info: { name?: string; mime_type?: string; size?: number } | null) => {
         const t = info?.name ? typeFromName(info.name) : null;
         if (t) setHint(t);
+        if (info?.size) fileBytes.current = info.size;
       })
       .catch(() => {});
     return () => ctrl.abort();
@@ -154,9 +159,68 @@ export default function PlayerImpl({
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
   const defaultSub = ((subtitles ?? []).find((s) => isSinhala(s.language)) ?? (subtitles ?? []).find((s) => isEnglish(s.language)))?.id;
 
-  const [switchingQuality, setSwitchingQuality] = useState<string | null>(null);
-  const switchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => () => clearTimeout(switchTimer.current), []);
+  // ---- quality: never switched behind the viewer's back. HLS starts on 720p and stays there (no adaptive
+  // switching, no "switching" toast); a better-fitting quality is only ever suggested (see the advisor below).
+  const qualityLocked = useRef(false);
+  const lockDefaultQuality = () => {
+    const hls = hlsOf()?.instance as { levels: { height?: number }[]; currentLevel: number } | null | undefined;
+    if (!hls || qualityLocked.current || hls.levels.length < 2) return;
+    const heights: number[] = hls.levels.map((l) => l.height || 0);
+    const below = heights.flatMap((h, i) => (h && h < DEFAULT_HEIGHT ? [[h, i]] : [])).sort((x, y) => y[0] - x[0])[0];
+    const index = heights.indexOf(DEFAULT_HEIGHT) >= 0 ? heights.indexOf(DEFAULT_HEIGHT) : below ? below[1] : heights.indexOf(Math.min(...heights.filter(Boolean)));
+    if (index < 0) return;
+    qualityLocked.current = true;
+    // A fixed level turns adaptive switching off. It goes through Vidstack's own quality list (so its menu shows the
+    // real selection instead of "Auto") but after Vidstack has finished handling the levels event: changing the list
+    // from inside that event can break the menu's render.
+    const height = heights[index];
+    setTimeout(() => {
+      try {
+        const item = [...(player.current?.qualities ?? [])].find((q) => q.height === height);
+        if (item) item.selected = true;
+        else hls.currentLevel = index;
+      } catch {
+        // player was torn down in between
+      }
+    }, 0);
+  };
+  const hlsOf = () => {
+    const provider = player.current?.provider;
+    return isHLSProvider(provider) ? provider : null;
+  };
+  const nowQuality = (): string | null => {
+    if (qualityMenu) return qualityMenu.current;
+    const h = player.current?.state.quality?.height;
+    return h ? `${h}p` : null;
+  };
+  const offeredQualities = (): string[] =>
+    qualityMenu ? qualityMenu.options.map((o) => o.quality) : [...(player.current?.qualities ?? [])].flatMap((q) => (q.height ? [`${q.height}p`] : []));
+  const switchTo = (quality: string) => {
+    if (qualityMenu) return qualityMenu.onSelect(quality, player.current?.state.currentTime ?? 0);
+    const level = [...(player.current?.qualities ?? [])].find((q) => `${q.height}p` === quality);
+    if (level) level.selected = true;
+  };
+  // Throughput for the advisor: hls.js measures it for streams; for a single file it is derived from how fast the
+  // buffer fills (seconds of video per second) times the file's bitrate. Null when there is nothing to measure.
+  const fileBytes = useRef(0);
+  const lastBuffer = useRef<{ at: number; end: number } | null>(null);
+  const readMbps = (): number | null => {
+    const hls = hlsOf()?.instance;
+    if (hls) return hls.bandwidthEstimate > 0 ? hls.bandwidthEstimate / 1e6 : null;
+    const st = player.current?.state;
+    if (!st || !st.duration || !fileBytes.current || st.seeking) return null;
+    const prev = lastBuffer.current;
+    lastBuffer.current = { at: performance.now(), end: st.bufferedEnd };
+    if (!prev) return null;
+    const grew = st.bufferedEnd - prev.end;
+    const secs = (performance.now() - prev.at) / 1000;
+    return grew > 0.05 && secs > 0 ? (grew / secs) * ((fileBytes.current * 8) / st.duration / 1e6) : null;
+  };
+  const [started, setStarted] = useState(false);
+  const [startNote, setStartNote] = useState(false);
+  const noteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(noteTimer.current), []);
+  const advisor = useQualityAdvisor({ active: started, current: nowQuality, offered: offeredQualities, readMbps, onSwitch: switchTo });
 
   if (failed && healable && !healChecked) {
     return (
@@ -190,20 +254,24 @@ export default function PlayerImpl({
       style={styleVars(subStyle)}
       playsInline
       autoPlay
-      onQualityChange={(quality) => {
-        if (quality && quality.height) {
-          setSwitchingQuality(`${quality.height}p`);
-          clearTimeout(switchTimer.current);
-          switchTimer.current = setTimeout(() => {
-            setSwitchingQuality(null);
-          }, 1800);
-        }
+      onQualitiesChange={lockDefaultQuality}
+      onPlaying={() => {
+        if (started) return;
+        setStarted(true);
+        setStartNote(true);
+        clearTimeout(noteTimer.current);
+        noteTimer.current = setTimeout(() => setStartNote(false), START_NOTE_MS);
+      }}
+      onWaiting={() => {
+        const st = player.current?.state;
+        if (started && st && !st.seeking && !st.paused) advisor.noteStall();
       }}
       onProviderChange={(provider: MediaProviderAdapter | null) => {
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
         if (isHLSProvider(provider)) provider.library = () => import("hls.js");
       }}
       onCanPlay={() => {
+        lockDefaultQuality();
         const at = seekTo.current;
         seekTo.current = 0;
         const duration = player.current?.state.duration ?? 0;
@@ -245,11 +313,16 @@ export default function PlayerImpl({
         ))}
       </MediaProvider>
       {info && paused && !subOpen && <PauseOverlay info={info} />}
-      {switchingQuality && (
-        <div className="v-quality-toast" role="status" aria-live="polite">
-          <div className="v-quality-toast-spinner" />
-          <span>Switching to {switchingQuality}...</span>
-        </div>
+      {startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
+      {advisor.advice && (
+        <PlayerBanner
+          place="side"
+          title={advisor.advice.dir === "up" ? "Fast connection detected" : "Playback is struggling"}
+          text={advisor.advice.dir === "up" ? `Switch to ${advisor.advice.to} for a sharper picture?` : `Switch to ${advisor.advice.to} for smoother playback?`}
+          action="OK"
+          onAction={advisor.accept}
+          onClose={advisor.dismiss}
+        />
       )}
       <DefaultVideoLayout
         icons={defaultLayoutIcons}
@@ -286,6 +359,13 @@ export default function PlayerImpl({
       )}
     </MediaPlayer>
   );
+}
+
+/** "Now streaming in 720p": the quality comes from the player's own state, so it is right even if the level settles after playback starts. */
+function StartBanner({ fixed, onClose }: { fixed?: string; onClose: () => void }) {
+  const height = useMediaState("quality")?.height;
+  const quality = fixed ?? (height ? `${height}p` : null);
+  return <PlayerBanner place="top" title={quality ? `Now streaming in ${quality}` : "Now streaming"} text="Change the quality anytime from the settings menu." onClose={onClose} />;
 }
 
 function PauseOverlay({ info }: { info: PauseInfo }) {

@@ -5,7 +5,7 @@ import { unionAll } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { movies, shows } from "@/db/schema";
 import { escapeLike } from "@/lib/cms/search";
-import { getDiscoverMedia, getPopularMedia, getTrendingMedia, searchMovies, searchShows, type TmdbCatalogItem } from "@/lib/tmdb";
+import { getDiscoverMedia, getKidsMedia, getPopularMedia, getTmdbLogo, getTrendingMedia, searchKidsMedia, searchMovies, searchShows, type KidsSort, type TmdbCatalogItem } from "@/lib/tmdb";
 import type { CardKind } from "./ids";
 
 // Everything here only ever returns PUBLISHED titles.
@@ -192,6 +192,42 @@ async function browseDb(p: BrowseParams = {}): Promise<{ items: Card[]; total: n
   };
 }
 
+/** TMDB items -> cards; titles already cached locally link to their catalog row instead of `tmdb-N`. */
+async function tmdbCards(tmdbItems: (TmdbCatalogItem & { kind: CardKind })[], limit: number): Promise<Card[]> {
+  // Cross-reference with local database: a title with a cached source is served by its row, the rest are on-demand (Evo)
+  const movieTmdbIds = tmdbItems.filter((i) => i.kind === "movie").map((i) => i.tmdbId).filter(Boolean);
+  const showTmdbIds = tmdbItems.filter((i) => i.kind === "show").map((i) => i.tmdbId).filter(Boolean);
+
+  const [localMovies, localShows] = await Promise.all([
+    movieTmdbIds.length > 0
+      ? db.select({ id: movies.id, tmdbId: movies.tmdbId, hasSources: hasSourcesOf("movie") }).from(movies).where(inArray(movies.tmdbId, movieTmdbIds))
+      : [],
+    showTmdbIds.length > 0
+      ? db.select({ id: shows.id, tmdbId: shows.tmdbId, hasSources: hasSourcesOf("show") }).from(shows).where(inArray(shows.tmdbId, showTmdbIds))
+      : [],
+  ]);
+
+  const movieMap = new Map(localMovies.map((m) => [m.tmdbId, m]));
+  const showMap = new Map(localShows.map((s) => [s.tmdbId, s]));
+
+  const cards: Card[] = tmdbItems.slice(0, limit).map((item) => {
+    const local = item.kind === "movie" ? movieMap.get(item.tmdbId) : showMap.get(item.tmdbId);
+    const hasLocalSources = Boolean(local?.hasSources);
+    return {
+      kind: item.kind,
+      id: hasLocalSources && local ? local.id : `tmdb-${item.tmdbId}`,
+      title: item.title,
+      date: item.date,
+      posterPath: item.posterPath,
+      backdropPath: item.backdropPath,
+      rating: item.rating,
+      isEvo: !hasLocalSources,
+    };
+  });
+
+  return cards;
+}
+
 /** Fetches catalog items from TMDB and cross-references with local DB for manual sources. */
 async function getTmdbCatalog(p: BrowseParams): Promise<{ items: Card[]; total: number }> {
   const type = p.type ?? "all";
@@ -258,38 +294,29 @@ async function getTmdbCatalog(p: BrowseParams): Promise<{ items: Card[]; total: 
     }
   }
 
-  // Cross-reference with local database
-  const movieTmdbIds = tmdbItems.filter((i) => i.kind === "movie").map((i) => i.tmdbId).filter(Boolean);
-  const showTmdbIds = tmdbItems.filter((i) => i.kind === "show").map((i) => i.tmdbId).filter(Boolean);
+  return { items: await tmdbCards(tmdbItems, limit), total };
+}
 
-  const [localMovies, localShows] = await Promise.all([
-    movieTmdbIds.length > 0
-      ? db.select({ id: movies.id, tmdbId: movies.tmdbId, hasSources: hasSourcesOf("movie") }).from(movies).where(inArray(movies.tmdbId, movieTmdbIds))
-      : [],
-    showTmdbIds.length > 0
-      ? db.select({ id: shows.id, tmdbId: shows.tmdbId, hasSources: hasSourcesOf("show") }).from(shows).where(inArray(shows.tmdbId, showTmdbIds))
-      : [],
-  ]);
+/** Kids section: the TMDB kids catalog (see getKidsMedia), browsed, searched and genre-filtered like the main one. */
+async function getKidsCatalog(p: BrowseParams): Promise<{ items: Card[]; total: number }> {
+  const type = p.type ?? "all";
+  const limit = p.limit ?? SEARCH_PAGE_SIZE;
+  const page = Math.floor((p.offset ?? 0) / limit) + 1;
+  const genre = p.genre ? TMDB_GENRES[p.genre] : undefined;
+  const sort: KidsSort = p.sort === "title" ? "title" : p.sort === "newest" || p.sort === "year" ? "newest" : "popular";
+  const searching = Boolean(p.q && p.q.trim().length >= MIN_QUERY);
+  const fetchKind = (kind: "movie" | "tv") => (searching ? searchKidsMedia(kind, p.q!.trim(), page) : getKidsMedia(kind, { genre, sort, page }));
 
-  const movieMap = new Map(localMovies.map((m) => [m.tmdbId, m]));
-  const showMap = new Map(localShows.map((s) => [s.tmdbId, s]));
-
-  const cards: Card[] = tmdbItems.slice(0, limit).map((item) => {
-    const local = item.kind === "movie" ? movieMap.get(item.tmdbId) : showMap.get(item.tmdbId);
-    const hasLocalSources = Boolean(local?.hasSources);
-    return {
-      kind: item.kind,
-      id: hasLocalSources && local ? local.id : `tmdb-${item.tmdbId}`,
-      title: item.title,
-      date: item.date,
-      posterPath: item.posterPath,
-      backdropPath: item.backdropPath,
-      rating: item.rating,
-      isEvo: !hasLocalSources,
-    };
-  });
-
-  return { items: cards, total };
+  const kinds = type === "movie" ? (["movie"] as const) : type === "show" ? (["tv"] as const) : (["movie", "tv"] as const);
+  const pages = await Promise.all(kinds.map(fetchKind));
+  let items = pages.flatMap((pg, i) => pg.items.map((it) => ({ ...it, kind: (kinds[i] === "movie" ? "movie" : "show") as CardKind })));
+  if (p.withBackdrop) items = items.filter((i) => i.backdropPath);
+  // Movies and shows alternate in the combined view instead of one block after the other.
+  if (kinds.length === 2) {
+    const [m, t] = [items.filter((i) => i.kind === "movie"), items.filter((i) => i.kind === "show")];
+    items = Array.from({ length: Math.max(m.length, t.length) }, (_, i) => [m[i], t[i]]).flat().filter(Boolean) as typeof items;
+  }
+  return { items: await tmdbCards(items, limit), total: pages.reduce((n, pg) => n + pg.totalResults, 0) };
 }
 
 /** Published titles (movies and/or shows), filtered, sorted and paged. */
@@ -298,18 +325,13 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
   catalogCache();
   const scope = p.scope ?? "main";
 
-  // 1. Kids section: STRICTLY local database titles (audience = 'kids' or 'both')
-  if (scope === "kids") {
-    return browseDb(p);
-  }
-
-  // 2. Main section: Hybrid catalog (TMDB API + Local Manual Uploads)
+  // Hybrid catalog: TMDB (the main catalog, or the kids catalog for the Kids section) plus titles already cached locally.
   try {
-    const tmdbRes = await getTmdbCatalog(p);
+    const tmdbRes = scope === "kids" ? await getKidsCatalog(p) : await getTmdbCatalog(p);
 
     // On page 1 (no search query or genre filter), prepend any local manual titles for the main section
     if ((p.offset ?? 0) === 0 && !p.genre && !p.q) {
-      const localManual = await browseDb({ ...p, limit: 10, offset: 0, scope: "main" });
+      const localManual = await browseDb({ ...p, limit: 10, offset: 0, scope });
       const localWithSources = localManual.items.filter((item) => !item.isEvo);
       if (localWithSources.length > 0) {
         const localIds = new Set(localWithSources.map((i) => i.id));
@@ -331,26 +353,31 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
 export const listLatest = (kind: CardKind, limit = 20, scope?: Scope) => browse({ type: kind, limit, scope }).then((r) => r.items);
 
 /** Home "Featured" row: newest titles that have a backdrop (curation can replace this later). */
-export const listFeatured = (limit = 10, scope?: Scope) => browse({ withBackdrop: true, limit, scope }).then((r) => r.items);
+export const listFeatured = (limit = 10, scope?: Scope) => browse({ withBackdrop: true, limit, scope }).then((r) => withLogos(r.items));
 
-/** Genres shared by at least `minItems` published titles, most populated first. */
-export async function listGenres(minItems = 4, limit = 4, kind?: CardKind, scope: Scope = "main"): Promise<string[]> {
+/** TMDB list endpoints carry no title logos: fetch them for the on-demand items so Featured cards can show them. */
+async function withLogos(items: Card[]): Promise<Card[]> {
   "use cache";
   catalogCache();
-  if (scope === "kids") {
-    const parts = [
-      kind !== "show" && sql`select unnest(genres) as g from movies where is_published and ${audienceIn(sql`audience`, scope)}`,
-      kind !== "movie" && sql`select unnest(genres) as g from shows where is_published and ${audienceIn(sql`audience`, scope)}`,
-    ].filter((p): p is SQL => Boolean(p));
-    const res = await db.execute(sql`
-      select g as genre from (${sql.join(parts, sql` union all `)}) t
-      where g <> ''
-      group by g
-      having count(*) >= ${minItems}
-      order by count(*) desc, g asc
-      limit ${limit}`);
-    return (res.rows as { genre: string }[]).map((r) => r.genre);
-  }
+  return Promise.all(
+    items.map(async (item) => {
+      const m = /^tmdb-(\d+)$/.exec(item.id);
+      if (item.logoPath || !m) return item;
+      const logoPath = await getTmdbLogo(item.kind === "movie" ? "movie" : "tv", Number(m[1])).catch(() => null);
+      return { ...item, logoPath };
+    }),
+  );
+}
+
+/** Genres offered in the Kids section; each maps to a TMDB genre id (see TMDB_GENRES). */
+const KIDS_GENRES = ["Animation", "Comedy", "Adventure", "Fantasy", "Family", "Science Fiction", "Music"];
+
+/** Genre names for the quick-pick rows (fixed lists: the catalog itself comes from TMDB). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept so existing callers' positional arguments stay valid
+export async function listGenres(_minItems = 4, limit = 4, kind?: CardKind, scope: Scope = "main"): Promise<string[]> {
+  "use cache";
+  catalogCache();
+  if (scope === "kids") return KIDS_GENRES.slice(0, limit);
 
   const genres = kind === "show"
     ? ["Drama", "Action & Adventure", "Comedy", "Crime", "Mystery", "Sci-Fi & Fantasy"]
@@ -364,22 +391,7 @@ export type GenreTile = { genre: string; count: number; backdropPath: string | n
 export async function listGenreTiles(kind: CardKind, scope: Scope = "main"): Promise<GenreTile[]> {
   "use cache";
   catalogCache();
-  if (scope === "kids") {
-    const table = kind === "movie" ? sql`movies` : sql`shows`;
-    const res = await db.execute(sql`
-      select genre, n::int as count, backdrop_path from (
-        select distinct on (g) g as genre, backdrop_path, count(*) over (partition by g) as n
-        from (select unnest(genres) as g, backdrop_path, rating from ${table} where is_published and ${audienceIn(sql`audience`, scope)}) t
-        where g <> ''
-        order by g, (backdrop_path is null), rating desc nulls last
-      ) x
-      order by n desc, genre asc`);
-    return (res.rows as { genre: string; count: number; backdrop_path: string | null }[]).map((r) => ({
-      genre: r.genre,
-      count: r.count,
-      backdropPath: r.backdrop_path,
-    }));
-  }
+  if (scope === "kids") return KIDS_GENRES.map((genre) => ({ genre, count: 100, backdropPath: null }));
 
   const genreNames = kind === "show"
     ? ["Drama", "Action & Adventure", "Comedy", "Crime"]
