@@ -139,6 +139,16 @@ class SubtitleService:
             self._save_meta()
         return results
 
+    def has_vtt(self, sub_id: str) -> bool:
+        return (self.cache_dir / f"{sub_id}.vtt").exists()
+
+    def delete_vtt(self, sub_id: str) -> None:
+        (self.cache_dir / f"{sub_id}.vtt").unlink(missing_ok=True)
+
+    def save_vtt(self, sub_id: str, vtt: str) -> None:
+        """Stores a generated track (e.g. a translation) so get_vtt() serves it like a fetched one."""
+        (self.cache_dir / f"{sub_id}.vtt").write_text(vtt, encoding="utf-8")
+
     def get_vtt(self, sub_id: str) -> Optional[str]:
         """Loads and returns WebVTT content for a given subtitle ID, downloading & converting if needed."""
         vtt_file = self.cache_dir / f"{sub_id}.vtt"

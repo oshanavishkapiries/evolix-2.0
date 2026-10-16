@@ -1,6 +1,6 @@
 /** Pipeline model shared by the engine events and the admin flow view (pure, client-safe). */
 
-export const STEP_IDS = ["request", "extract", "resolve", "subtitles", "stream", "cdn_check", "download", "verify", "upload", "subtitle_sync", "webhook"] as const;
+export const STEP_IDS = ["request", "extract", "resolve", "subtitles", "stream", "cdn_check", "download", "verify", "upload", "subtitle_sync", "webhook", "translate"] as const;
 export type StepId = (typeof STEP_IDS)[number];
 export type StepState = "pending" | "running" | "ok" | "failed" | "skipped";
 
@@ -11,8 +11,8 @@ export const NODE_W = 168;
 export const NODE_H = 72;
 const COL = 208;
 const X0 = 16;
-const ROW1 = 24;
-const ROW2 = 176;
+const ROW1 = 44;
+const ROW2 = 196;
 
 export const NODES: { id: StepId; label: string; hint: string; x: number; y: number }[] = [
   { id: "request", label: "Request", hint: "Viewer asks to play", x: X0, y: ROW1 },
@@ -26,11 +26,18 @@ export const NODES: { id: StepId; label: string; hint: string; x: number; y: num
   { id: "upload", label: "Upload video", hint: "Pixeldrain CDN", x: X0 + COL * 3, y: ROW2 },
   { id: "subtitle_sync", label: "Sync subtitles", hint: "Re-host on the CDN", x: X0 + COL * 4, y: ROW2 },
   { id: "webhook", label: "Register in app", hint: "Source row in the DB", x: X0 + COL * 5, y: ROW2 },
+  { id: "translate", label: "Sinhala subtitles", hint: "AI translation (async)", x: X0 + COL * 5, y: ROW1 },
 ];
 export const VIEW_W = X0 * 2 + COL * 5 + NODE_W;
 export const VIEW_H = ROW2 + NODE_H + 24;
 
-export const EDGES: { from: StepId; to: StepId }[] = STEP_IDS.slice(1).map((to, i) => ({ from: STEP_IDS[i], to }));
+const MAIN = STEP_IDS.filter((id) => id !== "translate");
+/** The main chain, plus the translation branch (subtitles -> translate -> subtitle sync). */
+export const EDGES: { from: StepId; to: StepId }[] = [
+  ...MAIN.slice(1).map((to, i) => ({ from: MAIN[i], to })),
+  { from: "subtitles", to: "translate" },
+  { from: "translate", to: "subtitle_sync" },
+];
 
 /** Engine timestamps are naive UTC ISO strings. */
 export const parseTs = (ts: string) => Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? ts : `${ts}Z`);

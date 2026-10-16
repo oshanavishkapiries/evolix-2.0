@@ -65,3 +65,13 @@ class ITaskRepository(ABC):
     def step_summary(self, since_hours: int = 24) -> dict:
         """Per-step counts of tasks by latest state within the window, plus tasks currently running."""
         pass
+
+    @abstractmethod
+    def add_usage(self, task_id: Optional[str], model: str, cost_usd: float, tokens: int) -> None:
+        """Records spend on a paid API call (translation)."""
+        pass
+
+    @abstractmethod
+    def usage_today(self) -> float:
+        """Total spend recorded since 00:00 UTC today."""
+        pass

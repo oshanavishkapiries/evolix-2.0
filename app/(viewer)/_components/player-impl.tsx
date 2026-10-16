@@ -2,8 +2,8 @@
 
 import "vidstack/player/styles/default/theme.css";
 import "vidstack/player/styles/default/layouts/video.css";
-import { MediaPlayer, MediaProvider, Track, type MediaPlayerInstance, type MediaProviderAdapter } from "@vidstack/react";
-import { defaultLayoutIcons, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
+import { MediaPlayer, MediaProvider, Menu, Track, type MediaPlayerInstance, type MediaProviderAdapter } from "@vidstack/react";
+import { defaultLayoutIcons, DefaultMenuButton, DefaultMenuRadioGroup, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
 import { isHLSProvider } from "vidstack";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,9 +23,20 @@ import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
 /** Shown over the video while paused, Netflix-style. */
 export type PauseInfo = { title: string; meta?: string; overview?: string; backdropPath?: string | null };
+/**
+ * Quality switcher for cached (single-file) sources: every offered quality is listed, uncached ones are marked
+ * and get prepared on demand by the parent. HLS streams keep Vidstack's own quality menu instead.
+ */
+export type QualityMenu = {
+  current: string;
+  options: { quality: string; cached: boolean }[];
+  /** `at` is the playback position to continue from. */
+  onSelect: (quality: string, at: number) => void;
+};
 const SAVE_EVERY_MS = 15_000;
 const PAUSE_OVERLAY_DELAY_MS = 1500;
 
+const isSinhala = (lang: string) => /^si(n)?(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "sinhala";
 const isEnglish = (lang: string) => /^en(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "english";
 
 export default function PlayerImpl({
@@ -35,6 +46,7 @@ export default function PlayerImpl({
   track,
   startAt = 0,
   info,
+  qualityMenu,
 }: {
   title: string;
   source: Pick<WatchSource, "kind" | "url"> & { id?: string };
@@ -44,6 +56,7 @@ export default function PlayerImpl({
   /** Resume position in seconds. */
   startAt?: number;
   info?: PauseInfo;
+  qualityMenu?: QualityMenu;
 }) {
   const player = useRef<MediaPlayerInstance>(null);
   const lastSave = useRef(0);
@@ -139,7 +152,7 @@ export default function PlayerImpl({
   const candidates = playbackCandidates(source.kind, source.url, hint);
   const current = candidates[Math.min(attempt, candidates.length - 1)];
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
-  const defaultSub = (subtitles ?? []).find((s) => isEnglish(s.language))?.id;
+  const defaultSub = ((subtitles ?? []).find((s) => isSinhala(s.language)) ?? (subtitles ?? []).find((s) => isEnglish(s.language)))?.id;
 
   const [switchingQuality, setSwitchingQuality] = useState<string | null>(null);
   const switchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -241,11 +254,25 @@ export default function PlayerImpl({
       <DefaultVideoLayout
         icons={defaultLayoutIcons}
         noScrubGesture={false}
-        slots={
-          subtitles.length > 0
-            ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> }
-            : undefined
-        }
+        slots={{
+          ...(subtitles.length > 0 ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> } : {}),
+          ...(qualityMenu
+            ? {
+                settingsMenuItemsStart: (
+                  <Menu.Root className="vds-quality-menu vds-menu">
+                    <DefaultMenuButton label="Quality" hint={qualityMenu.current} Icon={defaultLayoutIcons.Menu.QualityUp} />
+                    <Menu.Items className="vds-menu-items">
+                      <DefaultMenuRadioGroup
+                        value={qualityMenu.current}
+                        options={qualityMenu.options.map((o) => ({ value: o.quality, label: o.cached ? o.quality : `${o.quality} · prepare` }))}
+                        onChange={(q) => qualityMenu.onSelect(q, player.current?.state.currentTime ?? 0)}
+                      />
+                    </Menu.Items>
+                  </Menu.Root>
+                ),
+              }
+            : {}),
+        }}
       />
       {subtitles.length > 0 && (
         <SubtitleTools
