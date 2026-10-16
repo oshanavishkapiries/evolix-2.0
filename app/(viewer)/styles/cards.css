@@ -81,15 +81,6 @@
 .v-card:hover .v-card-bm, .v-card:focus-within .v-card-bm { opacity: 1; }
 @media (hover: none) { .v-card-bm { opacity: 1; } }
 
-/* Evo Engine on-demand badge */
-.v-card-badge-evo {
-  position: absolute; top: .45rem; left: .45rem; z-index: 2; pointer-events: none;
-  display: inline-flex; align-items: center; gap: .3rem;
-  padding: .2rem .55rem; border-radius: var(--v-radius);
-  background: rgb(245 166 35 / .92); color: var(--v-primary-fg);
-  font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-  box-shadow: 0 4px 10px rgb(0 0 0 / .6);
-}
 
 /* Continue watching progress */
 .v-progress { position: absolute; inset: auto 0 0 0; height: 4px; background: rgb(255 255 255 / .25); }

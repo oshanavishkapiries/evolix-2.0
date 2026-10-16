@@ -49,7 +49,7 @@ class SQLiteTaskRepository(ITaskRepository):
             )
             # Safe schema migration for new columns
             for col in [
-                ("requested_quality", "TEXT NOT NULL DEFAULT '1080p'"),
+                ("requested_quality", "TEXT NOT NULL DEFAULT '720p'"),
                 ("resolved_quality", "TEXT"),
                 ("title", "TEXT"),
                 ("season", "INTEGER"),
@@ -57,6 +57,8 @@ class SQLiteTaskRepository(ITaskRepository):
                 ("imdb_id", "TEXT"),
                 ("stream_url", "TEXT"),
                 ("subtitles", "TEXT DEFAULT '[]'"),
+                ("available_qualities", "TEXT DEFAULT '[]'"),
+                ("variants", "TEXT DEFAULT '{}'"),
                 ("upstream_stream_url", "TEXT"),
                 ("upstream_headers", "TEXT DEFAULT '{}'"),
             ]:
@@ -85,9 +87,9 @@ class SQLiteTaskRepository(ITaskRepository):
                 INSERT INTO ingest_tasks (
                     task_id, tmdb_id, media_type, season, episode, imdb_id,
                     requested_quality, resolved_quality, title, status, progress_pct,
-                    message, stream_url, result_url, subtitles, upstream_stream_url,
-                    upstream_headers, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    message, stream_url, result_url, subtitles, available_qualities,
+                    variants, upstream_stream_url, upstream_headers, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(task_id) DO UPDATE SET
                     season=excluded.season,
                     episode=excluded.episode,
@@ -101,6 +103,8 @@ class SQLiteTaskRepository(ITaskRepository):
                     stream_url=excluded.stream_url,
                     result_url=excluded.result_url,
                     subtitles=excluded.subtitles,
+                    available_qualities=excluded.available_qualities,
+                    variants=excluded.variants,
                     upstream_stream_url=excluded.upstream_stream_url,
                     upstream_headers=excluded.upstream_headers,
                     updated_at=excluded.updated_at;
@@ -121,6 +125,8 @@ class SQLiteTaskRepository(ITaskRepository):
                     task.stream_url,
                     task.result_url,
                     json.dumps(task.subtitles),
+                    json.dumps(task.available_qualities),
+                    json.dumps(task.variants),
                     task.upstream_stream_url,
                     json.dumps(task.upstream_headers),
                     task.created_at.isoformat(),
@@ -139,6 +145,20 @@ class SQLiteTaskRepository(ITaskRepository):
             except Exception:
                 subs = []
 
+        avail_quals = []
+        if "available_qualities" in keys and row["available_qualities"]:
+            try:
+                avail_quals = json.loads(row["available_qualities"])
+            except Exception:
+                avail_quals = []
+
+        variants = {}
+        if "variants" in keys and row["variants"]:
+            try:
+                variants = json.loads(row["variants"])
+            except Exception:
+                variants = {}
+
         up_headers = {}
         if "upstream_headers" in keys and row["upstream_headers"]:
             try:
@@ -153,7 +173,7 @@ class SQLiteTaskRepository(ITaskRepository):
             season=row["season"] if "season" in keys else None,
             episode=row["episode"] if "episode" in keys else None,
             imdb_id=row["imdb_id"] if "imdb_id" in keys else None,
-            requested_quality=row["requested_quality"] if "requested_quality" in keys else "1080p",
+            requested_quality=row["requested_quality"] if "requested_quality" in keys else "720p",
             resolved_quality=row["resolved_quality"] if "resolved_quality" in keys else None,
             title=row["title"] if "title" in keys else None,
             status=IngestStatus(row["status"]),
@@ -162,6 +182,8 @@ class SQLiteTaskRepository(ITaskRepository):
             stream_url=row["stream_url"] if "stream_url" in keys else None,
             result_url=row["result_url"] if "result_url" in keys else None,
             subtitles=subs,
+            available_qualities=avail_quals,
+            variants=variants,
             upstream_stream_url=row["upstream_stream_url"] if "upstream_stream_url" in keys else None,
             upstream_headers=up_headers,
             created_at=datetime.fromisoformat(row["created_at"]),

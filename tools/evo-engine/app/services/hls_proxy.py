@@ -15,12 +15,46 @@ class HlsProxyService:
     def __init__(self):
         self._session = requests.Session(impersonate="chrome124")
 
+    QUALITY_PROFILES = {
+        "1080p": {"bandwidth": 4500000, "resolution": "1920x1080", "name": "1080p"},
+        "720p": {"bandwidth": 2200000, "resolution": "1280x720", "name": "720p"},
+        "480p": {"bandwidth": 1100000, "resolution": "854x480", "name": "480p"},
+        "360p": {"bandwidth": 650000, "resolution": "640x360", "name": "360p"},
+    }
+
     def rewrite_master_playlist(
         self,
         task: IngestTask,
         proxy_base_path: str,
     ) -> Optional[str]:
         """Fetches upstream master/variant playlist and rewrites child URLs to route through proxy."""
+        # 1. If multiple variants are available, synthesize multi-quality HLS master playlist (720p default first)
+        if task.variants and len(task.variants) > 1:
+            order = ["720p", "1080p", "480p", "360p"]
+            sorted_qualities = [q for q in order if q in task.variants]
+            for q in task.variants:
+                if q not in sorted_qualities:
+                    sorted_qualities.append(q)
+
+            lines = [
+                "#EXTM3U",
+                "#EXT-X-VERSION:3",
+                "#EXT-X-INDEPENDENT-SEGMENTS",
+            ]
+            for q in sorted_qualities:
+                profile = self.QUALITY_PROFILES.get(
+                    q.lower(),
+                    {"bandwidth": 1800000, "resolution": "1280x720", "name": q},
+                )
+                variant_target = f"{proxy_base_path}/variant.m3u8?quality={q}"
+                lines.append(
+                    f'#EXT-X-STREAM-INF:BANDWIDTH={profile["bandwidth"]},RESOLUTION={profile["resolution"]},NAME="{profile["name"]}"'
+                )
+                lines.append(variant_target)
+
+            return "\n".join(lines) + "\n"
+
+        # 2. Single-stream fallback
         upstream_url = task.upstream_stream_url
         if not upstream_url:
             return None

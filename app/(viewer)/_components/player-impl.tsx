@@ -120,6 +120,10 @@ export default function PlayerImpl({
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
   const defaultSub = (subtitles ?? []).find((s) => isEnglish(s.language))?.id;
 
+  const [switchingQuality, setSwitchingQuality] = useState<string | null>(null);
+  const switchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(switchTimer.current), []);
+
   if (failed || insecure) {
     return (
       <div className="v-player-msg" role="alert">
@@ -143,6 +147,15 @@ export default function PlayerImpl({
       style={styleVars(subStyle)}
       playsInline
       autoPlay
+      onQualityChange={(quality) => {
+        if (quality && quality.height) {
+          setSwitchingQuality(`${quality.height}p`);
+          clearTimeout(switchTimer.current);
+          switchTimer.current = setTimeout(() => {
+            setSwitchingQuality(null);
+          }, 1800);
+        }
+      }}
       onProviderChange={(provider: MediaProviderAdapter | null) => {
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
         if (isHLSProvider(provider)) provider.library = () => import("hls.js");
@@ -189,6 +202,12 @@ export default function PlayerImpl({
         ))}
       </MediaProvider>
       {info && paused && !subOpen && <PauseOverlay info={info} />}
+      {switchingQuality && (
+        <div className="v-quality-toast" role="status" aria-live="polite">
+          <div className="v-quality-toast-spinner" />
+          <span>Switching to {switchingQuality}...</span>
+        </div>
+      )}
       <DefaultVideoLayout
         icons={defaultLayoutIcons}
         noScrubGesture={false}

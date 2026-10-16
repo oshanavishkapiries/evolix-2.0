@@ -41,7 +41,7 @@ class IngestTask:
     task_id: str
     media_type: MediaType
     tmdb_id: int
-    requested_quality: str = "1080p"
+    requested_quality: str = "720p"
     resolved_quality: Optional[str] = None
     title: Optional[str] = None
     season: Optional[int] = None
@@ -53,6 +53,8 @@ class IngestTask:
     stream_url: Optional[str] = None
     result_url: Optional[str] = None
     subtitles: List[dict] = field(default_factory=list)
+    available_qualities: List[str] = field(default_factory=list)
+    variants: dict = field(default_factory=dict)
     upstream_stream_url: Optional[str] = None
     upstream_headers: dict = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)

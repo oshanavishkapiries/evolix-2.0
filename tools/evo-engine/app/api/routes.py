@@ -59,6 +59,7 @@ def trigger_media_ingestion(
         stream_url=task.stream_url,
         result_url=task.result_url,
         subtitles=task.subtitles,
+        available_qualities=task.available_qualities,
         message=f"Media ingestion queued in background (Target quality: {task.requested_quality})"
         if task.status == IngestStatus.PENDING
         else f"Task already {task.status.value}",
@@ -87,6 +88,7 @@ def get_ingest_task_status(task_id: str):
         stream_url=task.stream_url,
         result_url=task.result_url,
         subtitles=task.subtitles,
+        available_qualities=task.available_qualities,
     )
 
 
@@ -99,7 +101,7 @@ def get_ingest_task_status(task_id: str):
 def get_proxy_master_playlist(task_id: str):
     """Proxies and rewrites upstream master HLS playlist for instant streaming."""
     task = _service_instance.get_task(task_id)
-    if not task or not task.upstream_stream_url:
+    if not task or (not task.upstream_stream_url and not task.variants):
         raise HTTPException(status_code=404, detail="Stream not ready")
 
     proxy_base = f"/api/v1/media/stream/{task_id}"
@@ -118,14 +120,27 @@ def get_proxy_master_playlist(task_id: str):
 
 
 @router.get("/stream/{task_id}/variant.m3u8")
-def get_proxy_variant_playlist(task_id: str, url: str = Query(...)):
+def get_proxy_variant_playlist(
+    task_id: str,
+    url: Optional[str] = Query(None),
+    quality: Optional[str] = Query(None),
+):
     """Proxies and rewrites upstream variant quality HLS playlist."""
     task = _service_instance.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Stream task not found")
 
+    variant_url = url
+    if not variant_url and quality and task.variants:
+        variant_url = task.variants.get(quality)
+    if not variant_url:
+        variant_url = task.upstream_stream_url
+
+    if not variant_url:
+        raise HTTPException(status_code=404, detail="Variant playlist URL not found")
+
     proxy_base = f"/api/v1/media/stream/{task_id}"
-    rewritten = _hls_proxy.rewrite_variant_playlist(url, task, proxy_base)
+    rewritten = _hls_proxy.rewrite_variant_playlist(variant_url, task, proxy_base)
     if not rewritten:
         raise HTTPException(status_code=502, detail="Failed to fetch variant stream playlist")
 
