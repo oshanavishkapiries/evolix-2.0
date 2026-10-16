@@ -9,7 +9,7 @@ import { engineHeaders } from "@/lib/evo/engine";
 import { ensureEpisode, ensureMovie } from "@/lib/evo/ensure";
 import { allow, viewerId } from "@/lib/evo/guard";
 import { promote, promotionFromTask, QUALITIES } from "@/lib/evo/promote";
-import { TmdbError } from "@/lib/tmdb";
+import { getImdbId, TmdbError } from "@/lib/tmdb";
 
 const body = z
   .object({
@@ -40,18 +40,23 @@ export async function POST(req: NextRequest) {
   let runtimeMinutes: number | null = null;
   let synopsis = "";
   let characters: string[] = [];
+  // Canonical name and IMDb id come from us, not from whichever provider the engine extracts from: providers name
+  // titles after their own site, and without an IMDb id there are no subtitles (and nothing to translate).
+  let title = "";
+  let imdbId: string | null = null;
   try {
     if (mediaType === "movie") {
       const id = await ensureMovie(tmdbId);
-      const [m] = await db.select({ r: movies.runtimeMinutes, overview: movies.overview, cast: movies.cast }).from(movies).where(eq(movies.id, id)).limit(1);
+      const [m] = await db.select({ r: movies.runtimeMinutes, overview: movies.overview, cast: movies.cast, title: movies.title }).from(movies).where(eq(movies.id, id)).limit(1);
       runtimeMinutes = m?.r ?? null;
       synopsis = m?.overview ?? "";
       characters = characterNames(m?.cast ?? []);
+      title = m?.title ?? "";
     } else {
       const ep = await ensureEpisode(tmdbId, season!, episode!);
       if (!ep) return fail(404, "NOT_FOUND", "Episode not found");
       const [row] = await db
-        .select({ r: episodes.runtimeMinutes, epOverview: episodes.overview, showOverview: shows.overview, cast: shows.cast })
+        .select({ r: episodes.runtimeMinutes, epOverview: episodes.overview, showOverview: shows.overview, cast: shows.cast, showName: shows.name })
         .from(episodes)
         .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
         .innerJoin(shows, eq(shows.id, seasons.showId))
@@ -60,7 +65,9 @@ export async function POST(req: NextRequest) {
       runtimeMinutes = row?.r ?? null;
       synopsis = [row?.showOverview, row?.epOverview].filter(Boolean).join(" ");
       characters = characterNames(row?.cast ?? []);
+      title = row?.showName ?? "";
     }
+    imdbId = await getImdbId(mediaType === "movie" ? "movie" : "tv", tmdbId).catch(() => null);
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
     throw e;
@@ -70,7 +77,7 @@ export async function POST(req: NextRequest) {
     const res = await fetch(`${env.EVO_ENGINE_URL}/api/v1/media/ingest`, {
       method: "POST",
       headers: engineHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: runtimeMinutes, synopsis: synopsis.slice(0, 1500) || undefined, characters }),
+      body: JSON.stringify({ tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: runtimeMinutes, synopsis: synopsis.slice(0, 1500) || undefined, characters, title: title || undefined, imdb_id: imdbId ?? undefined }),
       cache: "no-store",
     });
     if (!res.ok) return json(res.status, { error: `Evo engine returned ${res.status}` });

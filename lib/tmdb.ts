@@ -196,6 +196,12 @@ async function search(kind: "movie" | "tv", query: string, page: number): Promis
 export const searchMovies = (query: string, page = 1) => search("movie", query, page);
 export const searchShows = (query: string, page = 1) => search("tv", query, page);
 
+/** IMDb id ("tt0123456") for a TMDB title, or null when TMDB has none. The engine needs it to find subtitles. */
+export async function getImdbId(kind: "movie" | "tv", tmdbId: number): Promise<string | null> {
+  const ids = await tmdb<Raw>(`/${kind}/${tmdbId}/external_ids`);
+  return typeof ids.imdb_id === "string" && /^tt\d+$/.test(ids.imdb_id) ? ids.imdb_id : null;
+}
+
 export type MoviePrefill = {
   tmdbId: number;
   title: string;
