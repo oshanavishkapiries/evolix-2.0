@@ -204,6 +204,9 @@ export const sources = pgTable(
   (t) => [
     index("sources_movie_id_idx").on(t.movieId),
     index("sources_episode_id_idx").on(t.episodeId),
+    // One cached file per quality: Evo promotion upserts on these. NULL quality (embeds) never collides.
+    unique("sources_movie_quality_uq").on(t.movieId, t.quality),
+    unique("sources_episode_quality_uq").on(t.episodeId, t.quality),
     check(
       "sources_one_parent_chk",
       sql`(${t.movieId} is null) <> (${t.episodeId} is null)`,
@@ -227,6 +230,9 @@ export const subtitles = pgTable(
   (t) => [
     index("subtitles_movie_id_idx").on(t.movieId),
     index("subtitles_episode_id_idx").on(t.episodeId),
+    // One track per language: Evo subtitle sync upserts on these.
+    unique("subtitles_movie_language_uq").on(t.movieId, t.language),
+    unique("subtitles_episode_language_uq").on(t.episodeId, t.language),
     check(
       "subtitles_one_parent_chk",
       sql`(${t.movieId} is null) <> (${t.episodeId} is null)`,
