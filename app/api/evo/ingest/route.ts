@@ -7,6 +7,7 @@ import { titleContext } from "@/lib/evo/context";
 import { allow, viewerId } from "@/lib/evo/guard";
 import { promote, promotionFromTask, QUALITIES } from "@/lib/evo/promote";
 import { TmdbError } from "@/lib/tmdb";
+import { canWatch } from "@/lib/viewer/access";
 
 const body = z
   .object({
@@ -25,6 +26,7 @@ const WINDOW_MS = 10 * 60_000;
 export async function POST(req: NextRequest) {
   const userId = await viewerId(req);
   if (!userId) return fail(401, "UNAUTHORIZED", "Not authenticated");
+  if (!(await canWatch(userId))) return fail(403, "ACCOUNT_PENDING", "Your account is waiting for admin approval");
   if (!allow(`ingest:${userId}`, INGESTS_PER_WINDOW, WINDOW_MS)) return fail(429, "RATE_LIMITED", "Too many stream requests, try again in a few minutes");
   const parsed = await parseBody(req, body);
   if ("error" in parsed) return parsed.error;

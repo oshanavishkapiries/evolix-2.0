@@ -16,7 +16,6 @@ export function RegisterForm() {
     const res = await postJson("/api/auth/register", { email, password: form.get("password") });
     setBusy(false);
     if (!res.ok) return setError(res.message ?? "Registration failed");
-    if ((res as { autoLogin?: boolean }).autoLogin) return navigate("/dashboard");
     navigate(`/verify-email?email=${encodeURIComponent(email)}`);
   }
 
