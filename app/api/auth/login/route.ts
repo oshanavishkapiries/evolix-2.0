@@ -8,6 +8,11 @@ import {
   parseBody,
   setAuthCookies,
 } from "@/lib/auth/http";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { isAdminEmail } from "@/lib/auth/admin";
+import { verificationRequiredFor } from "@/lib/settings";
 import { verifyDummy, verifyPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import { findUserByEmail } from "@/lib/auth/users";
@@ -30,7 +35,11 @@ export async function POST(req: NextRequest) {
   }
   // Only reached with the correct password, so this does not leak account existence.
   if (!user.emailVerifiedAt) {
-    return fail(403, "EMAIL_NOT_VERIFIED", "Email address is not verified");
+    // An admin switched verification off: accounts created while it was on may log in without the code.
+    if (await verificationRequiredFor(email, isAdminEmail)) {
+      return fail(403, "EMAIL_NOT_VERIFIED", "Email address is not verified");
+    }
+    await db.update(users).set({ emailVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, user.id));
   }
 
   const { access, refresh } = await createSession(user.id, clientInfo(req));

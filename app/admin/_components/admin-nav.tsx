@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/admin/movies", label: "Movies", icon: FilmIcon, match: (p: string) => p.startsWith("/admin/movies") && p !== "/admin/movies/new" },
   { href: "/admin/shows", label: "TV shows", icon: TvIcon, match: (p: string) => p.startsWith("/admin/shows") && p !== "/admin/shows/new" },
   { href: "/admin/evo", label: "Evo pipeline", icon: PlayIcon, match: (p: string) => p.startsWith("/admin/evo") },
+  { href: "/admin/settings", label: "Settings", icon: MenuIcon, match: (p: string) => p === "/admin/settings" },
   { href: "/admin/reports", label: "Reports", icon: FlagIcon, match: (p: string) => p.startsWith("/admin/reports") },
   { href: "/admin/movies/new", label: "New movie", icon: PlusIcon, match: (p: string) => p === "/admin/movies/new" },
   { href: "/admin/shows/new", label: "New show", icon: PlusIcon, match: (p: string) => p === "/admin/shows/new" },
