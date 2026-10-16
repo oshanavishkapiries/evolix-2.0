@@ -1,40 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { fail, json } from "@/lib/auth/http";
 import { env } from "@/lib/env";
+import { engineHeaders } from "@/lib/evo/engine";
+import { viewerId } from "@/lib/evo/guard";
+import { promote, promotionFromTask } from "@/lib/evo/promote";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ taskId: string }> }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
+  if (!(await viewerId(req))) return fail(401, "UNAUTHORIZED", "Not authenticated");
+  const { taskId } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(taskId)) return fail(400, "VALIDATION_ERROR", "Invalid task id");
+
   try {
-    const { taskId } = await params;
-    if (!taskId) {
-      return NextResponse.json({ error: "Missing taskId" }, { status: 400 });
-    }
-
-    const targetUrl = `${env.EVO_ENGINE_URL}/api/v1/media/status/${taskId}`;
-    const headers: Record<string, string> = {};
-    if (env.EVO_SECRET_TOKEN) {
-      headers["X-Evo-Secret"] = env.EVO_SECRET_TOKEN;
-    }
-
-    const res = await fetch(targetUrl, {
-      method: "GET",
-      headers,
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      return NextResponse.json(
-        { error: `Evo-Engine returned ${res.status}: ${errText}` },
-        { status: res.status }
-      );
-    }
-
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Failed to connect to Evo-Engine";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const res = await fetch(`${env.EVO_ENGINE_URL}/api/v1/media/status/${taskId}`, { headers: engineHeaders(), cache: "no-store" });
+    if (!res.ok) return json(res.status, { error: `Evo engine returned ${res.status}` });
+    const data = (await res.json()) as Record<string, unknown>;
+    // Backstop for a lost completion webhook: a finished cache job is registered here too (idempotent).
+    const input = promotionFromTask(data);
+    if (input) await promote(input).catch(() => {});
+    return json(200, data);
+  } catch (e) {
+    return json(502, { error: e instanceof Error ? e.message : "Failed to connect to the engine" });
   }
 }

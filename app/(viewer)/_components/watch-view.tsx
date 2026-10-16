@@ -7,6 +7,7 @@ import type { PauseInfo } from "./player-impl";
 import type { ReportTarget } from "./report-button";
 import { WatchPlayer } from "./watch-player";
 import { EvoPlayer } from "./evo-player";
+import { QualityRequest } from "./quality-request";
 import { SafePlayerBoundary } from "./safe-player-boundary";
 import { WatchShell } from "./watch-shell";
 
@@ -62,6 +63,15 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
             </li>
           ))}
         </ul>
+        {tmdbId ? (
+          <QualityRequest
+            tmdbId={tmdbId}
+            mediaType={mediaType ?? "movie"}
+            season={season}
+            episode={episode}
+            have={sources.flatMap((s) => (s.quality ? [s.quality] : []))}
+          />
+        ) : null}
         {subtitles.length > 0 && selected?.kind !== "embed" && (
           <p className="v-muted" style={{ fontSize: ".8rem", marginTop: ".75rem" }}>
             Subtitles: {subtitles.map((s) => s.label).join(", ")}. Use the captions button in the player.

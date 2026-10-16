@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
+import { engineHeaders } from "@/lib/evo/engine";
 
 export async function GET(
   _req: Request,
@@ -14,15 +15,9 @@ export async function GET(
     const cleanId = subId.endsWith(".vtt") ? subId : `${subId}.vtt`;
     const targetUrl = `${env.EVO_ENGINE_URL}/api/v1/media/subtitles/${cleanId}`;
 
-    const headers: Record<string, string> = {};
-    if (env.EVO_SECRET_TOKEN) {
-      headers["X-Evo-Secret"] = env.EVO_SECRET_TOKEN;
-    }
+    if (!/^sub_\d+_[a-z]{2,3}_\d+(\.vtt)?$/.test(subId)) return new NextResponse("Invalid subtitle ID", { status: 400 });
 
-    const res = await fetch(targetUrl, {
-      method: "GET",
-      headers,
-    });
+    const res = await fetch(targetUrl, { method: "GET", headers: engineHeaders() });
 
     if (!res.ok) {
       return new NextResponse(`Subtitle not found: ${res.status}`, { status: res.status });

@@ -28,11 +28,13 @@ export function BookmarkProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const set = useCallback((id: string, on: boolean) => {
+  const set = useCallback((id: string | string[], on: boolean) => {
     setIds((prev) => {
       const next = new Set(prev);
-      if (on) next.add(id);
-      else next.delete(id);
+      for (const one of Array.isArray(id) ? id : [id]) {
+        if (on) next.add(one);
+        else next.delete(one);
+      }
       return next;
     });
   }, []);
@@ -41,8 +43,9 @@ export function BookmarkProvider({ children }: { children: React.ReactNode }) {
     (kind: Kind, id: string) => {
       const on = !ids.has(id);
       set(id, on);
-      postJsonWithRefresh("/api/me/bookmarks", { kind, id, on }).then((r) => {
+      postJsonWithRefresh<{ ids?: string[] }>("/api/me/bookmarks", { kind, id, on }).then((r) => {
         if (!r.ok) set(id, !on);
+        else if (r.ids) set(r.ids, on); // the title's other id form (row id <-> "tmdb-N") follows
       });
     },
     [ids, set],

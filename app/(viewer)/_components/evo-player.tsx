@@ -92,7 +92,7 @@ export function EvoPlayer({
 
         if (!res.ok) {
           const errJson = await res.json().catch(() => ({ error: "Failed to queue stream" }));
-          throw new Error(errJson.error || `HTTP ${res.status}`);
+          throw new Error(errJson.error || errJson.message || `HTTP ${res.status}`);
         }
 
         const data = await res.json();
@@ -106,8 +106,8 @@ export function EvoPlayer({
           });
         }
 
-        // 1. Instant Stream Ready (Zero wait!)
-        if (data.stream_url) {
+        // 1. Instant Stream Ready (Zero wait!), unless the CDN copy already exists (checked next)
+        if (data.stream_url && !(data.status === "COMPLETED" && data.result_url)) {
           const streamUrl = data.stream_url.replace(/^\/api\/v1\/media\/stream/, "/api/evo/stream");
           setActiveSource({
             id: `stream-${tmdbId}-${season ?? 0}-${episode ?? 0}`,
