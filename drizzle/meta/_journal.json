@@ -57,6 +57,13 @@
       "when": 1792123064158,
       "tag": "0007_curvy_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792146733258,
+      "tag": "0008_minor_barracuda",
+      "breakpoints": true
     }
   ]
 }

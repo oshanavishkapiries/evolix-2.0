@@ -343,3 +343,10 @@ export const reports = pgTable(
     index("reports_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
+
+/** Platform-wide switches an admin can flip at runtime (key -> JSON value). */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
