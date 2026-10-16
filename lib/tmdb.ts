@@ -144,6 +144,11 @@ export async function getTmdbImages(
   return { candidates, selection: pickImages(candidates) };
 }
 
+/** The title-treatment image TMDB considers best (English or textless), for overlay on cards. */
+export async function getTmdbLogo(kind: "movie" | "tv", tmdbId: number): Promise<string | null> {
+  return (await getTmdbImages(kind, tmdbId)).selection.logoPath;
+}
+
 /** Poster candidates of one season. */
 export async function getTmdbSeasonImages(tmdbId: number, seasonNumber: number): Promise<ImageCandidate[]> {
   const data = await tmdb<Raw>(`/tv/${tmdbId}/season/${seasonNumber}/images`, {
@@ -202,6 +207,14 @@ export async function getImdbId(kind: "movie" | "tv", tmdbId: number): Promise<s
   return typeof ids.imdb_id === "string" && /^tt\d+$/.test(ids.imdb_id) ? ids.imdb_id : null;
 }
 
+/** US age rating (G, PG, TV-Y7, ...) from the appended release_dates / content_ratings block. */
+function certification(kind: "movie" | "tv", block: Raw | undefined): string | null {
+  const us = (Array.isArray(block?.results) ? (block.results as Raw[]) : []).find((r) => r.iso_3166_1 === "US");
+  if (!us) return null;
+  const value = kind === "movie" ? (us.release_dates as Raw[] | undefined)?.map((d) => str(d.certification)).find(Boolean) : str(us.rating);
+  return value || null;
+}
+
 export type MoviePrefill = {
   tmdbId: number;
   title: string;
@@ -215,6 +228,8 @@ export type MoviePrefill = {
   voteCount: number | null;
   originalLanguage: string;
   status: string;
+  /** US age rating, e.g. "PG". */
+  certification: string | null;
   posterPath: string | null;
   backdropPath: string | null;
   logoPath: string | null;
@@ -226,7 +241,7 @@ export type MoviePrefill = {
 };
 
 export async function getMovieDetails(tmdbId: number): Promise<MoviePrefill> {
-  const m = await tmdb<Raw>(`/movie/${tmdbId}`, DETAIL_PARAMS);
+  const m = await tmdb<Raw>(`/movie/${tmdbId}`, { ...DETAIL_PARAMS, append_to_response: `${DETAIL_PARAMS.append_to_response},release_dates` });
   return {
     tmdbId: m.id,
     title: str(m.title),
@@ -240,6 +255,7 @@ export async function getMovieDetails(tmdbId: number): Promise<MoviePrefill> {
     voteCount: numOrNull(m.vote_count),
     originalLanguage: str(m.original_language),
     status: str(m.status),
+    certification: certification("movie", m.release_dates),
     ...withPicked(mapImages(m.images), { poster: strOrNull(m.poster_path), backdrop: strOrNull(m.backdrop_path) }),
     cast: cast(m.credits),
     videos: mapVideos(m.videos),
@@ -268,6 +284,8 @@ export type SeasonPrefill = {
 };
 export type ShowPrefill = {
   tmdbId: number;
+  /** US age rating, e.g. "TV-Y7". */
+  certification: string | null;
   name: string;
   originalName: string;
   tagline: string;
@@ -306,7 +324,7 @@ function mapEpisode(e: Raw): EpisodePrefill {
 }
 
 export async function getShowDetails(tmdbId: number): Promise<ShowPrefill> {
-  const s = await tmdb<Raw>(`/tv/${tmdbId}`, DETAIL_PARAMS);
+  const s = await tmdb<Raw>(`/tv/${tmdbId}`, { ...DETAIL_PARAMS, append_to_response: `${DETAIL_PARAMS.append_to_response},content_ratings` });
   const rawSeasons: Raw[] = Array.isArray(s.seasons) ? s.seasons : [];
   const warnings: string[] = [];
   const seasons: SeasonPrefill[] = rawSeasons.map((r) => ({
@@ -337,6 +355,7 @@ export async function getShowDetails(tmdbId: number): Promise<ShowPrefill> {
 
   return {
     tmdbId: s.id,
+    certification: certification("tv", s.content_ratings),
     name: str(s.name),
     originalName: str(s.original_name),
     tagline: str(s.tagline),
@@ -399,6 +418,56 @@ export async function getTrendingMedia(kind: "movie" | "tv", timeWindow: "day" |
     overview: str(r.overview),
   }));
   return { page: data.page ?? page, totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
+}
+
+const mapCatalogPage = (kind: "movie" | "tv", data: Raw, page: number): TmdbCatalogPage => {
+  const items: TmdbCatalogItem[] = (data.results ?? []).map((r: Raw) => ({
+    tmdbId: r.id,
+    title: str(kind === "movie" ? r.title : r.name),
+    date: strOrNull(kind === "movie" ? r.release_date : r.first_air_date),
+    posterPath: strOrNull(r.poster_path),
+    backdropPath: strOrNull(r.backdrop_path),
+    rating: rating(r.vote_average),
+    overview: str(r.overview),
+  }));
+  return { page: data.page ?? page, totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
+};
+
+// Not for children even when tagged Family/Animation/Kids: crime, mystery, reality, soap, talk, war & politics.
+const KIDS_EXCLUDED_GENRES = "80,9648,10764,10766,10767,10768";
+
+export type KidsSort = "popular" | "newest" | "title";
+
+/**
+ * Kids catalog from TMDB. Movies: US certification G/PG plus Family or Animation. Shows: TMDB has no certification
+ * filter for TV, and its Family/Animation tags also cover adult sitcoms, so shows must carry TMDB's own "Kids" genre.
+ * `genre` narrows within that (movies: any G/PG title of the genre; shows: Kids shows of the genre).
+ */
+export async function getKidsMedia(kind: "movie" | "tv", params: { genre?: number; sort?: KidsSort; page?: number } = {}): Promise<TmdbCatalogPage> {
+  const today = new Date().toISOString().slice(0, 10);
+  const sort = params.sort ?? "popular";
+  const q: Record<string, string | number> = { page: params.page ?? 1, include_adult: "false", "vote_count.gte": 15 };
+  if (kind === "movie") {
+    q.certification_country = "US";
+    q["certification.lte"] = "PG";
+    q.with_genres = params.genre ? String(params.genre) : "10751|16";
+    q["primary_release_date.lte"] = today;
+    q.sort_by = sort === "newest" ? "primary_release_date.desc" : sort === "title" ? "original_title.asc" : "popularity.desc";
+  } else {
+    q.with_genres = params.genre ? `10762,${params.genre}` : "10762";
+    q.without_genres = KIDS_EXCLUDED_GENRES;
+    q["first_air_date.lte"] = today;
+    q.sort_by = sort === "newest" ? "first_air_date.desc" : sort === "title" ? "name.asc" : "popularity.desc";
+  }
+  return mapCatalogPage(kind, await tmdb<Raw>(`/discover/${kind}`, q), params.page ?? 1);
+}
+
+/** Search restricted to kid-friendly genres (TMDB's search cannot filter by certification, so movies are judged by genre). */
+export async function searchKidsMedia(kind: "movie" | "tv", query: string, page = 1): Promise<TmdbCatalogPage> {
+  const data = await tmdb<Raw>(`/search/${kind}`, { query, page, include_adult: "false" });
+  const wanted = kind === "movie" ? [10751, 16] : [10762];
+  const kept = (data.results ?? []).filter((r: Raw) => Array.isArray(r.genre_ids) && r.genre_ids.some((g: number) => wanted.includes(g)) && !r.genre_ids.some((g: number) => [80, 9648, 10764, 10766, 10767, 10768].includes(g)));
+  return mapCatalogPage(kind, { ...data, results: kept }, page);
 }
 
 export async function getDiscoverMedia(kind: "movie" | "tv", params: { withGenres?: string; sortBy?: string; page?: number } = {}): Promise<TmdbCatalogPage> {

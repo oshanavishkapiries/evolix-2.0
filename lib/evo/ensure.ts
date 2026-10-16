@@ -45,7 +45,7 @@ export async function ensureMovie(tmdbId: number): Promise<string> {
       galleryBackdrops: m.galleryBackdrops,
       cast: m.cast,
       isPublished: true,
-      audience: audienceFromGenres(m.genres),
+      audience: audienceFromGenres(m.genres, m.certification),
     })
     .onConflictDoNothing({ target: movies.tmdbId });
   const id = await findMovieIdByTmdb(tmdbId);
@@ -74,7 +74,7 @@ async function createShow(prefill: ShowPrefill): Promise<string> {
       galleryBackdrops: prefill.galleryBackdrops,
       cast: prefill.cast,
       isPublished: true,
-      audience: audienceFromGenres(prefill.genres),
+      audience: audienceFromGenres(prefill.genres, prefill.certification),
       seasons: prefill.seasons.map(({ episodes: eps, ...s }) => ({ ...s, episodes: eps })),
       videos: [],
     });

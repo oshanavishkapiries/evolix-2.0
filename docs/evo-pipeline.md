@@ -10,6 +10,16 @@ The catalog is TMDB-driven. A title becomes playable the first time someone play
 4. `promote()` (`lib/evo/promote.ts`) upserts one `sources` row per quality (`audio_language = 'en'`, 720p sorted first) and one `subtitles` row per language, then expires the catalog cache tag.
 5. From then on the title plays straight from the CDN. Missing qualities can be requested from the Sources panel ("Get 1080p"); a CDN file that disappears is deactivated by `/api/evo/heal` and the title falls back to another quality or a fresh ingest.
 
+## Player experience
+
+- Streams start on **720p and stay there**: no adaptive switching and no "switching" toast. The viewer changes quality from the settings menu (cached files list 1080p/720p/480p; an uncached one shows a "Preparing" scene, then continues from the same position).
+- A banner ("Now streaming in 720p") slides in when playback starts. After 20s of playback the **quality advisor** may suggest one change: up to 1080p when the measured throughput is far above what 1080p needs, or down one step after repeated stalls. It is only ever a suggestion (OK switches; closing it stores "never ask again" in `localStorage`).
+- Every pre-playback state (connecting, preparing, errors) is one shared component (`player-status.tsx`); banners are `player-banner.tsx`. Both use the viewer design tokens.
+
+## Kids section
+
+Kids is TMDB-driven like the main catalog: movies are TMDB discover with US certification G/PG plus Family or Animation; shows use TMDB's own "Kids" genre (its Family/Animation tags also cover adult sitcoms). Search is restricted to the same genres. Titles entering the DB through Evo get an audience from genres plus their US age rating (`lib/evo/audience.ts`), which is what puts them in the Kids My List / Continue Watching. Featured cards show TMDB title logos.
+
 ## Sinhala subtitles
 
 When the engine finds an English track it also translates it to casual spoken Sinhala (OpenRouter, `TRANSLATE_MODEL`, default `google/gemini-3.1-flash-lite`). It runs beside the main chain (the `translate` node in the flow graph) and the CDN sync step waits for it, so the CDN gets both tracks and the app registers `si` ("Sinhala (AI)") as a subtitle row. The player selects Sinhala by default when it exists.

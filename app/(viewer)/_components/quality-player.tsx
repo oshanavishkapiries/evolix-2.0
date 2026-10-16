@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
-import { imageUrl } from "@/lib/images";
 import { normalizeSource } from "@/lib/viewer/providers";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import type { PauseInfo, ProgressTarget } from "./player-impl";
+import { PlayerStatus } from "./player-status";
 import { SafePlayerBoundary } from "./safe-player-boundary";
 import { WatchPlayer } from "./watch-player";
 
@@ -123,31 +123,21 @@ export function QualityPlayer({
   };
 
   if (prep) {
-    const bg = backdropPath ? imageUrl(backdropPath, "w1280") : null;
-    return (
-      <div className="v-player-loading-overlay">
-        {bg && <div className="v-player-loading-bg" style={{ backgroundImage: `url("${bg}")` }} />}
-        <div className="v-player-loading-card">
-          {prep.error ? (
-            <div className="v-player-loading-error">
-              <h3 className="v-player-loading-title">Couldn’t prepare {prep.quality}</h3>
-              <p>{prep.error}</p>
-              <div style={{ display: "flex", gap: ".6rem", justifyContent: "center", marginTop: ".75rem" }}>
-                <button type="button" className="v-btn v-btn-primary" onClick={() => void prepare(prep.quality)}>Retry</button>
-                <button type="button" className="v-btn" onClick={cancel}>Keep watching {active.quality}</button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="v-player-spinner" aria-hidden="true" />
-              <h3 className="v-player-loading-title">Preparing {prep.quality}</h3>
-              <p className="v-player-loading-status" role="status">{prep.message || "Working…"}</p>
-              <p className="v-muted" style={{ fontSize: ".8rem", marginTop: ".4rem" }}>First time at this quality, so it has to be fetched. Playback continues from where you were.</p>
-              <button type="button" className="v-btn" style={{ marginTop: ".9rem" }} onClick={cancel}>Keep watching {active.quality}</button>
-            </>
-          )}
-        </div>
-      </div>
+    return prep.error ? (
+      <PlayerStatus backdropPath={backdropPath} title={`Couldn’t prepare ${prep.quality}`} message={prep.error} error>
+        <button type="button" className="v-btn v-btn-primary" onClick={() => void prepare(prep.quality)}>Try again</button>
+        <button type="button" className="v-btn" onClick={cancel}>Keep watching {active.quality}</button>
+      </PlayerStatus>
+    ) : (
+      <PlayerStatus
+        backdropPath={backdropPath}
+        kicker="Preparing"
+        title={prep.quality}
+        message={prep.message || "Working…"}
+        note="First time at this quality, so it has to be fetched. Playback continues from where you were."
+      >
+        <button type="button" className="v-btn" onClick={cancel}>Keep watching {active.quality}</button>
+      </PlayerStatus>
     );
   }
 

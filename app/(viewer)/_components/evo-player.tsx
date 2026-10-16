@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { imageUrl } from "@/lib/images";
+import Link from "next/link";
+import { PlayerStatus } from "./player-status";
 import { WatchPlayer } from "./watch-player";
 import { SafePlayerBoundary } from "./safe-player-boundary";
 import type { PauseInfo, ProgressTarget } from "./player-impl";
@@ -149,9 +150,9 @@ export function EvoPlayer({
 
   // Auto-start ingest on mount if no active source
   useEffect(() => {
-    if (!activeSource && stage === "INGESTING" && !taskId) {
-      startIngest("720p");
-    }
+    if (activeSource || stage !== "INGESTING" || taskId) return;
+    const t = setTimeout(() => startIngest("720p"), 0); // deferred: startIngest sets state
+    return () => clearTimeout(t);
   }, [activeSource, stage, taskId, startIngest]);
 
   // Poll status while ingesting
@@ -275,38 +276,22 @@ export function EvoPlayer({
     );
   }
 
-  // 2. In-player loading dialogue stage
-  const bg = backdropPath ? imageUrl(backdropPath, "w1280") : null;
-
+  // 2. Connecting to the stream
   return (
-    <div className="v-player-loading-overlay">
-      {bg && <div className="v-player-loading-bg" style={{ backgroundImage: `url("${bg}")` }} />}
-      <div className="v-player-loading-card">
-        {!error ? (
-          <>
-            <div className="v-player-spinner" aria-hidden="true" />
-            <h3 className="v-player-loading-title">{title}</h3>
-            <p className="v-player-loading-status">{message || "Loading video stream..."}</p>
-            {progressPct > 0 && progressPct < 100 && (
-              <div className="v-player-loading-progress" aria-hidden="true">
-                <div className="v-player-loading-fill" style={{ width: `${progressPct}%` }} />
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="v-player-loading-error">
-            <h3 className="v-player-loading-title">Playback Error</h3>
-            <p>{error}</p>
-            <button
-              type="button"
-              className="v-btn v-btn-primary"
-              onClick={() => startIngest("720p")}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <PlayerStatus
+      backdropPath={backdropPath}
+      kicker={error ? undefined : "On demand"}
+      title={error ? "Couldn’t start the stream" : title}
+      message={error ?? (message || "Connecting to the stream…")}
+      progress={error ? undefined : progressPct}
+      error={Boolean(error)}
+    >
+      {error && (
+        <>
+          <button type="button" className="v-btn v-btn-primary" onClick={() => startIngest("720p")}>Try again</button>
+          <Link href={backHref} className="v-btn">Back</Link>
+        </>
+      )}
+    </PlayerStatus>
   );
 }
