@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { browse, listFeatured, listGenres, listLatest } from "@/lib/viewer/catalog";
+import { canWatch } from "@/lib/viewer/access";
 import { currentUserId } from "@/lib/viewer/user";
+import { ApprovalNotice } from "../_components/approval-notice";
 import { continueWatching, listBookmarks } from "@/lib/viewer/library";
 import { ContinueRow } from "../_components/continue-row";
 import { HubRow } from "../_components/hub-row";
@@ -27,6 +29,7 @@ export default function HomePage() {
 
 async function HomeContent() {
   const userId = await currentUserId();
+  const pending = userId ? !(await canWatch(userId)) : false;
   const [featured, movies, shows, genres, resume, myList] = await Promise.all([
     listFeatured(),
     listLatest("movie"),
@@ -48,6 +51,7 @@ async function HomeContent() {
 
   return (
     <>
+      {pending && <ApprovalNotice banner />}
       <HubRow title="Featured" subtitle="New on Evolix" items={featured} variant="landscape" badge logo />
       <ContinueRow items={resume} />
       <HubRow title="My List" subtitle="Saved for later" items={myList} href="/my-list" badge />

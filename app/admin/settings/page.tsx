@@ -6,7 +6,7 @@ export default async function AdminSettingsPage() {
   return (
     <>
       <PageHeader title="Settings" />
-      <PlatformSettings requireEmailVerification={await getSetting("requireEmailVerification")} />
+      <PlatformSettings requireApproval={await getSetting("requireApproval")} />
     </>
   );
 }

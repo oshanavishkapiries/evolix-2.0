@@ -64,6 +64,13 @@
       "when": 1792146733258,
       "tag": "0008_minor_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792148729870,
+      "tag": "0009_friendly_bulldozer",
+      "breakpoints": true
     }
   ]
 }

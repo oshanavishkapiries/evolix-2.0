@@ -7,7 +7,9 @@ import { ensureMovie } from "@/lib/evo/ensure";
 import { isUuid, parseMediaId } from "@/lib/viewer/ids";
 import { runtimeText, yearOf } from "@/lib/viewer/format";
 import { resumePosition } from "@/lib/viewer/library";
+import { canWatch } from "@/lib/viewer/access";
 import { currentUserId } from "@/lib/viewer/user";
+import { ApprovalNotice } from "../../../_components/approval-notice";
 import { getMovieWatch } from "@/lib/viewer/watch";
 import { WatchView } from "../../../_components/watch-view";
 
@@ -32,6 +34,7 @@ export default async function WatchMoviePage({ params, searchParams }: Props) {
   const movie = await getMovieWatch(id);
   if (!movie) notFound();
   const userId = await currentUserId();
+  if (!(await canWatch(userId))) return <ApprovalNotice />;
   // Evo titles start as TMDB-only ("tmdb-123"); signed-in viewers get a catalog row so progress and reports have something to attach to.
   const rowId = isUuid(movie.id) ? movie.id : userId ? await ensureMovie(movie.tmdbId).catch(() => null) : null;
   const startAt = userId && rowId ? await resumePosition(userId, { movieId: rowId }) : 0;

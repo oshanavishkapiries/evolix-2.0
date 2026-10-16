@@ -7,7 +7,9 @@ import { chooseAudio } from "@/lib/viewer/audio";
 import { ensureEpisode } from "@/lib/evo/ensure";
 import { isUuid, parseMediaId, parseNumber } from "@/lib/viewer/ids";
 import { resumePosition } from "@/lib/viewer/library";
+import { canWatch } from "@/lib/viewer/access";
 import { currentUserId } from "@/lib/viewer/user";
+import { ApprovalNotice } from "../../../../../_components/approval-notice";
 import { getEpisodeWatch, type EpisodeRef } from "@/lib/viewer/watch";
 import { EpisodeRow } from "../../../../../_components/seasons";
 import { WatchView } from "../../../../../_components/watch-view";
@@ -44,6 +46,7 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
   if (!data) notFound();
   const { current, prev, next } = data;
   const userId = await currentUserId();
+  if (!(await canWatch(userId))) return <ApprovalNotice />;
   // Evo episodes start as TMDB-only ids; signed-in viewers get catalog rows so progress and reports can attach.
   const episodeId = isUuid(current.id) ? current.id : userId ? (await ensureEpisode(current.tmdbId, p.season, p.episode).catch(() => null))?.episodeId ?? null : null;
   const startAt = userId && episodeId ? await resumePosition(userId, { episodeId }) : 0;

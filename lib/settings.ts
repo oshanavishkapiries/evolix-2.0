@@ -4,16 +4,17 @@ import { appSettings } from "@/db/schema";
 
 /** Switches an admin can flip at runtime. `default` applies until one is saved. */
 export const SETTINGS = {
-  requireEmailVerification: { default: true },
+  /** On: signed-in users can browse but cannot watch until an admin approves their account. */
+  requireApproval: { default: false },
 } as const;
 export type SettingKey = keyof typeof SETTINGS;
 
 const TTL_MS = 5000;
-const cache = new Map<string, { at: number; value: unknown }>();
+const cache = new Map<string, { at: number; value: boolean }>();
 
-export async function getSetting<K extends SettingKey>(key: K): Promise<boolean> {
+export async function getSetting(key: SettingKey): Promise<boolean> {
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.value as boolean;
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
   const [row] = await db.select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, key)).limit(1);
   const value = typeof row?.value === "boolean" ? row.value : SETTINGS[key].default;
   cache.set(key, { at: Date.now(), value });
@@ -26,12 +27,4 @@ export async function setSetting(key: SettingKey, value: boolean): Promise<void>
     .values({ key, value })
     .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   cache.delete(key);
-}
-
-/**
- * Whether a sign-up must prove it owns the address. Admin addresses are always verified: otherwise anyone could
- * register an admin's email with their own password and be treated as that admin.
- */
-export async function verificationRequiredFor(email: string, isAdmin: (email: string) => boolean): Promise<boolean> {
-  return isAdmin(email) || (await getSetting("requireEmailVerification"));
 }
