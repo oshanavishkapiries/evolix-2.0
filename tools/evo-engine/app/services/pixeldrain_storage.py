@@ -78,3 +78,21 @@ class PixeldrainStorageProvider(IStorageProvider):
             direct_url=direct_url,
             size_bytes=file_size,
         )
+
+    def _auth(self):
+        return ("", self.api_key) if self.api_key else None
+
+    def delete_file(self, file_id: str) -> None:
+        """Deletes a file from the Pixeldrain account. A file that is already gone counts as deleted."""
+        resp = requests.delete(f"{self.base_url}/{urllib.parse.quote(file_id)}", auth=self._auth(), timeout=30)
+        if resp.status_code not in (200, 404):
+            raise RuntimeError(f"Pixeldrain delete failed: HTTP {resp.status_code} - {resp.text[:200]}")
+
+    def list_files(self) -> list:
+        """Files in the Pixeldrain account (needs the API key)."""
+        if not self.api_key:
+            raise RuntimeError("PIXELDRAIN_API_KEY is not set")
+        resp = requests.get("https://pixeldrain.com/api/user/files", auth=self._auth(), timeout=30)
+        if resp.status_code != 200:
+            raise RuntimeError(f"Pixeldrain list failed: HTTP {resp.status_code}")
+        return resp.json().get("files", [])

@@ -160,7 +160,7 @@ class SinhalaTranslator:
     # ---- OpenRouter
 
     def _check_budget(self) -> None:
-        if self.repository and self.repository.usage_today() >= settings.TRANSLATE_DAILY_BUDGET_USD:
+        if self.repository and settings.TRANSLATE_DAILY_BUDGET_USD > 0 and self.repository.usage_today() >= settings.TRANSLATE_DAILY_BUDGET_USD:
             raise BudgetExceeded(f"Daily translation budget (${settings.TRANSLATE_DAILY_BUDGET_USD:.2f}) reached")
 
     def _chat(self, messages: list, task_id: Optional[str], temperature: float = 0.3, as_json: bool = False) -> str:

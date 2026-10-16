@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     # Resource limits: extraction launches a headless browser, downloads/uploads move whole films.
     MAX_CONCURRENT_EXTRACTIONS: int = 2
     MAX_CONCURRENT_DOWNLOADS: int = 2
+    # Jobs waiting for extraction beyond this are refused (HTTP 503) instead of piling up.
+    MAX_QUEUED_TASKS: int = 50
     # Background caching is skipped (streaming still works) below this much free disk.
     MIN_FREE_DISK_GB: float = 10.0
     # Delete leftover files in DOWNLOAD_DIR at startup (they belong to tasks that died with the process).
@@ -38,8 +40,8 @@ class Settings(BaseSettings):
     TRANSLATE_CHUNK_CUES: int = 50
     TRANSLATE_CONTEXT_CUES: int = 4
     TRANSLATE_CONCURRENCY: int = 4
-    # Hard stop for the day (UTC); translation resumes tomorrow or when raised.
-    TRANSLATE_DAILY_BUDGET_USD: float = 1.0
+    # Hard stop for the day (UTC); translation resumes tomorrow or when raised. 0 or less = unlimited (spend is still ledgered).
+    TRANSLATE_DAILY_BUDGET_USD: float = 0.0
 
     # Browsers never call the engine directly (Next.js proxies it); list origins here only if that changes.
     CORS_ORIGINS: str = ""

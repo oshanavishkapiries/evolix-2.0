@@ -9,7 +9,7 @@ export type AdminResult<T = Record<string, unknown>> = {
 
 /** JSON call to the admin API (refreshes the session on 401). */
 export async function adminApi<T = Record<string, unknown>>(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
   signal?: AbortSignal,

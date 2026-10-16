@@ -1,6 +1,7 @@
 import logging
 import re
 import shutil
+import time
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -36,6 +37,31 @@ def sanitize_filename(title: str) -> str:
     return clean or "Media"
 
 
+class _Limiter:
+    """Counting semaphore whose limit can change while jobs run (admin-editable concurrency)."""
+
+    def __init__(self, limit: int):
+        self._cond = threading.Condition()
+        self.limit = limit
+        self.active = 0
+
+    def set_limit(self, limit: int) -> None:
+        with self._cond:
+            self.limit = limit
+            self._cond.notify_all()
+
+    def __enter__(self):
+        with self._cond:
+            while self.active >= self.limit:
+                self._cond.wait()
+            self.active += 1
+
+    def __exit__(self, *exc):
+        with self._cond:
+            self.active -= 1
+            self._cond.notify_all()
+
+
 class IngestService:
     """Orchestrates stream extraction, quality resolution, instant HLS streaming, downloading, and cloud syncing."""
 
@@ -62,9 +88,73 @@ class IngestService:
         self._tr_locks_guard = threading.Lock()
         # Create-or-join must be atomic or two viewers asking for the same quality start two jobs.
         self._create_lock = threading.Lock()
-        # Extraction launches a headless browser and caching moves whole films: bound both.
-        self._extract_slots = threading.BoundedSemaphore(settings.MAX_CONCURRENT_EXTRACTIONS)
-        self._cache_slots = threading.BoundedSemaphore(settings.MAX_CONCURRENT_DOWNLOADS)
+        # Extraction launches a headless browser and caching moves whole films: each stage has its own worker
+        # pool, so waiting jobs sit in a queue (not on request threads) and a long download never blocks an extraction.
+        # The pools are sized for the largest allowed concurrency; the limiters hold the live (admin-editable) limit.
+        self._extract_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="extract")
+        self._cache_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cache")
+        self._extract_limit = _Limiter(settings.MAX_CONCURRENT_EXTRACTIONS)
+        self._cache_limit = _Limiter(settings.MAX_CONCURRENT_DOWNLOADS)
+        self._queued = 0
+        self._queued_guard = threading.Lock()
+        self.paused = False
+        self._cancelled: set[str] = set()
+
+    def apply_config(self) -> None:
+        """Pushes admin-changed concurrency limits into the running pools."""
+        self._extract_limit.set_limit(settings.MAX_CONCURRENT_EXTRACTIONS)
+        self._cache_limit.set_limit(settings.MAX_CONCURRENT_DOWNLOADS)
+
+    def queue_depth(self) -> int:
+        """Jobs accepted but not yet finished their extraction stage."""
+        return self._queued
+
+    def queue_status(self) -> dict:
+        return {
+            "paused": self.paused,
+            "waiting_extraction": max(0, self._queued - self._extract_limit.active),
+            "extracting": self._extract_limit.active,
+            "caching": self._cache_limit.active,
+            "queue_limit": settings.MAX_QUEUED_TASKS,
+        }
+
+    def enqueue(self, task_id: str) -> bool:
+        """Queues a task for processing; False when the backlog is full (the caller should answer 503)."""
+        with self._queued_guard:
+            if self._queued >= settings.MAX_QUEUED_TASKS:
+                return False
+            self._queued += 1
+        self._extract_pool.submit(self._run_job, task_id)
+        return True
+
+    def cancel(self, task_id: str) -> bool:
+        """Stops a job before its next stage (a running extraction or download finishes its current step first)."""
+        task = self.repository.get_by_id(task_id)
+        if not task or task.status in (IngestStatus.COMPLETED, IngestStatus.FAILED):
+            return False
+        self._cancelled.add(task_id)
+        self._event(task, "request", "failed", "Cancelled by an admin")
+        self._set(task, IngestStatus.FAILED if not task.stream_url else None, "Cancelled by an admin")
+        return True
+
+    def _run_job(self, task_id: str) -> None:
+        try:
+            while self.paused and task_id not in self._cancelled:
+                time.sleep(1)
+            if task_id in self._cancelled:
+                return
+            with self._extract_limit:
+                staged = self._extract_stage(task_id)
+        finally:
+            with self._queued_guard:
+                self._queued -= 1
+        if staged and task_id not in self._cancelled:
+            self._cache_pool.submit(self._cache_job, *staged)
+
+    def _cache_job(self, task: IngestTask, stream: StreamSource) -> None:
+        with self._cache_limit:
+            if task.task_id not in self._cancelled:
+                self._cache_stage(task, stream)
 
     def create_task(
         self,
@@ -258,7 +348,8 @@ class IngestService:
     # ---- On-demand Sinhala subtitles: a viewer picked "Sinhala (AI)" on a title that has no Sinhala track yet
 
     def sinhala_budget_left(self) -> bool:
-        return not self.translator or self.translator.repository is None or self.translator.repository.usage_today() < settings.TRANSLATE_DAILY_BUDGET_USD
+        cap = settings.TRANSLATE_DAILY_BUDGET_USD
+        return not self.translator or self.translator.repository is None or cap <= 0 or self.translator.repository.usage_today() < cap
 
     @staticmethod
     def _cdn_alive(url: str) -> bool:
@@ -420,12 +511,18 @@ class IngestService:
             self._event(task, "webhook", "failed", "App did not acknowledge (its status poll will reconcile)")
 
     def process_task(self, task_id: str) -> None:
+        """Runs both stages in the calling thread (tests, scripts); the service itself uses enqueue()."""
+        staged = self._extract_stage(task_id)
+        if staged:
+            self._cache_stage(*staged)
+
+    def _extract_stage(self, task_id: str) -> Optional[tuple]:
+        """Extract streams, pick the quality, fetch subtitles and open instant playback. Returns (task, stream) for caching."""
         task = self.repository.get_by_id(task_id)
         if not task:
             logger.error(f"Task {task_id} not found")
-            return
+            return None
 
-        local_file: Optional[Path] = None
         step = "extract"
         try:
             # 1. Extraction Phase (bounded: each one drives a headless browser)
@@ -433,13 +530,12 @@ class IngestService:
             self._event(task, "extract", "running", "Waiting for a browser slot")
             logger.info(f"[{task_id}] Extracting streams for TMDB {task.tmdb_id} (S{task.season}E{task.episode})")
 
-            with self._extract_slots:
-                streams = self.extractor.extract_streams(
-                    task.tmdb_id,
-                    task.media_type.value,
-                    season=task.season,
-                    episode=task.episode,
-                )
+            streams = self.extractor.extract_streams(
+                task.tmdb_id,
+                task.media_type.value,
+                season=task.season,
+                episode=task.episode,
+            )
             if not streams:
                 raise RuntimeError("No streams found for media")
             self._event(task, "extract", "ok", f"{len(streams)} stream(s): " + ", ".join(x.quality for x in streams))
@@ -482,7 +578,19 @@ class IngestService:
             self._set(task, IngestStatus.STREAMING, f"Stream ready for instant playback ({task.resolved_quality})", 100)
             logger.info(f"[{task_id}] Stream is READY for instant playback: {task.stream_url} ({len(task.subtitles)} subs)")
             self._event(task, "stream", "ok", f"Viewers can watch now ({task.resolved_quality})")
-            step = "cdn_check"
+            return task, selected_stream
+        except Exception as e:
+            logger.exception(f"[{task_id}] Extraction encountered error: {e}")
+            self._event(task, step, "failed", str(e))
+            self._set(task, IngestStatus.FAILED, str(e))
+            return None
+
+    def _cache_stage(self, task: IngestTask, selected_stream: StreamSource) -> None:
+        """Copies the chosen quality to the CDN in the background; playback already works without it."""
+        task_id = task.task_id
+        local_file: Optional[Path] = None
+        step = "cdn_check"
+        try:
             self._event(task, "cdn_check", "running", "Checking for an existing CDN copy and free disk")
 
             # A different request can resolve to a quality we already cached (asked 1080p, only 720p exists).
@@ -511,32 +619,31 @@ class IngestService:
             # Task id in the name: two jobs for one title must never write the same file.
             local_file = settings.DOWNLOAD_DIR / f"{task.task_id[:8]}_{formatted_filename}"
 
-            with self._cache_slots:
-                logger.info(f"[{task_id}] Background caching to CDN: {formatted_filename}")
-                self._set(task, message=f"Caching {task.resolved_quality} to CDN...")
+            logger.info(f"[{task_id}] Background caching to CDN: {formatted_filename}")
+            self._set(task, message=f"Caching {task.resolved_quality} to CDN...")
 
-                def on_download_progress(pct: int):
-                    task.updated_at = datetime.utcnow()
-                    self.repository.save(task)
+            def on_download_progress(pct: int):
+                task.updated_at = datetime.utcnow()
+                self.repository.save(task)
 
-                step = "download"
-                self._event(task, "download", "running", f"Remuxing {task.resolved_quality} HLS to MP4")
-                self.downloader.download_stream(selected_stream, local_file, progress_callback=on_download_progress)
-                self._event(task, "download", "ok", f"{local_file.stat().st_size / 1024 / 1024:.0f} MB")
+            step = "download"
+            self._event(task, "download", "running", f"Remuxing {task.resolved_quality} HLS to MP4")
+            self.downloader.download_stream(selected_stream, local_file, progress_callback=on_download_progress)
+            self._event(task, "download", "ok", f"{local_file.stat().st_size / 1024 / 1024:.0f} MB")
 
-                step = "verify"
-                self._event(task, "verify", "running", "Checking size and duration")
-                self._verify_download(task, local_file)
-                self._event(task, "verify", "ok", "File looks complete")
+            step = "verify"
+            self._event(task, "verify", "running", "Checking size and duration")
+            self._verify_download(task, local_file)
+            self._event(task, "verify", "ok", "File looks complete")
 
-                # 5. CDN upload (the CDN file keeps the clean name, not the scratch name)
-                final_file = local_file.with_name(formatted_filename)
-                local_file.rename(final_file)
-                local_file = final_file
-                step = "upload"
-                self._event(task, "upload", "running", "Uploading to Pixeldrain")
-                upload_res = self.storage.upload_file(local_file)
-                self._event(task, "upload", "ok", upload_res.direct_url)
+            # 5. CDN upload (the CDN file keeps the clean name, not the scratch name)
+            final_file = local_file.with_name(formatted_filename)
+            local_file.rename(final_file)
+            local_file = final_file
+            step = "upload"
+            self._event(task, "upload", "running", "Uploading to Pixeldrain")
+            upload_res = self.storage.upload_file(local_file)
+            self._event(task, "upload", "ok", upload_res.direct_url)
 
             # 6. Subtitles follow the video onto the CDN, then the task is complete
             step = "subtitle_sync"
