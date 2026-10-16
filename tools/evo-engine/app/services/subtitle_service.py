@@ -1,6 +1,7 @@
 import gzip
 import io
 import json
+from concurrent.futures import ThreadPoolExecutor
 import logging
 import re
 from pathlib import Path
@@ -80,13 +81,9 @@ class SubtitleService:
             return []
         padded_imdb = f"{int(clean_imdb):07d}"
 
-        results: List[Dict[str, Any]] = []
-        session = requests.Session()
-
-        for lang_info in SUPPORTED_LANGUAGES:
+        def search(lang_info: Dict[str, str]) -> Optional[Dict[str, Any]]:
             os_code = lang_info["os_code"]
             lang_code = lang_info["lang"]
-            label = lang_info["label"]
 
             if season is not None and episode is not None:
                 url = (
@@ -97,7 +94,7 @@ class SubtitleService:
                 url = f"https://rest.opensubtitles.org/search/imdbid-{padded_imdb}/sublanguageid-{os_code}"
 
             try:
-                r = session.get(
+                r = requests.get(
                     url,
                     headers={
                         "User-Agent": "Mozilla/5.0",
@@ -106,11 +103,11 @@ class SubtitleService:
                     timeout=5,
                 )
                 if r.status_code != 200:
-                    continue
+                    return None
 
                 items = r.json()
                 if not items or not isinstance(items, list):
-                    continue
+                    return None
 
                 best = items[0]
                 dl_link = best.get("SubDownloadLink")
@@ -118,21 +115,28 @@ class SubtitleService:
                 file_id_str = file_id.group(1) if hasattr(file_id, "group") else str(file_id or "0")
 
                 sub_id = f"sub_{clean_imdb}_{lang_code}_{file_id_str}"
-                self._meta_cache[sub_id] = dl_link
-                self._save_meta()
-
-                results.append(
-                    {
-                        "id": sub_id,
-                        "label": label,
-                        "language": lang_code,
-                        "format": "vtt",
-                        "url": f"/api/v1/media/subtitles/{sub_id}.vtt",
-                    }
-                )
+                return {
+                    "id": sub_id,
+                    "label": lang_info["label"],
+                    "language": lang_code,
+                    "format": "vtt",
+                    "url": f"/api/v1/media/subtitles/{sub_id}.vtt",
+                    "_dl_link": dl_link,
+                }
             except Exception as e:
                 logger.debug(f"Subtitle search error for {lang_code}: {e}")
+                return None
 
+        # One request per language, all at once: the whole lookup costs one timeout instead of ten.
+        with ThreadPoolExecutor(max_workers=len(SUPPORTED_LANGUAGES)) as pool:
+            found = [r for r in pool.map(search, SUPPORTED_LANGUAGES) if r]
+
+        results: List[Dict[str, Any]] = []
+        for item in found:
+            self._meta_cache[item["id"]] = item.pop("_dl_link")
+            results.append(item)
+        if results:
+            self._save_meta()
         return results
 
     def get_vtt(self, sub_id: str) -> Optional[str]:

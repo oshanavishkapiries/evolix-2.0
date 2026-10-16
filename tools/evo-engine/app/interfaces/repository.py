@@ -32,3 +32,21 @@ class ITaskRepository(ABC):
     def list_all(self, limit: int = 50) -> List[IngestTask]:
         """Lists recent tasks."""
         pass
+
+    @abstractmethod
+    def find_completed(
+        self,
+        tmdb_id: int,
+        media_type: str,
+        resolved_quality: str,
+        season: Optional[int] = None,
+        episode: Optional[int] = None,
+        exclude_task_id: Optional[str] = None,
+    ) -> Optional[IngestTask]:
+        """Finds a COMPLETED (CDN-cached) task for the same media at the same resolved quality."""
+        pass
+
+    @abstractmethod
+    def recover_interrupted(self) -> int:
+        """Marks tasks left mid-flight by a process restart as failed/interrupted; returns how many."""
+        pass
