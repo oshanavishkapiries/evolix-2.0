@@ -1,0 +1,9 @@
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.1
+python-dotenv==1.2.4
+requests==2.34.2
+curl_cffi==0.16.3
+playwright==1.64.1
+playwright-stealth==2.0.3
