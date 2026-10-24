@@ -56,7 +56,7 @@ export function EpisodeRow({
 
 /** Season posters; each opens the player straight away (the player has its own episode panel). */
 export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: string }) {
-  const { seasons } = show;
+  const seasons = show.seasons.filter((s) => s.seasonNumber > 0);
   if (!seasons.length) {
     return (
       <section className="v-section" aria-labelledby="seasons-h">
@@ -65,7 +65,7 @@ export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: s
       </section>
     );
   }
-  const label = (s: (typeof seasons)[number]) => (s.seasonNumber === 0 ? "Specials" : `Season ${s.seasonNumber}`);
+  const label = (s: (typeof seasons)[number]) => `Season ${s.seasonNumber}`;
   return (
     <section className="v-section" aria-labelledby="seasons-h">
       <h2 id="seasons-h">Seasons</h2>
@@ -86,7 +86,7 @@ export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: s
                 )}
                 {href && <span className="v-card-play" aria-hidden="true"><PlayIcon size={22} /></span>}
               </span>
-              <span className="v-card-title">{s.name && s.seasonNumber !== 0 && s.name !== label(s) ? s.name : label(s)}</span>
+              <span className="v-card-title">{s.name || label(s)}</span>
               <span className="v-card-sub">{s.episodeCount} {s.episodeCount === 1 ? "episode" : "episodes"}</span>
             </>
           );
