@@ -1,7 +1,11 @@
 "use client";
 
-import { useActiveTextTrack, useCaptionOptions, useMediaPlayer, useMediaRemote, useMediaState, type TextTrack } from "@vidstack/react";
+import { useMediaPlayer, useMediaRemote, useMediaState, type TextTrack } from "@vidstack/react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import type { WatchSubtitle } from "@/lib/viewer/watch";
+import type { SubtitleSelection, SubtitleSlot } from "./dual-subtitles";
+import { useSubtitleStatus } from "./dual-subtitles";
+import { PENDING_ID } from "./sinhala-subtitles";
 import { CloseIcon } from "./icons";
 import {
   BG_COLORS,
@@ -29,9 +33,7 @@ import {
   type SubTiming,
 } from "./subtitle-timing";
 
-export type SubTab = "style" | "sync";
-// Module-level: useActiveTextTrack resubscribes whenever this array changes identity.
-const KINDS: ("subtitles" | "captions")[] = ["subtitles", "captions"];
+export type SubTab = "tracks" | "style" | "sync";
 /** Fine-tune step, also used by the G / H keys (VLC's subtitle delay keys). */
 const STEP_S = 0.1;
 /** Lines listed on each side of the picked one. */
@@ -40,7 +42,7 @@ const MAX_MATCHES = 40;
 
 export function SubtitleButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   return (
-    <button type="button" className="vds-button v-sub-btn" aria-label="Subtitle style and sync" aria-expanded={open} data-active={open || undefined} onClick={onToggle}>
+    <button type="button" className="vds-button v-sub-btn" aria-label="Dual Subtitles settings" title="Dual Subtitles" aria-expanded={open} data-active={open || undefined} onClick={onToggle}>
       <svg className="vds-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
         <path d="M6.5 12.5h5M14.5 12.5h3M6.5 16h3M12.5 16h5" />
@@ -59,25 +61,39 @@ export function SubtitleTools({
   tab,
   onTab,
   onClose,
+  subtitles,
+  selection,
+  choices,
+  onSelect,
+  slot,
+  onSlot,
   style,
   onStyle,
   note,
+  notice,
 }: {
   open: boolean;
   tab: SubTab;
   onTab: (t: SubTab) => void;
   onClose: () => void;
+  subtitles: WatchSubtitle[];
+  selection: SubtitleSelection;
+  choices: SubtitleSelection;
+  onSelect: (slot: SubtitleSlot, id: string | null) => void;
+  slot: SubtitleSlot;
+  onSlot: (slot: SubtitleSlot) => void;
   style: SubStyle;
   onStyle: (s: SubStyle) => void;
   /** Explains a missing option (e.g. why there is no Sinhala subtitle). */
   note?: string | null;
+  notice?: React.ReactNode;
 }) {
   const player = useMediaPlayer();
-  const track = useActiveTextTrack(KINDS);
+  const tracks = useMediaState("textTracks");
+  const track = tracks.find((t) => t.id === selection[slot]) ?? null;
   const [timing, setTiming] = useState<SubTiming>(NO_TIMING);
-  // Bumped when a subtitle finishes loading, so `ready` below is re-read.
-  const [, setLoads] = useState(0);
-  const ready = track?.readyState === 2;
+  const readyState = useSubtitleStatus(track);
+  const ready = readyState === 2;
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const panel = useRef<HTMLElement>(null);
@@ -91,7 +107,6 @@ export function SubtitleTools({
       const t = loadTiming(track.id);
       applyTiming(track, t, player?.state.currentTime ?? 0);
       setTiming(t);
-      setLoads((n) => n + 1);
     };
     if (track.readyState === 2) load();
     else track.addEventListener("load", load);
@@ -116,7 +131,7 @@ export function SubtitleTools({
   // G / H shift subtitles earlier / later, like VLC.
   const onDelayKey = useEffectEvent((e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
-    if ((k !== "g" && k !== "h") || e.ctrlKey || e.metaKey || e.altKey || !ready) return;
+    if ((k !== "g" && k !== "h") || e.ctrlKey || e.metaKey || e.altKey || !ready || !track) return;
     if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable]")) return;
     const next = nudge(timing, k === "g" ? -STEP_S : STEP_S);
     update(next, `Subtitle delay ${formatShift(next.offset)}`);
@@ -160,9 +175,12 @@ export function SubtitleTools({
           {toast}
         </div>
       )}
-      <aside ref={panel} className="v-sub-panel" data-open={open} aria-hidden={!open} inert={!open} aria-label="Subtitles" tabIndex={-1}>
+      <aside ref={panel} className="v-sub-panel" data-open={open} aria-hidden={!open} inert={!open} aria-label="Dual Subtitles" tabIndex={-1}>
         <header className="v-sub-head">
           <div className="v-sub-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={tab === "tracks"} onClick={() => onTab("tracks")}>
+              Tracks
+            </button>
             <button type="button" role="tab" aria-selected={tab === "style"} onClick={() => onTab("style")}>
               Style
             </button>
@@ -176,15 +194,31 @@ export function SubtitleTools({
           </button>
         </header>
         <div className="v-sub-body">
-          <LanguagePicker note={note} />
-          {open && tab === "style" && <StyleTab style={style} onStyle={onStyle} />}
+          {tab === "tracks" ? (
+            <TrackPicker subtitles={subtitles} selection={selection} choices={choices} onSelect={onSelect} tracks={tracks} note={note} />
+          ) : (
+            <div className="v-sub-field">
+              <span className="v-sub-label">Editing track</span>
+              <div className="v-sub-chips">
+                {([0, 1] as const).map((s) => (
+                  <button key={s} type="button" className="v-sub-chip" aria-pressed={slot === s} onClick={() => onSlot(s)}>
+                    {s === 0 ? "Bottom" : "Top"} · {subtitles.find((t) => t.id === selection[s])?.label ?? "Off"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {open && notice}
+          {open && tab === "style" && <StyleTab style={style} onStyle={onStyle} slot={slot} />}
           {open && tab === "sync" &&
             (!track ? (
-              <p className="v-sub-note">Turn on a subtitle above to sync it.</p>
+              <p className="v-sub-note">Choose a subtitle in Tracks to sync it.</p>
+            ) : readyState === 3 ? (
+              <p className="v-sub-note" role="alert">This subtitle could not be loaded. Choose another track in Tracks.</p>
             ) : !ready ? (
               <p className="v-sub-note">Loading subtitle…</p>
             ) : (
-              <SyncTab track={track} timing={timing} onChange={update} />
+              <SyncTab key={track.id} track={track} timing={timing} onChange={update} />
             ))}
         </div>
       </aside>
@@ -192,25 +226,57 @@ export function SubtitleTools({
   );
 }
 
-function LanguagePicker({ note }: { note?: string | null }) {
-  const options = useCaptionOptions({ off: "Off" });
-  if (options.length <= 1) return null;
+function TrackPicker({ subtitles, selection, choices, onSelect, tracks, note }: {
+  subtitles: WatchSubtitle[];
+  selection: SubtitleSelection;
+  choices: SubtitleSelection;
+  onSelect: (slot: SubtitleSlot, id: string | null) => void;
+  tracks: TextTrack[];
+  note?: string | null;
+}) {
+  const count = choices.filter(Boolean).length;
   return (
-    <div className="v-sub-field">
-      <span className="v-sub-label">Subtitle</span>
-      <div className="v-sub-chips">
-        {options.map((o) => (
-          <button key={o.value} type="button" className="v-sub-chip" aria-pressed={o.selected} onClick={(e) => o.select(e.nativeEvent)}>
-            {o.label}
-          </button>
-        ))}
+    <section className="v-sub-tracks" aria-label="Subtitle tracks">
+      <div className="v-sub-track-heading">
+        <strong>Dual Subtitles</strong>
+        <span role="status" aria-live="polite">{count} / 2 tracks</span>
       </div>
+      <p className="v-sub-note">Watch with up to two subtitle tracks at once. Choose a language for each position.</p>
+      {([0, 1] as const).map((slot) => {
+        const other = slot === 0 ? 1 : 0;
+        const id = choices[slot];
+        const track = tracks.find((t) => t.id === selection[slot]);
+        return (
+          <div key={slot} className="v-sub-track-slot">
+            <label>
+              <span className="v-sub-label">{slot === 0 ? "First subtitle · Bottom" : "Second subtitle · Top"}</span>
+              <select aria-label={slot === 0 ? "First subtitle" : "Second subtitle"} value={id ?? ""} onChange={(e) => onSelect(slot, e.target.value || null)}>
+                <option value="">Off</option>
+                {subtitles.map((s) => (
+                  <option key={s.id} value={s.id} disabled={choices[other] === s.id || selection[other] === s.id}>{s.label}</option>
+                ))}
+              </select>
+            </label>
+            {id && <button type="button" className="v-sub-remove" aria-label={`Remove ${slot === 0 ? "first" : "second"} subtitle`} onClick={() => onSelect(slot, null)}><CloseIcon size={16} /></button>}
+            {id === PENDING_ID && <small className="v-sub-note" role="status">Preparing Sinhala (AI)… Your current subtitles stay on.</small>}
+            {id && id !== PENDING_ID && <TrackLoadStatus track={track ?? null} />}
+          </div>
+        );
+      })}
+      <p className="v-sub-hint">Use Style and Sync to adjust each track separately. Select Off to remove a track.</p>
       {note && <p className="v-sub-note">{note}</p>}
-    </div>
+    </section>
   );
 }
 
-function StyleTab({ style, onStyle }: { style: SubStyle; onStyle: (s: SubStyle) => void }) {
+function TrackLoadStatus({ track }: { track: TextTrack | null }) {
+  const state = useSubtitleStatus(track);
+  if (state === 3) return <small role="alert">This subtitle could not be loaded. Choose another track.</small>;
+  if (state !== 2) return <small className="v-sub-note" role="status">Loading subtitle…</small>;
+  return null;
+}
+
+function StyleTab({ style, onStyle, slot }: { style: SubStyle; onStyle: (s: SubStyle) => void; slot: SubtitleSlot }) {
   const set = <K extends keyof SubStyle>(k: K, v: SubStyle[K]) => onStyle({ ...style, [k]: v });
   return (
     <>
@@ -262,7 +328,7 @@ function StyleTab({ style, onStyle }: { style: SubStyle; onStyle: (s: SubStyle) 
 
       <label className="v-sub-field">
         <span className="v-sub-label">
-          Position <output>{style.lift ? `${style.lift}% higher` : "Bottom"}</output>
+          Position <output>{style.lift ? `${style.lift}% ${slot === 0 ? "higher" : "lower"}` : slot === 0 ? "Bottom" : "Top"}</output>
         </span>
         <input type="range" min={0} max={LIFT_MAX} step={2} value={style.lift} onChange={(e) => set("lift", Number(e.target.value))} />
       </label>

@@ -71,7 +71,14 @@
 .v-player-wrap [data-media-player] .vds-captions { --cue-font-size: calc(var(--cue-default-font-size) * var(--sub-scale, 1)); font-family: var(--sub-font, inherit); translate: 0 calc(var(--sub-lift, 0%) * -1); text-shadow: none; }
 .v-player-wrap [data-media-player] .vds-captions [data-part="cue"] { color: var(--sub-color, #fff); background-color: var(--sub-bg, transparent); text-shadow: var(--sub-edge, 0 0 4px #000, 1px 1px 2px #000); font-weight: var(--sub-weight, inherit); backdrop-filter: none; }
 /* Vidstack's own caption styles menu (Settings > Accessibility) is replaced by the subtitle panel. */
-.v-player-wrap .vds-font-menu { display: none; }
+.v-player-wrap .vds-font-menu, .v-player-wrap .vds-captions-menu { display: none; }
+
+/* Dual Subtitles: separate caption layers with independent styles and timing. */
+.v-dual-captions { position: absolute; inset: 0; z-index: 2; pointer-events: none; container-type: inline-size; }
+.v-dual-track { position: absolute; bottom: calc(8% + var(--sub-lift, 0%)); left: 5%; width: 90%; display: grid; justify-items: center; gap: .15em; text-align: center; font-size: calc(clamp(1rem, 2.5cqi, 2.25rem) * var(--sub-scale, 1)); font-family: var(--sub-font, inherit); font-weight: var(--sub-weight, 400); line-height: 1.35; color: var(--sub-color, #fff); text-shadow: var(--sub-edge); }
+.v-dual-track[data-slot="1"] { top: calc(10% + var(--sub-lift, 0%)); bottom: auto; }
+.v-dual-track span { max-width: 100%; padding: .08em .35em; border-radius: .15em; background: var(--sub-bg, transparent); white-space: pre-line; overflow-wrap: anywhere; }
+[data-media-player][data-controls] .v-dual-track[data-slot="0"] { bottom: calc(max(8%, 5rem) + var(--sub-lift, 0%)); }
 
 /* Subtitle panel: style + dialogue sync, inside the player so it also works in fullscreen */
 .v-sub-btn[data-active] { color: var(--v-primary); }
@@ -101,6 +108,15 @@
 .v-sub-preview { display: grid; place-items: end center; min-height: 5.5rem; padding: .75rem; border-radius: .5rem; background: linear-gradient(135deg, #3b4a5c, #6b5a3e 55%, #1d2a22); text-align: center; }
 .v-sub-preview span { padding: .1em .45em; border-radius: 2px; font-family: var(--sub-font); font-weight: var(--sub-weight); font-size: calc(1.05rem * var(--sub-scale)); line-height: 1.25; color: var(--sub-color); background: var(--sub-bg); text-shadow: var(--sub-edge); }
 .v-sub-note { color: var(--v-fg-dim); }
+.v-sub-tracks { display: grid; gap: .85rem; }
+.v-sub-track-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.v-sub-track-heading span { padding: .2rem .5rem; border-radius: 999px; background: rgb(245 166 35 / .12); color: var(--v-primary); font-size: .75rem; }
+.v-sub-track-slot { position: relative; display: grid; gap: .4rem; padding: .75rem; border: 1px solid var(--v-border); border-radius: .5rem; background: rgb(255 255 255 / .03); }
+.v-sub-track-slot label { display: grid; gap: .5rem; }
+.v-sub-track-slot .v-sub-label { padding-right: 1.25rem; }
+.v-sub-track-slot select { width: 100%; margin: 0; padding: .6rem .65rem; border: 1px solid var(--v-border); border-radius: .375rem; background: #242428; color: var(--v-fg); font: inherit; }
+.v-sub-remove { position: absolute; top: .55rem; right: .55rem; display: grid; place-items: center; width: 1.4rem; height: 1.4rem; border: 0; border-radius: 50%; color: var(--v-fg-dim); }
+.v-sub-remove:hover { color: var(--v-fg); background: rgb(255 255 255 / .1); }
 .v-sub-sync { display: grid; gap: .85rem; }
 .v-sub-steps { margin: 0; padding-left: 1.1rem; color: var(--v-fg-dim); font-size: .8rem; line-height: 1.5; list-style: decimal; }
 .v-sub-transport, .v-sub-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
@@ -306,6 +322,7 @@
 .v-banner[data-place="side"] { bottom: 6.5rem; }
 /* Top-left: clear of the subtitle panel, which opens on the right. */
 .v-banner[data-place="start"] { top: 4.75rem; right: auto; left: var(--v-gutter); animation-name: v-banner-in-start; }
+.v-sub-body .v-banner { position: static; width: auto; animation: none; }
 .v-banner-title { grid-column: 1; font-size: .92rem; font-weight: 700; line-height: 1.3; }
 .v-banner-text { grid-column: 1; font-size: .82rem; line-height: 1.4; color: var(--v-fg-dim); }
 .v-banner-x { grid-column: 2; grid-row: 1; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; margin: -.2rem -.3rem 0 0; border: 0; border-radius: 50%; background: transparent; color: var(--v-fg-dim); font-size: 1.1rem; line-height: 1; cursor: pointer; transition: background var(--v-dur-1) var(--v-ease), color var(--v-dur-1) var(--v-ease); }

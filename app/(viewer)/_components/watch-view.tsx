@@ -65,7 +65,7 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
         </ul>
         {subtitles.length > 0 && selected?.kind !== "embed" && (
           <p className="v-muted" style={{ fontSize: ".8rem", marginTop: ".75rem" }}>
-            Subtitles: {subtitles.map((s) => s.label).join(", ")}. Use the captions button in the player.
+            Subtitles: {subtitles.map((s) => s.label).join(", ")}. Open Dual Subtitles to display up to two tracks and adjust their style or timing.
           </p>
         )}
         {selected?.kind === "embed" && (

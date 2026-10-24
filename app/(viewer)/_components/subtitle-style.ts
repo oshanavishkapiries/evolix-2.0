@@ -41,9 +41,9 @@ const KEY = "v-sub-style";
 const HEX = /^#[0-9a-f]{6}$/i;
 const clamp = (n: unknown, min: number, max: number, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : d);
 
-export function loadStyle(): SubStyle {
+export function loadStyle(slot: 0 | 1 = 0): SubStyle {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "null");
+    const v = JSON.parse(localStorage.getItem(slot === 0 ? KEY : `${KEY}-secondary`) ?? "null");
     if (!v || typeof v !== "object") return DEFAULT_STYLE;
     const d = DEFAULT_STYLE;
     return {
@@ -61,9 +61,9 @@ export function loadStyle(): SubStyle {
   }
 }
 
-export function saveStyle(s: SubStyle) {
+export function saveStyle(s: SubStyle, slot: 0 | 1 = 0) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    localStorage.setItem(slot === 0 ? KEY : `${KEY}-secondary`, JSON.stringify(s));
   } catch {}
 }
 

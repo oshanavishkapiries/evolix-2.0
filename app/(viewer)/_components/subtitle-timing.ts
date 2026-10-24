@@ -67,6 +67,14 @@ export function applyTiming(track: TextTrack, timing: SubTiming, now: number) {
  * old line. Removing and re-adding a cue makes the track recompute them right away.
  */
 function refreshActive(track: TextTrack, now: number) {
+  // Dual Subtitles renders hidden tracks itself. Cycling the mode recomputes their active cues
+  // without removing synthetic cues from a native browser track that may not contain them.
+  if (track.mode === "disabled") return;
+  if (track.mode === "hidden") {
+    track.setMode("disabled");
+    track.setMode("hidden");
+    return;
+  }
   const stale = track.activeCues[0];
   const fresh = track.cues.find((c) => isCueActive(c, now));
   for (const cue of new Set([stale, fresh])) {

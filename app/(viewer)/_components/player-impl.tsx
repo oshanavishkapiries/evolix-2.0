@@ -21,6 +21,7 @@ import { loadStyle, saveStyle, styleVars, type SubStyle } from "./subtitle-style
 import { PlayerBanner, useQualityAdvisor } from "./player-banner";
 import { useSinhalaSubtitles, type SinhalaTarget } from "./sinhala-subtitles";
 import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
+import { DualSubtitles, useDualSubtitleSelection, type SubtitleSlot, type SubtitleStyles } from "./dual-subtitles";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
 /** Shown over the video while paused, Netflix-style. */
@@ -67,8 +68,11 @@ export default function PlayerImpl({
   sinhala?: SinhalaTarget;
 }) {
   const player = useRef<MediaPlayerInstance>(null);
-  const si = useSinhalaSubtitles({ target: sinhala, subtitles: subtitles ?? [], player });
+  const si = useSinhalaSubtitles({ target: sinhala, subtitles: subtitles ?? [] });
   const allSubtitles = si.tracks;
+  const defaultSub = (allSubtitles.find((s) => s.url && isSinhala(s.language)) ?? allSubtitles.find((s) => isEnglish(s.language)))?.id;
+  const mediaKey = track ? `${track.kind}:${track.id}` : sinhala ? `${sinhala.mediaType}:${sinhala.tmdbId}:${sinhala.season ?? 0}:${sinhala.episode ?? 0}` : title;
+  const dual = useDualSubtitleSelection({ mediaKey, subtitles: allSubtitles, defaultId: defaultSub, generatedTrack: si.generatedTrack, requestSinhala: si.request });
   const lastSave = useRef(0);
   const seekTo = useRef(startAt);
 
@@ -111,12 +115,13 @@ export default function PlayerImpl({
   };
 
   const [subOpen, setSubOpen] = useState(false);
-  const [subTab, setSubTab] = useState<SubTab>("style");
+  const [subTab, setSubTab] = useState<SubTab>("tracks");
+  const [subSlot, setSubSlot] = useState<SubtitleSlot>(0);
   // Client-only component (dynamic, ssr: false), so localStorage is safe to read here.
-  const [subStyle, setSubStyle] = useState<SubStyle>(loadStyle);
+  const [subStyles, setSubStyles] = useState<SubtitleStyles>(() => [loadStyle(0), loadStyle(1)]);
   const changeSubStyle = (s: SubStyle) => {
-    setSubStyle(s);
-    saveStyle(s);
+    setSubStyles((prev) => subSlot === 0 ? [s, prev[1]] : [prev[0], s]);
+    saveStyle(s, subSlot);
   };
   const closeSubPanel = useCallback(() => setSubOpen(false), []);
 
@@ -163,7 +168,6 @@ export default function PlayerImpl({
   const candidates = playbackCandidates(source.kind, source.url, hint);
   const current = candidates[Math.min(attempt, candidates.length - 1)];
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
-  const defaultSub = (allSubtitles.find((s) => s.url && isSinhala(s.language)) ?? allSubtitles.find((s) => isEnglish(s.language)))?.id;
 
   // ---- quality: never switched behind the viewer's back. HLS starts on 720p and stays there (no adaptive
   // switching, no "switching" toast); a better-fitting quality is only ever suggested (see the advisor below).
@@ -257,9 +261,10 @@ export default function PlayerImpl({
       title={title}
       key={`${current.type}`}
       src={current}
-      style={styleVars(subStyle)}
+      style={styleVars(subStyles[0])}
       playsInline
       autoPlay
+      keyShortcuts={{ toggleCaptions: { keys: "c", callback: () => setSubOpen((open) => !open) } }}
       onQualitiesChange={lockDefaultQuality}
       onPlaying={() => {
         if (started) return;
@@ -268,7 +273,6 @@ export default function PlayerImpl({
         clearTimeout(noteTimer.current);
         noteTimer.current = setTimeout(() => setStartNote(false), START_NOTE_MS);
       }}
-      onTextTrackChange={si.onTrackChange}
       onWaiting={() => {
         const st = player.current?.state;
         if (started && st && !st.seeking && !st.paused) advisor.noteStall();
@@ -315,14 +319,14 @@ export default function PlayerImpl({
             label={s.label}
             lang={s.language}
             id={s.id}
-            default={s.id === defaultSub}
           />
         ))}
       </MediaProvider>
+      <DualSubtitles selection={dual.selection} styles={subStyles} />
       {info && paused && !subOpen && <PauseOverlay info={info} />}
-      {si.banner}
-      {startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
-      {advisor.advice && (
+      {!subOpen && si.banner}
+      {!subOpen && startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
+      {!subOpen && advisor.advice && (
         <PlayerBanner
           place="side"
           title={advisor.advice.dir === "up" ? "Fast connection detected" : "Playback is struggling"}
@@ -336,6 +340,8 @@ export default function PlayerImpl({
         icons={defaultLayoutIcons}
         noScrubGesture={false}
         slots={{
+          captionButton: null,
+          captions: null,
           ...(allSubtitles.length > 0 ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> } : {}),
           ...(qualityMenu
             ? {
@@ -361,9 +367,16 @@ export default function PlayerImpl({
           tab={subTab}
           onTab={setSubTab}
           onClose={closeSubPanel}
-          style={subStyle}
+          subtitles={allSubtitles}
+          selection={dual.selection}
+          choices={dual.choices}
+          onSelect={dual.select}
+          slot={subSlot}
+          onSlot={setSubSlot}
+          style={subStyles[subSlot]}
           onStyle={changeSubStyle}
           note={si.unavailableNote}
+          notice={si.banner}
         />
       )}
     </MediaPlayer>

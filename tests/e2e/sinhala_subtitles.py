@@ -1,4 +1,4 @@
-"""On-demand Sinhala subtitles in the player (Playwright, mocked network).
+"""Dual Subtitles and on-demand Sinhala subtitles (Playwright, mocked network).
 
 Needs a running production server (`pnpm build && pnpm start`) and the engine venv's Python:
 
@@ -67,9 +67,9 @@ class Mocks:
 
 
 def active_track(page):
-    """Label of the selected subtitle, read from the subtitle panel (which must be open)."""
-    chips = page.locator(".v-sub-field", has=page.locator(".v-sub-chip", has_text="Off")).locator(".v-sub-chip[aria-pressed=true]")
-    return chips.first.inner_text() if chips.count() else None
+    """Label of the first rendered track (the old track stays on during generation)."""
+    track = page.locator('.v-dual-track[data-slot="0"]')
+    return track.get_attribute("aria-label") if track.count() else None
 
 
 def open_player(page):
@@ -79,11 +79,15 @@ def open_player(page):
 
 
 def open_subtitle_panel(page):
-    page.get_by_role("button", name="Subtitle style and sync").click()
+    page.get_by_role("button", name="Dual Subtitles settings").click()
 
 
 def chip(page, label):
-    return page.locator(".v-sub-chip", has_text=label)
+    return page.get_by_role("combobox", name="First subtitle").locator("option").filter(has_text=label)
+
+
+def pick_track(page, label):
+    page.get_by_role("combobox", name="First subtitle").select_option(label=label)
 
 
 def run():
@@ -111,7 +115,7 @@ def run():
         check(active_track(page) == "English", "English is the active subtitle before the pick")
         check(len(m.start_calls) == 0, "nothing is requested until the viewer picks Sinhala")
         before = page.evaluate("document.querySelector('video').currentTime")
-        chip(page, "Sinhala (AI)").click()
+        pick_track(page, "Sinhala (AI)")
         expect(page.get_by_text("Preparing Sinhala subtitles")).to_be_visible(timeout=5000)
         check(len(m.start_calls) == 1 and m.start_calls[0] == {"tmdbId": TMDB, "mediaType": "movie"}, f"picking Sinhala starts exactly one job: {m.start_calls}")
         check(active_track(page) == "English", "English stays on while the translation runs")
@@ -120,7 +124,7 @@ def run():
         expect(page.get_by_text("Part 2 of 8")).to_be_visible(timeout=10_000)
         check(True, "banner shows chunk progress from the engine")
         expect(page.get_by_text("Sinhala subtitles are ready")).to_be_visible(timeout=20_000)
-        expect(chip(page, "Sinhala (AI)")).to_have_attribute("aria-pressed", "true", timeout=10_000)
+        expect(page.get_by_role("combobox", name="First subtitle")).to_have_value("si-row", timeout=10_000)
         check(active_track(page) == "Sinhala (AI)", "when ready the Sinhala track is loaded and selected automatically")
         polls_done = m.poll_calls
         page.wait_for_timeout(7000)
@@ -134,14 +138,14 @@ def run():
         m = Mocks(page, [EN_TRACK], translate_start=[{"state": "failed", "message": "model down"}, {"state": "running", "progress": None}], translate_poll=[{"state": "running", "progress": None}])
         open_player(page)
         open_subtitle_panel(page)
-        chip(page, "Sinhala (AI)").click()
+        pick_track(page, "Sinhala (AI)")
         expect(page.get_by_text("Couldn’t prepare Sinhala subtitles")).to_be_visible(timeout=5000)
         check(page.get_by_text("model down").is_visible(), "failure banner explains why")
         check(active_track(page) == "English", "English subtitles still active after a failure")
         page.get_by_role("button", name="Retry").click()
         expect(page.get_by_text("Preparing Sinhala subtitles")).to_be_visible(timeout=5000)
         check(len(m.start_calls) == 2, "Retry starts the job again")
-        page.get_by_role("button", name="Close").first.click()
+        page.locator(".v-banner .v-banner-x").click()
         expect(page.get_by_text("Preparing Sinhala subtitles")).to_be_hidden(timeout=3000)
         check(True, "banner can be dismissed")
         page.close()
@@ -151,7 +155,7 @@ def run():
         Mocks(page, [EN_TRACK], translate_start=[{"state": "unavailable", "message": "Sinhala subtitles are unavailable right now, try again tomorrow"}])
         open_player(page)
         open_subtitle_panel(page)
-        chip(page, "Sinhala (AI)").click()
+        pick_track(page, "Sinhala (AI)")
         expect(page.get_by_text("Sinhala subtitles are unavailable right now").first).to_be_visible(timeout=5000)
         check(True, "budget cap shows the 'unavailable right now' banner")
         page.close()
@@ -161,11 +165,11 @@ def run():
         m = Mocks(page, [EN_TRACK, SI_TRACK], translate_start=[{"state": "running"}])
         open_player(page)
         open_subtitle_panel(page)
-        expect(chip(page, "Sinhala (AI)")).to_have_attribute("aria-pressed", "true", timeout=10_000)
+        expect(page.get_by_role("combobox", name="First subtitle")).to_have_value(SI_TRACK["id"], timeout=10_000)
         check(active_track(page) == "Sinhala (AI)", "existing Sinhala track is selected by default")
         check(chip(page, "Sinhala (AI)").count() == 1, "no duplicate placeholder next to the real track")
-        chip(page, "English").click()
-        chip(page, "Sinhala (AI)").click()
+        pick_track(page, "English")
+        pick_track(page, "Sinhala (AI)")
         page.wait_for_timeout(1200)
         check(active_track(page) == "Sinhala (AI)", "re-selecting the existing track switches to it")
         check(len(m.start_calls) == 0 and m.poll_calls == 0, "selecting an existing track makes no translate API call")
@@ -179,6 +183,53 @@ def run():
         check(chip(page, "Sinhala").count() == 0, "no English subtitle: Sinhala is not offered")
         check(page.get_by_text("needs an English subtitle").is_visible(), "an explanation is shown instead")
         check(len(m.start_calls) == 0, "and nothing is requested")
+        page.close()
+
+        # 6. Two tracks render together; replacing/removing a slot never creates a third track.
+        page = ctx.new_page()
+        french = {**EN_TRACK, "id": "sub-fr", "label": "French", "language": "fr"}
+        german = {**EN_TRACK, "id": "sub-de", "label": "German", "language": "de"}
+        Mocks(page, [EN_TRACK, french, german], translate_start=[{"state": "running"}])
+        open_player(page)
+        open_subtitle_panel(page)
+        second = page.get_by_role("combobox", name="Second subtitle")
+        second.select_option(label="French")
+        expect(page.locator(".v-dual-track")).to_have_count(2)
+        expect(page.locator('.v-dual-track[data-slot="0"] span')).to_be_visible()
+        expect(page.locator('.v-dual-track[data-slot="1"] span')).to_be_visible()
+        check(active_track(page) == "English", "adding a second track keeps the first one")
+        check(second.locator('option[value="sub_1_en_1"]').evaluate("option => option.disabled"), "the same track cannot occupy both slots")
+        check(page.locator(".vds-caption-button").count() == 0, "the separate CC button is removed")
+        pick_track(page, "German")
+        expect(page.locator(".v-dual-track")).to_have_count(2)
+        check(active_track(page) == "German", "a third language replaces a slot instead of adding a third track")
+        page.get_by_role("button", name="Remove second subtitle").click()
+        expect(page.locator(".v-dual-track")).to_have_count(1)
+        check(active_track(page) == "German", "removing the second subtitle leaves the first one on")
+        page.close()
+
+        # 7. Generating Sinhala for the second slot preserves the first language.
+        page = ctx.new_page()
+        Mocks(page, [EN_TRACK], translate_start=[{"state": "done", "subtitle": {**SI_TRACK, "url": SI_URL}}])
+        open_player(page)
+        open_subtitle_panel(page)
+        page.get_by_role("combobox", name="Second subtitle").select_option(label="Sinhala (AI)")
+        expect(page.locator('.v-dual-track[data-slot="1"]')).to_have_attribute("aria-label", "Sinhala (AI)")
+        expect(page.locator(".v-dual-track")).to_have_count(2)
+        check(active_track(page) == "English", "generated Sinhala uses the requested second slot and keeps English")
+        page.close()
+
+        # 8. A removed pending track stays off when its translation finishes.
+        page = ctx.new_page()
+        Mocks(page, [EN_TRACK], translate_start=[{"state": "running"}], translate_poll=[{"state": "done", "subtitle": {**SI_TRACK, "url": SI_URL}}])
+        open_player(page)
+        open_subtitle_panel(page)
+        second = page.get_by_role("combobox", name="Second subtitle")
+        second.select_option(label="Sinhala (AI)")
+        page.get_by_role("button", name="Remove second subtitle").click()
+        expect(page.get_by_text("Sinhala subtitles are ready", exact=True)).to_be_visible(timeout=10_000)
+        expect(second).to_have_value("")
+        check(active_track(page) == "English", "removing a pending translation prevents it from switching subtitles later")
         page.close()
 
         browser.close()

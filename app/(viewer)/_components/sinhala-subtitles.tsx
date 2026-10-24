@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MediaPlayerInstance, TextTrack } from "@vidstack/react";
 import { fetchWithRefresh } from "@/lib/client/api";
 import type { SinhalaState } from "@/lib/evo/sinhala";
 import type { WatchSubtitle } from "@/lib/viewer/watch";
@@ -27,21 +26,6 @@ const keyOf = (t: SinhalaTarget) => `${t.mediaType}:${t.tmdbId}:${t.season ?? 0}
 const isSi = (lang: string) => /^si(n)?(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "sinhala";
 const isEn = (lang: string) => /^en(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "english";
 
-type Tracks = MediaPlayerInstance["textTracks"];
-
-/** Turns one text track on (and the others off), or just sets one track's mode. Returns false when it is not there yet. */
-function showOnly(list: Tracks | undefined, id: string): boolean {
-  const t = list && [...list].find((x) => x.id === id);
-  if (!list || !t) return false;
-  for (const other of list) if (other !== t && other.mode === "showing") other.mode = "disabled";
-  t.mode = "showing";
-  return true;
-}
-function setMode(list: Tracks | undefined, id: string, mode: "showing" | "disabled") {
-  const t = list && [...list].find((x) => x.id === id);
-  if (t) t.mode = mode;
-}
-
 type Phase = "idle" | "running" | "done" | "failed" | "unavailable";
 
 /**
@@ -49,7 +33,7 @@ type Phase = "idle" | "running" | "done" | "failed" | "unavailable";
  * translate; if no Sinhala track exists yet, picking it starts the translation in the background while the video and
  * the English subtitles carry on. When the track is ready it is loaded and selected.
  */
-export function useSinhalaSubtitles({ target, subtitles, player }: { target?: SinhalaTarget; subtitles: WatchSubtitle[]; player: React.RefObject<MediaPlayerInstance | null> }) {
+export function useSinhalaSubtitles({ target, subtitles }: { target?: SinhalaTarget; subtitles: WatchSubtitle[] }) {
   const key = target ? keyOf(target) : "";
   const [phase, setPhase] = useState<Phase>(() => (key && finished.has(key) ? "done" : key && inFlight.has(key) ? "running" : "idle"));
   const [found, setFound] = useState<WatchSubtitle | null>(() => (key ? (finished.get(key) ?? null) : null));
@@ -58,7 +42,6 @@ export function useSinhalaSubtitles({ target, subtitles, player }: { target?: Si
   const [hidden, setHidden] = useState(false);
   const [doneNote, setDoneNote] = useState(false);
   const run = useRef(0);
-  const lastReal = useRef<string | null>(null);
   /** Invalidates any running poll loop (each loop holds the token it started with). */
   const cancel = useCallback(() => {
     run.current++;
@@ -160,37 +143,6 @@ export function useSinhalaSubtitles({ target, subtitles, player }: { target?: Si
   }, [key]);
   useEffect(() => cancel, [cancel]);
 
-  // Back to the real subtitle while the translation runs: the placeholder carries no cues.
-  const onTrackChange = useCallback(
-    (track: TextTrack | null) => {
-      if (!track) return;
-      const list = player.current?.textTracks;
-      if (track.id !== (PENDING_ID as string)) {
-        lastReal.current = track.id;
-        return;
-      }
-      if (phase !== "running") void start();
-      else setHidden(false);
-      setMode(list, PENDING_ID, "disabled");
-      if (lastReal.current) setMode(list, lastReal.current, "showing");
-    },
-    [phase, start, player],
-  );
-
-  // Select the new track as soon as the player has it.
-  useEffect(() => {
-    if (!found) return;
-    const list = player.current?.textTracks;
-    if (!list) return;
-    const pick = () => showOnly(list, found.id);
-    if (pick()) return;
-    const on = () => {
-      if (pick()) list.removeEventListener("add", on);
-    };
-    list.addEventListener("add", on);
-    return () => list.removeEventListener("add", on);
-  }, [found, player]);
-
   useEffect(() => {
     if (!doneNote) return;
     const t = setTimeout(() => setDoneNote(false), DONE_NOTE_MS);
@@ -207,7 +159,7 @@ export function useSinhalaSubtitles({ target, subtitles, player }: { target?: Si
         <PlayerBanner
           place="start"
           title="Preparing Sinhala subtitles…"
-          text={(progress ? `Part ${progress.done} of ${progress.total}. ` : "") + "You can keep watching, English subtitles stay on."}
+          text={(progress ? `Part ${progress.done} of ${progress.total}. ` : "") + "Keep watching with your current subtitles while we prepare this track."}
           onClose={() => setHidden(true)}
         />
       );
@@ -222,8 +174,13 @@ export function useSinhalaSubtitles({ target, subtitles, player }: { target?: Si
           onClose={() => setHidden(true)}
         />
       );
-    else if (phase === "done" && doneNote) banner = <PlayerBanner place="start" title="Sinhala subtitles are ready" text="Switched to Sinhala (AI)." onClose={() => setDoneNote(false)} />;
+    else if (phase === "done" && doneNote) banner = <PlayerBanner place="start" title="Sinhala subtitles are ready" text="Sinhala (AI) is available in Dual Subtitles." onClose={() => setDoneNote(false)} />;
   }
 
-  return { tracks, banner, onTrackChange, unavailableNote };
+  const request = () => {
+    if (phase === "running") setHidden(false);
+    else void start();
+  };
+
+  return { tracks, banner, request, generatedTrack: found, unavailableNote };
 }
