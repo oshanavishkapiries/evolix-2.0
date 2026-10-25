@@ -45,6 +45,10 @@
 .v-notify li:not([data-unread]) .v-notify-title { font-weight: 500; color: var(--v-fg-dim); }
 .v-notify-dot { flex: none; width: .5rem; height: .5rem; border-radius: 50%; background: var(--v-primary); }
 .v-notify-body { font-size: .82rem; line-height: 1.4; color: var(--v-fg-dim); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
+.v-notify-img { width: 100%; max-height: 9rem; object-fit: cover; border-radius: calc(var(--v-radius) - 2px); background: var(--v-muted); }
+.v-notify-img[hidden] { display: none; }
+.v-announce-img { flex: none; width: 3.5rem; height: 3.5rem; object-fit: cover; border-radius: var(--v-radius); }
+.v-announce-img[hidden] { display: none; }
 .v-notify-meta { font-size: .72rem; color: var(--v-fg-faint); }
 .v-notify-empty { padding: 1.5rem 1rem; text-align: center; color: var(--v-fg-faint); font-size: .88rem; }
 /* Banner priority: sticks under the top bar until read or dismissed. */

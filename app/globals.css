@@ -64,6 +64,7 @@
   .fields { @apply grid gap-4 sm:grid-cols-2; }
   .fields > .wide { @apply sm:col-span-2; }
   .fields textarea[rows="6"] { @apply font-mono text-sm; }
+  .ann-preview { @apply mt-2 max-h-48 rounded-md border border-gray-200 object-cover dark:border-gray-800; }
   .poster { @apply w-24 rounded-md; }
 }
 

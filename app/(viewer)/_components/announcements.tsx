@@ -126,6 +126,10 @@ export function NotificationBell() {
                       }
                     }}
                   >
+                    {i.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element -- admin-supplied address, any host
+                      <img className="v-notify-img" src={i.imageUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.hidden = true)} />
+                    )}
                     <span className="v-notify-title">
                       {!i.read && <span className="v-notify-dot" aria-label="Unread" />}
                       {i.title}
@@ -151,6 +155,10 @@ export function AnnouncementBanner() {
   if (!next) return null;
   return (
     <div className="v-announce" role="status">
+      {next.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- admin-supplied address, any host
+        <img className="v-announce-img" src={next.imageUrl} alt="" decoding="async" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.hidden = true)} />
+      )}
       <div className="v-announce-text">
         <strong>{next.title}</strong>
         {next.body && <span>{next.body}</span>}

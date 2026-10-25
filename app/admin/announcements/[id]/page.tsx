@@ -46,6 +46,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
             title: a.title,
             body: a.body,
             linkUrl: a.linkUrl ?? "",
+            imageUrl: a.imageUrl ?? "",
             audience: a.audience,
             priority: a.priority,
             publishAt: a.publishAt?.toISOString() ?? null,

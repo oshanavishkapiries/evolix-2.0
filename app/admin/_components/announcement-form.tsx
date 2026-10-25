@@ -21,6 +21,7 @@ export type AnnouncementFormData = {
   title: string;
   body: string;
   linkUrl: string;
+  imageUrl: string;
   audience: AnnouncementAudience;
   priority: AnnouncementPriority;
   /** ISO strings; the inputs show them in the browser's time zone. */
@@ -34,6 +35,7 @@ export const EMPTY_ANNOUNCEMENT: AnnouncementFormData = {
   title: "",
   body: "",
   linkUrl: "",
+  imageUrl: "",
   audience: "everyone",
   priority: "inbox",
   publishAt: null,
@@ -67,6 +69,7 @@ export function AnnouncementForm({ initial }: { initial: AnnouncementFormData })
     title: v.title,
     body: v.body,
     linkUrl: v.linkUrl,
+    imageUrl: v.imageUrl,
     audience: v.audience,
     priority: v.priority,
     publishAt: v.publishAt,
@@ -142,6 +145,16 @@ export function AnnouncementForm({ initial }: { initial: AnnouncementFormData })
             Link (optional) <small>a page such as /movies, or an https:// address</small>
             <input value={v.linkUrl} placeholder="/movies" onChange={(e) => set("linkUrl", e.target.value)} />
           </label>
+        </p>
+        <p className="wide">
+          <label>
+            Image (optional) <small>an https:// address of a picture, shown with the message</small>
+            <input type="url" value={v.imageUrl} placeholder="https://example.com/banner.jpg" onChange={(e) => set("imageUrl", e.target.value)} />
+          </label>
+          {v.imageUrl.trim().startsWith("https://") && (
+            // eslint-disable-next-line @next/next/no-img-element -- admin preview of an arbitrary address
+            <img className="ann-preview" src={v.imageUrl.trim()} alt="" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = "none")} onLoad={(e) => (e.currentTarget.style.display = "")} />
+          )}
         </p>
         <p>
           <label>

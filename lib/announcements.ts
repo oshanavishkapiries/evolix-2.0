@@ -47,12 +47,23 @@ export function isSafeLink(url: string) {
   }
 }
 
+/** Pictures are loaded straight from their address, so only https (or an image of this app) is allowed. */
+export function isSafeImage(url: string) {
+  if (url.startsWith("/")) return !url.startsWith("//");
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 /** What a viewer sees in the bell, the inbox and banners. */
 export type InboxItem = {
   id: string;
   title: string;
   body: string;
   linkUrl: string | null;
+  imageUrl: string | null;
   priority: AnnouncementPriority;
   publishedAt: string;
   read: boolean;
