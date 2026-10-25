@@ -111,6 +111,26 @@ export default function PlayerImpl({
   const [paused, setPaused] = useState(false);
   const pauseTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(pauseTimer.current), []);
+
+  // Space toggles playback in one press. Vidstack's own handler skips Space while a button has focus, and once
+  // the controls hide its first key press only wakes them, so a mouse-clicked button cost a second press.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = document.activeElement;
+      // Typing, menus, dialogs and keyboard-focused buttons keep their own Space behaviour.
+      if (el?.closest("input, textarea, select, [contenteditable], [role^='menu'], [role='listbox'], [role='option'], [role='dialog'], [role='slider']")) return;
+      if (el?.matches("button:focus-visible, [role='button']:focus-visible")) return;
+      const p = player.current;
+      if (!p) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (p.paused) void p.play().catch(() => {});
+      else void p.pause().catch(() => {});
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, []);
   const resumed = () => {
     clearTimeout(pauseTimer.current);
     setPaused(false);

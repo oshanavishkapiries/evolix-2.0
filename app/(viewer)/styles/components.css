@@ -193,6 +193,8 @@
 .v-player-msg strong { font-size: 1.1rem; font-weight: 700; }
 .v-watch-bar { position: absolute; inset: 0 0 auto 0; z-index: 10; display: flex; align-items: center; gap: 1rem; padding: 1rem var(--v-gutter) 2.5rem; background: linear-gradient(rgb(0 0 0 / .8), transparent); transition: opacity .3s; pointer-events: none; }
 .v-watch-bar > * { pointer-events: auto; }
+/* Phone layout: Vidstack's top row (cast, subtitles, settings) sits under the watch bar instead of on top of it. Fullscreen hides the bar. */
+.v-player-wrap [data-media-player]:not([data-fullscreen]) .vds-video-layout[data-sm] .vds-controls > .vds-controls-group:first-child { margin-top: 3.5rem; }
 .v-watch[data-idle="true"] .v-watch-bar { opacity: 0; pointer-events: none; }
 .v-watch[data-idle="true"] .v-watch-bar > * { pointer-events: none; }
 .v-watch[data-idle="true"] { cursor: none; }
