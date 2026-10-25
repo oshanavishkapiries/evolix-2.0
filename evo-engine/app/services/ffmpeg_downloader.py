@@ -1,4 +1,5 @@
 import json
+import re
 import logging
 import subprocess
 from pathlib import Path
@@ -8,6 +9,14 @@ from app.interfaces.contracts import IMediaDownloader
 from app.domain.models import StreamSource
 
 logger = logging.getLogger("evo.downloader")
+
+
+def _reason(stderr: str) -> str:
+    """Last line FFmpeg printed, without URLs (they carry stream tokens): "403 Forbidden", "Permission denied", ..."""
+    lines = [l.strip() for l in (stderr or "").splitlines() if l.strip()]
+    if not lines:
+        return ""
+    return ": " + re.sub(r"https?://\S+", "<url>", lines[-1])[:160]
 
 
 class FFmpegStreamDownloader(IMediaDownloader):
@@ -87,7 +96,7 @@ class FFmpegStreamDownloader(IMediaDownloader):
 
         if process.returncode != 0:
             logger.error(f"FFmpeg failed with return code {process.returncode}: {stderr[-400:]}")
-            raise RuntimeError(f"FFmpeg download failed with exit code {process.returncode}")
+            raise RuntimeError(f"FFmpeg download failed with exit code {process.returncode}{_reason(stderr)}")
 
         if progress_callback:
             progress_callback(100)
