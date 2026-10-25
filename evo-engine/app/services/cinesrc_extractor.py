@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 
 from app.interfaces.contracts import IStreamExtractor
 from app.domain.models import StreamSource
+from app.core.browser_pool import run_in_browser
 from app.core.stealth import StealthBrowser
 
 logger = logging.getLogger("evo.cinesrc_extractor")
@@ -50,9 +51,8 @@ class CineSrcStreamExtractor(IStreamExtractor):
             embed_url = f"{self.base_url}/embed/movie/{tmdb_id}?controls=false&autoplay=true&da=true"
         logger.info(f"Navigating to CineSrc embed: {embed_url}")
 
-        master: List[Tuple[str, str]] = []  # at most one (url, body); a list so the handler can fill it
-
-        with StealthBrowser(headless=True) as sb:
+        def capture(sb: StealthBrowser) -> List[Tuple[str, str]]:
+            master: List[Tuple[str, str]] = []  # at most one (url, body); a list so the handler can fill it
             page = sb.page
 
             def handle_response(resp):
@@ -77,6 +77,10 @@ class CineSrcStreamExtractor(IStreamExtractor):
                 if master:
                     break
                 page.wait_for_timeout(POLL_MS)
+            return master
+
+        # A pooled browser with a fresh isolated context; images, fonts and trackers are not loaded.
+        master = run_in_browser(capture)
 
         if not master:
             raise RuntimeError(f"CineSrc failed to resolve stream for {media_type} TMDB {tmdb_id}")

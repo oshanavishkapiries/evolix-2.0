@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** A Netflix-style notification over the video: dark panel, gold edge, optional OK action and a close button. */
+/** A Netflix-style notification over the video: dark panel, optional OK action and a close button. */
 export function PlayerBanner({
   place,
   title,

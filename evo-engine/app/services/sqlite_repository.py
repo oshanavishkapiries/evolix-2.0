@@ -108,6 +108,22 @@ class SQLiteTaskRepository(ITaskRepository):
                 );
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS extraction_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    duration_s REAL NOT NULL,
+                    peak_rss_mb REAL NOT NULL,
+                    cpu_s REAL NOT NULL,
+                    browser_launched INTEGER NOT NULL,
+                    detail TEXT NOT NULL DEFAULT '',
+                    ts TEXT NOT NULL
+                );
+                """
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_extraction_metrics_ts ON extraction_metrics(ts);")
             conn.execute("CREATE TABLE IF NOT EXISTS runtime_config (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_api_usage_ts ON api_usage(ts);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id);")
@@ -372,6 +388,45 @@ class SQLiteTaskRepository(ITaskRepository):
             bucket = steps.setdefault(step, {"ok": 0, "failed": 0, "running": 0, "skipped": 0})
             bucket[state] = bucket.get(state, 0) + 1
         return {"window_hours": since_hours, "steps": steps, "tasks_in_flight": running_tasks}
+
+    def add_metric(self, attempt) -> None:
+        with self._get_connection() as conn:
+            conn.execute(
+                "INSERT INTO extraction_metrics (provider, outcome, duration_s, peak_rss_mb, cpu_s, browser_launched, detail, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (attempt.provider, attempt.outcome, attempt.duration_s, attempt.peak_rss_mb, attempt.cpu_s, int(attempt.browser_launched), attempt.detail[:300], datetime.utcnow().isoformat()),
+            )
+            conn.commit()
+
+    def metric_summary(self, since_hours: int = 24) -> dict:
+        """Per provider: attempts, outcomes, and median / p95 of duration, peak RAM and CPU over the window."""
+        from datetime import timedelta
+
+        since = (datetime.utcnow() - timedelta(hours=since_hours)).isoformat()
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT provider, outcome, duration_s, peak_rss_mb, cpu_s, browser_launched FROM extraction_metrics WHERE ts >= ?", (since,)
+            ).fetchall()
+
+        def pct(values: List[float], q: float) -> float:
+            ordered = sorted(values)
+            return round(ordered[min(len(ordered) - 1, max(0, int(-(-q * len(ordered) // 1)) - 1))], 2)
+
+        by: dict = {}
+        for r in rows:
+            by.setdefault(r["provider"], []).append(r)
+        providers = {}
+        for name, rs in by.items():
+            dur, ram, cpu = [r["duration_s"] for r in rs], [r["peak_rss_mb"] for r in rs], [r["cpu_s"] for r in rs]
+            providers[name] = {
+                "attempts": len(rs),
+                "ok": sum(1 for r in rs if r["outcome"] == "ok"),
+                "failed": sum(1 for r in rs if r["outcome"] != "ok"),
+                "browser_launches": sum(r["browser_launched"] for r in rs),
+                "duration_s": {"median": pct(dur, 0.5), "p95": pct(dur, 0.95)},
+                "peak_rss_mb": {"median": pct(ram, 0.5), "p95": pct(ram, 0.95)},
+                "cpu_s": {"median": pct(cpu, 0.5), "p95": pct(cpu, 0.95)},
+            }
+        return {"window_hours": since_hours, "providers": providers}
 
     def add_usage(self, task_id: Optional[str], model: str, cost_usd: float, tokens: int) -> None:
         with self._get_connection() as conn:

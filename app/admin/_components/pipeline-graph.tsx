@@ -181,14 +181,15 @@ function StepLog({ id, view }: { id: StepId | null; view: StepView | null }) {
 }
 
 /** Whole-pipeline view: how many tasks last ended in each state per step, refreshed every few seconds. */
-export function SummaryFlow({ initial }: { initial: Summary | null }) {
+/** `engine` is an engine id, or "all" for the sum over every engine (default: the primary engine). */
+export function SummaryFlow({ initial, engine }: { initial: Summary | null; engine?: string }) {
   const [summary, setSummary] = useState(initial);
   const [selected, setSelected] = useState<StepId | null>(null);
 
   useEffect(() => {
     let live = true;
     const tick = setInterval(async () => {
-      const res = await fetchWithRefresh("/api/admin/evo/summary", { cache: "no-store" }).catch(() => null);
+      const res = await fetchWithRefresh(`/api/admin/evo/summary${engine ? `?engine=${encodeURIComponent(engine)}` : ""}`, { cache: "no-store" }).catch(() => null);
       const body = res?.ok ? await res.json() : null;
       if (live && body?.summary) setSummary(body.summary);
     }, 5000);
@@ -196,7 +197,7 @@ export function SummaryFlow({ initial }: { initial: Summary | null }) {
       live = false;
       clearInterval(tick);
     };
-  }, []);
+  }, [engine]);
 
   const views = Object.fromEntries(
     STEP_IDS.map((id) => {

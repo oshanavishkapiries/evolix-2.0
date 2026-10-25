@@ -162,7 +162,15 @@ export function EvoPlayer({
     const poll = async () => {
       try {
         const res = await fetch(`/api/evo/status/${taskId}`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          // The engine that owns this task is down: stop waiting and offer the normal retry (which picks a healthy engine).
+          const body = await res.json().catch(() => ({}));
+          if (body.code === "ENGINE_UNAVAILABLE") {
+            setError("The server preparing this video is unavailable right now. Try again to continue on another one.");
+            return;
+          }
+          throw new Error(`HTTP ${res.status}`);
+        }
 
         const data = await res.json();
         setStatus(data.status);

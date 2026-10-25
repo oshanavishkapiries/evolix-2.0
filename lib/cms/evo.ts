@@ -1,8 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { episodes, movies, seasons, shows, sources } from "@/db/schema";
-import { env } from "@/lib/env";
-import { engineHeaders } from "@/lib/evo/engine";
+import { engineFetch, engineGet, type EngineRef } from "@/lib/evo/client";
+import { engineForTask } from "@/lib/evo/scheduler";
 import type { FlowEvent, Summary } from "@/lib/evo/flow";
 
 export type EngineTask = {
@@ -22,11 +22,11 @@ export type EngineTask = {
 };
 
 /** Recent engine tasks plus reachability; never throws (the page must render when the engine is down). */
-export async function engineOverview(limit = 40): Promise<{ online: boolean; health: Record<string, unknown> | null; tasks: EngineTask[]; error?: string }> {
+export async function engineOverview(limit = 40, engine?: EngineRef): Promise<{ online: boolean; health: Record<string, unknown> | null; tasks: EngineTask[]; error?: string }> {
   try {
     const [h, t] = await Promise.all([
-      fetch(`${env.EVO_ENGINE_URL}/health`, { cache: "no-store", signal: AbortSignal.timeout(5000) }),
-      fetch(`${env.EVO_ENGINE_URL}/api/v1/media/tasks?limit=${limit}`, { headers: engineHeaders(), cache: "no-store", signal: AbortSignal.timeout(5000) }),
+      engineFetch("/health", { timeoutMs: 5000, engine }),
+      engineFetch(`/tasks?limit=${limit}`, { timeoutMs: 5000, engine }),
     ]);
     if (!t.ok) return { online: h.ok, health: h.ok ? await h.json() : null, tasks: [], error: `Engine returned ${t.status} for the task list` };
     return { online: true, health: await h.json(), tasks: await t.json() };
@@ -39,7 +39,7 @@ export async function engineOverview(limit = 40): Promise<{ online: boolean; hea
 export async function recentCachedSources(limit = 40) {
   const [movieRows, episodeRows] = await Promise.all([
     db
-      .select({ id: sources.id, quality: sources.quality, url: sources.url, isActive: sources.isActive, createdAt: sources.createdAt, title: movies.title, titleId: movies.id })
+      .select({ id: sources.id, quality: sources.quality, url: sources.url, isActive: sources.isActive, createdAt: sources.createdAt, engineId: sources.engineId, title: movies.title, titleId: movies.id })
       .from(sources)
       .innerJoin(movies, eq(movies.id, sources.movieId))
       .orderBy(desc(sources.createdAt))
@@ -51,6 +51,7 @@ export async function recentCachedSources(limit = 40) {
         url: sources.url,
         isActive: sources.isActive,
         createdAt: sources.createdAt,
+        engineId: sources.engineId,
         title: shows.name,
         titleId: shows.id,
         season: seasons.seasonNumber,
@@ -71,24 +72,17 @@ export async function recentCachedSources(limit = 40) {
     .slice(0, limit);
 }
 
-const engineGet = async <T>(path: string): Promise<T | null> => {
-  try {
-    const res = await fetch(`${env.EVO_ENGINE_URL}${path}`, { headers: engineHeaders(), cache: "no-store", signal: AbortSignal.timeout(5000) });
-    return res.ok ? ((await res.json()) as T) : null;
-  } catch {
-    return null;
-  }
-};
-
 export type TaskDetail = EngineTask & { progress_pct: number; imdb_id?: string | null; subtitles?: unknown[] | null; cdn_subtitles?: unknown[] | null };
 
 /** One engine task with its step events; null when the engine is down or the task is unknown. */
 export async function engineTaskDetail(taskId: string): Promise<{ task: TaskDetail; events: FlowEvent[] } | null> {
+  const engine = await engineForTask(taskId).catch(() => null);
+  if (!engine) return null;
   const [task, events] = await Promise.all([
-    engineGet<TaskDetail>(`/api/v1/media/status/${taskId}`),
-    engineGet<FlowEvent[]>(`/api/v1/media/tasks/${taskId}/events`),
+    engineGet<TaskDetail>(`/status/${taskId}`, 5000, engine),
+    engineGet<FlowEvent[]>(`/tasks/${taskId}/events`, 5000, engine),
   ]);
   return task ? { task, events: events ?? [] } : null;
 }
 
-export const engineSummary = () => engineGet<Summary>("/api/v1/media/pipeline/summary?hours=24");
+export const engineSummary = (engine?: EngineRef) => engineGet<Summary>("/pipeline/summary?hours=24", 5000, engine);

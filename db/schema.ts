@@ -8,6 +8,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
@@ -201,6 +202,8 @@ export const sources = pgTable(
     audioLanguage: text("audio_language").notNull().default(""),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
+    /** Evo engine that cached this file (null for sources added by hand or before multi-engine). */
+    engineId: text("engine_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -227,6 +230,8 @@ export const subtitles = pgTable(
     url: text("url").notNull(),
     format: subtitleFormat("format").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** Evo engine that produced this track (null for manual tracks or before multi-engine). */
+    engineId: text("engine_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -351,4 +356,112 @@ export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------- Announcements
+
+export const announcementAudience = pgEnum("announcement_audience", ["everyone", "admins", "users"]);
+export const announcementPriority = pgEnum("announcement_priority", ["inbox", "banner"]);
+/** Only the stored lifecycle; scheduled/live/expired are derived from publishAt/expiresAt (lib/announcements.ts). */
+export const announcementStatus = pgEnum("announcement_status", ["draft", "published", "archived"]);
+
+/** An in-app notification an admin sends to a set of users. */
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    linkUrl: text("link_url"),
+    audience: announcementAudience("audience").notNull().default("everyone"),
+    priority: announcementPriority("priority").notNull().default("inbox"),
+    status: announcementStatus("status").notNull().default("draft"),
+    /** When it appears in inboxes (set on publish; a future time means scheduled). */
+    publishAt: timestamp("publish_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("announcements_status_publish_idx").on(t.status, t.publishAt)],
+);
+
+/** Recipients of an announcement whose audience is "users". */
+export const announcementRecipients = pgTable(
+  "announcement_recipients",
+  {
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.announcementId, t.userId] }), index("announcement_recipients_user_idx").on(t.userId)],
+);
+
+/** One row per user per announcement: the first time they read (or dismissed) it. */
+export const announcementReads = pgTable(
+  "announcement_reads",
+  {
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.announcementId, t.userId] }), index("announcement_reads_user_idx").on(t.userId)],
+);
+
+// ---------------------------------------------------------------- Evo engines (the app is the gateway and scheduler)
+
+/** Last known health of each configured engine, plus the admin's drain switch. Rows mirror EVO_ENGINES. */
+export const evoEngines = pgTable("evo_engines", {
+  id: text("id").primaryKey(),
+  url: text("url").notNull(),
+  /** Takes no new jobs; finishes the active ones. */
+  draining: boolean("draining").notNull().default(false),
+  /** Result of the latest health check. */
+  healthy: boolean("healthy").notNull().default(true),
+  lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+  /** Last time the engine answered its health check. */
+  lastOkAt: timestamp("last_ok_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  activeJobs: integer("active_jobs").notNull().default(0),
+  queueDepth: integer("queue_depth").notNull().default(0),
+  maxExtractions: integer("max_extractions").notNull().default(1),
+  freeDiskGb: real("free_disk_gb"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Which engine owns each task. Never moves: a retry elsewhere is a new task. */
+export const evoTasks = pgTable(
+  "evo_tasks",
+  {
+    taskId: text("task_id").primaryKey(),
+    engineId: text("engine_id").notNull(),
+    kind: text("kind").notNull(),
+    claimKey: text("claim_key"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("evo_tasks_engine_idx").on(t.engineId, t.createdAt)],
+);
+
+/**
+ * One row per job identity (title + quality, or a title's Sinhala subtitles): the engine chosen for it.
+ * Inserted atomically (ON CONFLICT DO NOTHING) so concurrent requests, from any app instance, agree on one engine.
+ */
+export const evoClaims = pgTable("evo_claims", {
+  key: text("key").primaryKey(),
+  engineId: text("engine_id").notNull(),
+  taskId: text("task_id"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Engine holding each of its own subtitle ids, so a subtitle request reaches the right one. */
+export const evoSubtitleOwners = pgTable("evo_subtitle_owners", {
+  subId: text("sub_id").primaryKey(),
+  engineId: text("engine_id").notNull(),
 });

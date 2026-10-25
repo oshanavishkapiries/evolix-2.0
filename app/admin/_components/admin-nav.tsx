@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FilmIcon, FlagIcon, HomeIcon, MenuIcon, PlayIcon, TvIcon } from "@/app/(viewer)/_components/icons";
+import { BellIcon, FilmIcon, FlagIcon, HomeIcon, MenuIcon, PlayIcon, TvIcon } from "@/app/(viewer)/_components/icons";
 
 const PlusIcon = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
@@ -18,6 +18,7 @@ const LINKS = [
   { href: "/admin/users", label: "Users", icon: HomeIcon, match: (p: string) => p.startsWith("/admin/users") },
   { href: "/admin/settings", label: "Settings", icon: MenuIcon, match: (p: string) => p === "/admin/settings" },
   { href: "/admin/reports", label: "Reports", icon: FlagIcon, match: (p: string) => p.startsWith("/admin/reports") },
+  { href: "/admin/announcements", label: "Announcements", icon: BellIcon, match: (p: string) => p.startsWith("/admin/announcements") },
   { href: "/admin/movies/new", label: "New movie", icon: PlusIcon, match: (p: string) => p === "/admin/movies/new" },
   { href: "/admin/shows/new", label: "New show", icon: PlusIcon, match: (p: string) => p === "/admin/shows/new" },
 ];

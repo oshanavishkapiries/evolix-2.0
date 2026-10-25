@@ -7,8 +7,10 @@ from typing import List, Optional
 from curl_cffi import requests
 from app.interfaces.contracts import IStreamExtractor
 from app.domain.models import StreamSource
+from app.core.browser_pool import run_in_browser
+from app.core.config import settings
 from app.core.stealth import StealthBrowser
-from app.core.filters import RequestFilter
+from app.services.decryptor_cache import DecryptorCache, version_from_page
 
 logger = logging.getLogger("evo.extractor")
 
@@ -20,8 +22,9 @@ class YtHdStreamExtractor(IStreamExtractor):
     ChaCha20 decryption, and HLS variant parsing for multi-quality fallback.
     """
 
-    def __init__(self, base_url: str = "https://ythd.org"):
+    def __init__(self, base_url: str = "https://ythd.org", decryptors: Optional[DecryptorCache] = None):
         self.base_url = base_url.rstrip("/")
+        self._decryptors = decryptors or DecryptorCache(settings.BASE_DIR / "data" / "decryptors")
 
     def extract_streams(
         self,
@@ -84,15 +87,20 @@ class YtHdStreamExtractor(IStreamExtractor):
         title = stream_json.get("data", {}).get("title", f"Media_{tmdb_id}")
         imdb_id = stream_json.get("data", {}).get("imdb_id") or cfg.get("imdb")
 
-        # 5. Fetch vsdec decryptor WebAssembly script
-        r_vsdec = session.get(f"{player_origin}/embed/iframe_player/assets/vsdec.js?v=1786492668")
+        # 5. The decryptor script, cached by the version the player page names
+        version = version_from_page(r_player.text)
+
+        def vsdec_url(v: str) -> str:
+            return f"{player_origin}/embed/iframe_player/assets/vsdec.js?v={v}"
+
+        fetch = lambda url: session.get(url).text
+        script, cached = self._decryptors.get(vsdec_url, version, fetch)
 
         # 6. Decrypt via StealthBrowser WebAssembly runtime
-        rf = RequestFilter(preset="default", verbose=False)
-        with StealthBrowser(headless=True, request_filter=rf) as browser:
-            browser.page.goto(player_origin)
-            browser.page.evaluate(r_vsdec.text)
-            decrypted_urls = browser.page.evaluate(
+        def decrypt(sb: StealthBrowser, vsdec: str):
+            sb.page.goto(player_origin)
+            sb.page.evaluate(vsdec)
+            return sb.page.evaluate(
                 """async (resp) => {
                 const origFetch = window.fetch;
                 window.fetch = async (url, opts) => {
@@ -105,6 +113,16 @@ class YtHdStreamExtractor(IStreamExtractor):
             }""",
                 stream_json,
             )
+
+        try:
+            decrypted_urls = run_in_browser(lambda sb: decrypt(sb, script))
+        except Exception as e:
+            if not cached:
+                raise
+            # The cached copy may be stale (the provider rotated it without changing the version): refresh once.
+            logger.warning(f"Decrypting with the cached script failed ({e}); refreshing it")
+            script = self._decryptors.refresh(vsdec_url, version, fetch)
+            decrypted_urls = run_in_browser(lambda sb: decrypt(sb, script))
 
         if not decrypted_urls:
             raise RuntimeError("No stream URLs decrypted")

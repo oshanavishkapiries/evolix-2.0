@@ -49,9 +49,33 @@ Sinhala is translated **on demand**, the first time a viewer picks it, not by th
 - A title shows in browse/Kids listings only when it has an active source; rows without one are identity anchors.
 - Engine -> app calls need `EVO_SECRET_TOKEN`; app -> engine calls send it as `X-Evo-Secret`. Segment/variant URLs are HMAC-signed, so the engine never fetches a URL it did not hand out.
 
-## Engine settings (`tools/evo-engine`, read from `.env`)
+## Engine settings (`evo-engine`, read from `.env`)
 
-`EVO_WEBHOOK_URL`, `MAX_CONCURRENT_EXTRACTIONS`, `MAX_CONCURRENT_DOWNLOADS`, `MIN_FREE_DISK_GB`, `CLEAN_ORPHANS_ON_START`, `CORS_ORIGINS`.
+`EVO_WEBHOOK_URL`, `MAX_CONCURRENT_EXTRACTIONS`, `MAX_CONCURRENT_DOWNLOADS`, `MIN_FREE_DISK_GB`, `CLEAN_ORPHANS_ON_START`, `CORS_ORIGINS`. The extraction performance settings below are also live-editable under `/admin/evo/engines/<id>`.
+
+## Extraction performance (engine)
+
+- **Metrics**: every provider attempt records time, peak RAM and CPU of the engine process tree (`app/core/metrics.py`, table `extraction_metrics`). The task's event log shows one line per attempt ("CineSrc: ok · 8.2s · peak 612 MB · cpu 11.4s · no new browser"); `GET /metrics` and the engine page show median / p95 per provider for 24 h. The sampler reads `/proc` once per 200 ms, which costs under 1% of a core. With concurrent extractions the figures are per engine; benchmarks run one job at a time.
+- **Browser pool** (`app/core/browser_pool.py`): `BROWSER_POOL_SIZE` long-lived Chromium processes, each driven from its own thread (Playwright's sync API is thread-bound). Every extraction gets a fresh isolated context that is closed afterwards. A browser is replaced after `BROWSER_MAX_USES` extractions, when its process tree passes `BROWSER_RECYCLE_RSS_MB`, or when it dies (the job is retried once on another). `BROWSER_POOL_SIZE=0` restores one fresh browser per extraction.
+- **Asset blocking** (`BLOCK_ASSETS`, `app/core/filters.py`): images, fonts, media and ad/tracker hosts are not loaded on provider pages.
+- **Shared extraction** (`app/services/extraction_cache.py`): the URLs of all qualities from one extraction are reused for `EXTRACTION_REUSE_TTL_S` (default 300 s). Reused URLs are validated first (the stream validator fetches the playlist and a chunk); if they no longer play, the title is extracted once more. Simultaneous requests for one title share the running extraction. Task events say "Reused extraction", "Fresh extraction" or "Shared an extraction that was already running".
+- **Provider cool-down** (`app/services/provider_health.py`): `PROVIDER_FAIL_THRESHOLD` consecutive failures within `PROVIDER_FAIL_WINDOW_S` put a provider on cool-down for `PROVIDER_COOLDOWN_S`; afterwards one trial request decides. If every provider is cooling down the job fails immediately with the reason. State is in memory; the engine page shows it with a Reset button.
+- **YtHD decryptor cache** (`app/services/decryptor_cache.py`): `vsdec.js` is stored in `data/decryptors/` by the version the player page names, three versions kept; a failed decryption with a cached copy refreshes it once and retries. `YTHD_DECRYPTOR_CACHE=0` disables it.
+- Benchmark: `python -m tests.benchmark` (synthetic, offline) or `python -m tests.benchmark --live <tmdb ids>`; reports land in `evo-engine/docs/`.
+
+## Several engines
+
+The app is the gateway and scheduler; there is no separate gateway service.
+
+- **Config**: `EVO_ENGINES='["http://10.0.0.1:8000", {"url": "http://10.0.0.2:8000", "name": "Frankfurt"}]'`. Unset, the single `EVO_ENGINE_URL` is the only engine and nothing else changes (no claims, no health gating). Read at start: change it and restart or redeploy. All engines share `EVO_SECRET_TOKEN`; each engine's `EVO_WEBHOOK_URL` points at the same app. An engine's id is its address (`host-port`), so reordering the list is safe. The first engine owns tasks created before multi-engine.
+- **Scheduling** (`lib/evo/scheduler.ts`, tables `evo_engines`, `evo_claims`, `evo_tasks`, `evo_subtitle_owners`): health (`/health` + `/queue`) is checked at most every 10 s and saved with the last good time. A new job goes to the healthy, non-draining engine with the lowest (active + queued) / parallelism, disk breaking ties; another quality of a title prefers the engine that already has that title (it can reuse the extraction). Jobs just placed are counted immediately so a burst spreads out.
+- **No duplicates**: a job identity (`ingest:<type>:<tmdb>:<season>:<episode>:<quality>`, `sinhala:...`) is claimed with `INSERT ... ON CONFLICT DO NOTHING`; every request, from any app instance, then talks to the claimed engine, which joins the running job.
+- **Routing**: `evo_tasks` records the owner of every task (also Sinhala jobs). Status, HLS playlists/segments, translate polling, admin task views and actions all go to the owner; subtitle ids are looked up in `evo_subtitle_owners`. Ownership never changes.
+- **Completion**: the engine's webhook carries `taskId`; `promote()` credits the owning engine in `sources.engine_id` / `subtitles.engine_id`.
+- **Failure**: a failed health check (or a failed call) stops new jobs to that engine; the next check that succeeds puts it back. Its tasks stay with it and report `ENGINE_UNAVAILABLE` (the player shows its normal error with Try again). A new request for a job claimed by an unavailable engine moves the claim to a healthy engine (a controlled retry: fresh extraction, new task). Admins can also use "Retry elsewhere" on a task.
+- **Draining**: `/admin/evo/engines/<id>` -> Drain. No new jobs; active ones finish; the overview shows "safe to remove" once it is empty, after which it can be dropped from `EVO_ENGINES`.
+- **Admin**: `/admin/evo` is the combined view (engines table, summed pipeline graph, tasks and sources with their engine); `/admin/evo/engines/<id>` has that engine's status, settings, queue, providers, metrics and tasks. Admin API calls take `?engine=<id>`.
+- Tests: `tests/e2e/multi_engine.sh` (distribution, duplicate requests, routing, webhook credit, Sinhala), `claims.sh` (two processes racing one claim), `engine_failure.sh` (stop, retry elsewhere, recovery, drain) run against `evo-engine/stub_engine.py`, a real engine with fake providers/CDN. They refuse to run when a test title already has real sources, and clean up after themselves.
 
 ## Watching it run (admin)
 

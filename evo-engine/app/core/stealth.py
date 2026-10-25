@@ -9,13 +9,22 @@ import time
 
 from playwright.sync_api import sync_playwright
 from playwright_stealth import Stealth
+from app.core.metrics import mark_browser_launch
 from app.core.fingerprint_profiles import get_random_profile, generate_fingerprint_injection_script
+
+CHROME_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-infobars",
+    "--disable-features=IsolateOrigins,site-per-process",
+]
 
 ACCEPT_LANGUAGES = ["en-US,en;q=0.9", "en-GB,en;q=0.8", "en-US,en;q=0.8"]
 
 
 class StealthBrowser:
-    def __init__(self, headless=True, timeout=60000, request_filter=None, profile=None, locale="en-US", timezone="America/New_York"):
+    def __init__(self, headless=True, timeout=60000, request_filter=None, profile=None, locale="en-US", timezone="America/New_York", browser=None):
         self.headless = headless
         self.timeout = timeout
         self.request_filter = request_filter
@@ -23,24 +32,20 @@ class StealthBrowser:
         self.locale = locale
         self.timezone = timezone
         self._pw = None
-        self.browser = None
+        # A browser from the pool: only the isolated context is ours to create and close.
+        self._shared = browser is not None
+        self.browser = browser
         self.context = None
         self.page = None
 
     def start(self):
-        self._pw = sync_playwright().start()
-        chrome_args = [
-            "--disable-blink-features=AutomationControlled",
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-infobars",
-            "--disable-features=IsolateOrigins,site-per-process",
-            f"--window-size={self.profile['viewport']['width']},{self.profile['viewport']['height']}",
-        ]
-        self.browser = self._pw.chromium.launch(
-            headless=self.headless,
-            args=chrome_args,
-        )
+        if not self._shared:
+            self._pw = sync_playwright().start()
+            self.browser = self._pw.chromium.launch(
+                headless=self.headless,
+                args=[*CHROME_ARGS, f"--window-size={self.profile['viewport']['width']},{self.profile['viewport']['height']}"],
+            )
+            mark_browser_launch()
 
         headers = {
             "Accept-Language": random.choice(ACCEPT_LANGUAGES),
@@ -110,6 +115,10 @@ class StealthBrowser:
         self.page.screenshot(path=str(path))
 
     def close(self):
+        if self._shared:
+            if self.context:
+                self.context.close()  # drops this extraction's cookies, storage and pages
+            return
         if self.browser:
             self.browser.close()
         if self._pw:

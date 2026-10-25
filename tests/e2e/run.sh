@@ -6,4 +6,4 @@ set -u
 cd "$(dirname "$0")/../.."
 read -r SID TOKEN < <(node tests/e2e/session.mjs create)
 trap 'node tests/e2e/session.mjs delete "$SID"' EXIT
-E2E_ACCESS_TOKEN="$TOKEN" tools/evo-engine/test/.venv/bin/python tests/e2e/sinhala_subtitles.py
+E2E_ACCESS_TOKEN="$TOKEN" evo-engine/test/.venv/bin/python tests/e2e/sinhala_subtitles.py

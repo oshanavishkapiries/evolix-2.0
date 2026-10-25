@@ -55,6 +55,7 @@ body:has(.adm) { background: #1f1f1f; }
 .adm button:active:not(:disabled) { transform: scale(.97); }
 .adm button:not(.btn-secondary, .btn-danger, .switch, .tile, .adm-menu-btn) { color: #1f1f1f; }
 .adm .btn-secondary { background: transparent; color: #e6e6e6; border: 1px solid #4a4a4a; font-weight: 500; }
+.adm .btn-secondary[aria-pressed="true"] { background: rgb(255 255 255 / .12); border-color: #b0b0b0; color: #fff; }
 .adm .btn-secondary:hover:not(:disabled) { background: rgb(255 255 255 / .07); border-color: #7d7d7d; }
 .adm .btn-danger { background: #d64541; color: #fff; }
 .adm .btn-danger:hover:not(:disabled) { background: #e5534f; }

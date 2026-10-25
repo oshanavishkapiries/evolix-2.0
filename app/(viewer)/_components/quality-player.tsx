@@ -88,7 +88,9 @@ export function QualityPlayer({
         if (!res.ok || !task.task_id) throw new Error(task.error ?? task.message ?? "Could not start");
 
         for (let i = 0; i < MAX_POLLS && live(); i++) {
-          const st = (await (await fetchWithRefresh(`/api/evo/status/${task.task_id}`, { cache: "no-store" })).json()) as Status;
+          const stRes = await fetchWithRefresh(`/api/evo/status/${task.task_id}`, { cache: "no-store" });
+          const st = (await stRes.json().catch(() => ({}))) as Status & { error?: string; code?: string };
+          if (!stRes.ok && st.code === "ENGINE_UNAVAILABLE") throw new Error("The server preparing this quality is unavailable right now. Try again to use another one.");
           if (!live()) return;
           if (st.status === "COMPLETED" && st.result_url) {
             const got = st.resolved_quality ?? q;

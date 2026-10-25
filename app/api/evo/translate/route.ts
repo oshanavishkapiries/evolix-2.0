@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, json, parseBody } from "@/lib/auth/http";
-import { env } from "@/lib/env";
+import { engineFetch, EngineUnavailableError } from "@/lib/evo/client";
 import { titleContext } from "@/lib/evo/context";
-import { engineHeaders } from "@/lib/evo/engine";
 import { allow, viewerId } from "@/lib/evo/guard";
+import { claimedEngine, claimEngine, markUnhealthy, NoEngineAvailableError, recordTask, sinhalaKey } from "@/lib/evo/scheduler";
 import { findSinhala, settleSinhala, type SinhalaTarget } from "@/lib/evo/sinhala";
 import { TmdbError } from "@/lib/tmdb";
 
@@ -21,8 +21,8 @@ const target = z
 const POLL_PER_WINDOW = 200;
 const WINDOW_MS = 10 * 60_000;
 
-const engineUrl = (t: SinhalaTarget) =>
-  `${env.EVO_ENGINE_URL}/api/v1/media/subtitles/si?` +
+const enginePath = (t: SinhalaTarget) =>
+  "/subtitles/si?" +
   new URLSearchParams({ tmdb_id: String(t.tmdbId), media_type: t.mediaType, ...(t.season !== undefined ? { season: String(t.season) } : {}), ...(t.episode !== undefined ? { episode: String(t.episode) } : {}) });
 
 /**
@@ -45,25 +45,37 @@ export async function POST(req: NextRequest) {
     if (!ctx) return fail(404, "NOT_FOUND", "Episode not found");
     if (!ctx.imdbId) return json(200, { state: "failed", message: "This title has no English subtitle to translate from" });
 
-    const res = await fetch(`${env.EVO_ENGINE_URL}/api/v1/media/subtitles/si`, {
-      method: "POST",
-      headers: engineHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({
-        tmdb_id: t.tmdbId,
-        media_type: t.mediaType,
-        season: t.season,
-        episode: t.episode,
-        title: ctx.title || undefined,
-        imdb_id: ctx.imdbId,
-        synopsis: ctx.synopsis.slice(0, 1500) || undefined,
-        characters: ctx.characters,
-      }),
-      cache: "no-store",
-    });
-    if (!res.ok) return json(502, { error: `Evo engine returned ${res.status}` });
+    // One job per title across all engines: the claim decides which engine runs it (and the engine joins duplicates).
+    const key = sinhalaKey(t.mediaType, t.tmdbId, t.season, t.episode);
+    const body = {
+      tmdb_id: t.tmdbId,
+      media_type: t.mediaType,
+      season: t.season,
+      episode: t.episode,
+      title: ctx.title || undefined,
+      imdb_id: ctx.imdbId,
+      synopsis: ctx.synopsis.slice(0, 1500) || undefined,
+      characters: ctx.characters,
+    };
+    let res: Response | null = null;
+    for (let attempt = 0; attempt < 2 && !res; attempt++) {
+      const engine = await claimEngine(key);
+      try {
+        res = await engineFetch("/subtitles/si", { method: "POST", body, engine });
+        if (res.ok) {
+          const data = (await res.clone().json().catch(() => ({}))) as { job_id?: unknown };
+          if (typeof data.job_id === "string") await recordTask(data.job_id, engine, "sinhala", key);
+        }
+      } catch (e) {
+        if (!(e instanceof EngineUnavailableError) || attempt === 1) throw e;
+        await markUnhealthy(engine, e.message);
+      }
+    }
+    if (!res || !res.ok) return json(502, { error: `Evo engine returned ${res?.status ?? "no answer"}` });
     return json(200, await settleSinhala(t, (await res.json()) as Record<string, unknown>));
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
+    if (e instanceof NoEngineAvailableError) return json(503, { error: e.message, code: "NO_ENGINE" });
     return json(502, { error: e instanceof Error ? e.message : "Failed to connect to the engine" });
   }
 }
@@ -82,11 +94,15 @@ export async function GET(req: NextRequest) {
   try {
     const existing = await findSinhala(t);
     if (existing) return json(200, { state: "done", subtitle: existing });
-    const res = await fetch(engineUrl(t), { headers: engineHeaders(), cache: "no-store" });
+    // Poll the engine that owns this title's job; with no job claimed there is nothing to ask.
+    const engine = await claimedEngine(sinhalaKey(t.mediaType, t.tmdbId, t.season, t.episode));
+    if (!engine) return json(200, await settleSinhala(t, { state: "none" }));
+    const res = await engineFetch(enginePath(t), { engine });
     if (!res.ok) return json(502, { error: `Evo engine returned ${res.status}` });
     return json(200, await settleSinhala(t, (await res.json()) as Record<string, unknown>));
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
+    if (e instanceof NoEngineAvailableError) return json(503, { error: e.message, code: "NO_ENGINE" });
     return json(502, { error: e instanceof Error ? e.message : "Failed to connect to the engine" });
   }
 }

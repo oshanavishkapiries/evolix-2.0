@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { engineOverview, engineSummary, recentCachedSources } from "@/lib/cms/evo";
+import { recentCachedSources } from "@/lib/cms/evo";
+import { allEngineTasks, combinedSummary, enginesOverview } from "@/lib/evo/overview";
 import { SummaryFlow } from "../_components/pipeline-graph";
 import { SourceDeleteButton, TaskActions } from "../_components/evo-controls";
 import { PageHeader } from "../_components/page-header";
@@ -28,21 +29,50 @@ export default function EvoPage() {
 }
 
 async function EvoOverview() {
-  const [engine, cached, summary] = await Promise.all([engineOverview(), recentCachedSources(), engineSummary()]);
-  const failed = engine.tasks.filter((t) => t.status === "FAILED" || t.cache_failed);
+  const [engineList, { tasks, unreachable }, cached, summary] = await Promise.all([enginesOverview(), allEngineTasks(), recentCachedSources(), combinedSummary()]);
+  const failed = tasks.filter((t) => t.status === "FAILED" || t.cache_failed);
+  const multi = engineList.length > 1;
+  const nameOf = (id: string | null) => engineList.find((e) => e.id === id)?.name ?? id ?? "—";
 
   return (
     <>
-      <p className="mt-2 text-sm">
-        Engine: <strong>{engine.online ? "online" : "offline"}</strong>
-        {engine.health && (
-          <>
-            {" · "}ffmpeg {engine.health.ffmpeg_available ? "ok" : "missing"} · ffprobe {engine.health.ffprobe_available ? "ok" : "missing"} · {String(engine.health.free_disk_gb)} GB free · webhook{" "}
-            {engine.health.webhook_configured ? "on" : "off"}
-          </>
-        )}
-        {engine.error && <span> — {engine.error}</span>}
-      </p>
+      <h2 className="mt-4">Engines</h2>
+      <div className="table-wrap mt-2">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Engine</th>
+              <th>State</th>
+              <th>Last good check</th>
+              <th>Active jobs</th>
+              <th>Queue</th>
+              <th>Free disk</th>
+              <th>Recent failures</th>
+            </tr>
+          </thead>
+          <tbody>
+            {engineList.map((e) => (
+              <tr key={e.id}>
+                <td>
+                  <Link href={`/admin/evo/engines/${encodeURIComponent(e.id)}`}>{e.name}</Link>
+                  <div className="text-xs">{e.url}</div>
+                </td>
+                <td>
+                  <strong>{e.available ? (e.draining ? "Draining" : "Available") : "Unavailable"}</strong>
+                  {e.draining && (e.safeToRemove ? " · safe to remove" : e.available ? " · finishing jobs" : "")}
+                  {!e.available && e.lastError && <div className="text-xs">{e.lastError}</div>}
+                </td>
+                <td style={{ whiteSpace: "nowrap" }}>{e.lastOkAt ? fmt(e.lastOkAt) : "never"}</td>
+                <td>{e.activeJobs}{!e.available && " (last known)"}</td>
+                <td>{e.queueDepth}{!e.available && " (last known)"}</td>
+                <td>{e.freeDiskGb != null ? `${Math.round(e.freeDiskGb)} GB` : "—"}</td>
+                <td>{e.failures ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {unreachable.length > 0 && <p className="mt-2 text-sm">Tasks of {unreachable.join(", ")} are not shown while it is unreachable.</p>}
       {failed.length > 0 && (
         <p className="mt-2 text-sm">
           {failed.length} recent task(s) failed or were not cached. Viewing the title again (or requesting the quality) retries them.
@@ -51,11 +81,11 @@ async function EvoOverview() {
 
       <h2 className="mt-6">Pipeline</h2>
       <div className="mt-2">
-        <SummaryFlow initial={summary} />
+        <SummaryFlow initial={summary} engine="all" />
       </div>
 
       <h2 className="mt-6">Engine tasks</h2>
-      {!engine.tasks.length ? (
+      {!tasks.length ? (
         <p className="mt-2 text-sm">No tasks yet.</p>
       ) : (
         <div className="table-wrap mt-2">
@@ -63,6 +93,7 @@ async function EvoOverview() {
             <thead>
               <tr>
                 <th>Title</th>
+                {multi && <th>Engine</th>}
                 <th>Quality</th>
                 <th>Status</th>
                 <th>Message</th>
@@ -71,18 +102,19 @@ async function EvoOverview() {
               </tr>
             </thead>
             <tbody>
-              {engine.tasks.map((t) => (
+              {tasks.map((t) => (
                 <tr key={t.task_id}>
                   <td>
                     <Link href={`/admin/evo/${t.task_id}`}>{t.title ?? `TMDB ${t.tmdb_id}`}</Link>
                     <div className="text-xs">{code(t.season, t.episode)}</div>
                   </td>
+                  {multi && <td>{t.engineName}</td>}
                   <td>{t.requested_quality === "sub:si" ? "Sinhala subtitles" : (t.resolved_quality ?? t.requested_quality)}</td>
                   <td>{t.cache_failed ? `${t.status} (cache failed)` : t.status}</td>
                   <td style={{ maxWidth: "24rem", overflowWrap: "anywhere" }}>{t.message}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{fmt(t.updated_at)}</td>
                   <td>
-                    <TaskActions id={t.task_id} status={t.status} cacheFailed={t.cache_failed} />
+                    <TaskActions id={t.task_id} status={t.status} cacheFailed={t.cache_failed} canMove={multi && t.requested_quality !== "sub:si"} />
                   </td>
                 </tr>
               ))}
@@ -101,6 +133,7 @@ async function EvoOverview() {
               <tr>
                 <th>Title</th>
                 <th>Quality</th>
+                {multi && <th>Engine</th>}
                 <th>State</th>
                 <th>Cached</th>
                 <th />
@@ -114,10 +147,11 @@ async function EvoOverview() {
                     <div className="text-xs">{s.context}</div>
                   </td>
                   <td>{s.quality ?? "—"}</td>
+                  {multi && <td>{nameOf(s.engineId)}</td>}
                   <td>{s.isActive ? "active" : "disabled (file gone)"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{fmt(s.createdAt)}</td>
                   <td>
-                    <SourceDeleteButton sourceId={s.id} label={`${s.title} ${s.context} ${s.quality ?? ""}`.trim()} />
+                    <SourceDeleteButton sourceId={s.id} label={`${s.title} ${s.context} ${s.quality ?? ""}`.trim()} engine={engineList.some((e) => e.id === s.engineId) ? (s.engineId ?? undefined) : undefined} />
                   </td>
                 </tr>
               ))}

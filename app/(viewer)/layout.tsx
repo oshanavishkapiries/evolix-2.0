@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
+import { AnnouncementBanner, AnnouncementsProvider } from "./_components/announcements";
 import { AppChrome } from "./_components/app-chrome";
 import { BookmarkProvider } from "./_components/bookmarks";
 import { BottomNav } from "./_components/bottom-nav";
@@ -24,10 +25,15 @@ export default function ViewerLayout({ children }: { children: React.ReactNode }
       {/* Applies saved sidebar/card-size prefs before first paint. */}
       <script dangerouslySetInnerHTML={{ __html: PREFS_SCRIPT }} />
       <a href="#main" className="v-skip">Skip to content</a>
-      <AppChrome />
-      <BookmarkProvider>
-        <main id="main" className="v-main">{children}</main>
-      </BookmarkProvider>
+      <AnnouncementsProvider>
+        <AppChrome />
+        <BookmarkProvider>
+          <main id="main" className="v-main">
+            <AnnouncementBanner />
+            {children}
+          </main>
+        </BookmarkProvider>
+      </AnnouncementsProvider>
       <BottomNav />
     </div>
   );

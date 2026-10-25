@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "@/lib/env";
-import { engineHeaders } from "@/lib/evo/engine";
+import { engineFetch } from "@/lib/evo/client";
+import { engineForTask } from "@/lib/evo/scheduler";
 
 // The task id is an unguessable capability handed only to signed-in viewers (ingest/status require a session).
 // Segments are deliberately not tied to the access cookie: it expires after an hour, mid-movie.
@@ -12,15 +12,18 @@ async function proxy(req: NextRequest, { params }: { params: Promise<{ taskId: s
   if (!TASK_ID.test(taskId) || !path?.length) return new NextResponse("Invalid stream path", { status: 400 });
 
   const subPath = path.join("/");
-  const headers = engineHeaders();
+  const headers: Record<string, string> = {};
   const range = req.headers.get("range");
   if (range) headers["Range"] = range;
 
   try {
-    const res = await fetch(`${env.EVO_ENGINE_URL}/api/v1/media/stream/${taskId}/${subPath}${req.nextUrl.search}`, {
-      method: req.method,
+    // The engine answers within the timeout; the body (a segment) then streams through without a deadline.
+    const engine = await engineForTask(taskId); // the engine that owns the task serves all of its playlists and segments
+    const res = await engineFetch(`/stream/${taskId}/${subPath}${req.nextUrl.search}`, {
+      engine,
+      method: req.method as "GET" | "HEAD",
       headers,
-      cache: "no-store",
+      timeoutMs: 30_000,
     });
     if (!res.ok && res.status !== 206) return new NextResponse(`Stream error: ${res.status}`, { status: res.status });
 

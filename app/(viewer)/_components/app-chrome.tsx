@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
+import { NotificationBell } from "./announcements";
 import { FilmIcon, HomeIcon, KidsIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
 import { activeNavKey, SIDEBAR_ITEMS } from "./nav-items";
 import { PREF_SIDEBAR, savePref } from "./prefs";
@@ -12,17 +13,47 @@ import { PREF_SIDEBAR, savePref } from "./prefs";
 const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, kids: KidsIcon, "my-list": ListIcon };
 const DESKTOP = "(min-width: 80rem)";
 
+/**
+ * Header search. On the search pages it is the only input on wide screens (the in-page bar is hidden there), so it
+ * shows and edits the current ?q=; elsewhere it jumps to search. The Kids section searches within Kids.
+ */
 function NavSearch() {
   const router = useRouter();
-  const [value, setValue] = useState("");
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const base = pathname.startsWith("/kids") ? "/kids/search" : "/search";
+  const onSearch = pathname === base;
+  const urlQ = onSearch ? (params.get("q") ?? "") : "";
+  const [value, setValue] = useState(urlQ);
   const [debounced, flush] = useDebouncedValue(value.trim());
-  const lastSent = useRef("");
+  const lastSent = useRef(urlQ.trim());
+
+  // The URL changed from elsewhere (back button, a link): show the query it holds.
+  useEffect(() => {
+    if (urlQ.trim() === lastSent.current) return;
+    lastSent.current = urlQ.trim();
+    setValue(urlQ);
+    flush(urlQ.trim());
+  }, [urlQ, flush]);
+
+  const go = (q: string) => {
+    lastSent.current = q;
+    const next = new URLSearchParams(onSearch ? params : undefined);
+    if (q) next.set("q", q);
+    else next.delete("q");
+    next.delete("page");
+    const qs = next.toString();
+    const url = qs ? `${base}?${qs}` : base;
+    if (onSearch) router.replace(url);
+    else router.push(url);
+  };
 
   useEffect(() => {
-    if (debounced.length < SEARCH_MIN_CHARS || debounced === lastSent.current) return;
-    lastSent.current = debounced;
-    router.push(`/search?q=${encodeURIComponent(debounced)}`);
-  }, [debounced, router]);
+    if (debounced === lastSent.current) return;
+    // A single character leaves the results alone; clearing only matters while on the search page.
+    if (debounced.length >= SEARCH_MIN_CHARS || (debounced === "" && onSearch)) go(debounced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `go` closes over the current URL on purpose
+  }, [debounced]);
 
   return (
     <form
@@ -33,8 +64,7 @@ function NavSearch() {
         const q = value.trim();
         if (q.length < SEARCH_MIN_CHARS) return;
         flush(q);
-        lastSent.current = q;
-        router.push(`/search?q=${encodeURIComponent(q)}`);
+        go(q);
       }}
     >
       <SearchIcon size={16} />
@@ -135,11 +165,14 @@ export function AppChrome() {
           {/* eslint-disable-next-line @next/next/no-img-element -- static SVG logo */}
           <img src="/svg/evolix.svg" alt="Evolix" width={100} height={29} />
         </Link>
-        <NavSearch />
+        <Suspense>
+          <NavSearch />
+        </Suspense>
         <div className="v-top-end">
           <Link href="/search" className="v-top-icon" aria-label="Search">
             <SearchIcon size={20} />
           </Link>
+          <NotificationBell />
           <UserMenu />
         </div>
       </header>

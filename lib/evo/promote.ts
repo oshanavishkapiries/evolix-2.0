@@ -25,6 +25,8 @@ export const promotionInput = z.object({
     .array(z.object({ language: z.string().min(2).max(10), label: z.string().min(1).max(100), url: pixeldrainUrl }))
     .max(30)
     .default([]),
+  /** The engine task that produced this (sent by the engine; it tells the app which engine to credit). */
+  taskId: z.string().regex(/^[0-9a-f-]{36}$/i).optional(),
 })
   .refine((b) => (b.quality === undefined) === (b.resultUrl === undefined), "quality and resultUrl go together")
   .refine((b) => b.resultUrl !== undefined || b.subtitles.length > 0, "Nothing to register");
@@ -34,7 +36,7 @@ export type PromotionInput = z.infer<typeof promotionInput>;
  * Registers a cached file as a playable source (one per quality) plus its subtitle tracks, creating the
  * catalog rows if needed. Idempotent: re-sending the same completion just refreshes the URLs.
  */
-export async function promote(input: PromotionInput) {
+export async function promote(input: PromotionInput, engineId?: string | null) {
   const isMovie = input.mediaType === "movie";
   let parent: { movieId: string } | { episodeId: string };
   if (isMovie) {
@@ -58,20 +60,21 @@ export async function promote(input: PromotionInput) {
         audioLanguage: "en",
         sortOrder: RANK[input.quality] ?? 9,
         isActive: true,
+        engineId: engineId ?? null,
       })
       .onConflictDoUpdate({
         target: "movieId" in parent ? [sources.movieId, sources.quality] : [sources.episodeId, sources.quality],
-        set: { url: input.resultUrl, kind: "direct", isActive: true },
+        set: { url: input.resultUrl, kind: "direct", isActive: true, ...(engineId ? { engineId } : {}) },
       });
   }
 
   for (const [i, sub] of input.subtitles.entries()) {
     await db
       .insert(subtitles)
-      .values({ ...parent, label: sub.label, language: sub.language, url: sub.url, format: "vtt", sortOrder: i })
+      .values({ ...parent, label: sub.label, language: sub.language, url: sub.url, format: "vtt", sortOrder: i, engineId: engineId ?? null })
       .onConflictDoUpdate({
         target: "movieId" in parent ? [subtitles.movieId, subtitles.language] : [subtitles.episodeId, subtitles.language],
-        set: { url: sub.url, label: sub.label, format: "vtt" },
+        set: { url: sub.url, label: sub.label, format: "vtt", ...(engineId ? { engineId } : {}) },
       });
   }
 
@@ -91,6 +94,7 @@ export function promotionFromTask(task: Record<string, unknown>): PromotionInput
     quality: task.resolved_quality ?? task.requested_quality,
     resultUrl: task.result_url,
     subtitles: Array.isArray(task.cdn_subtitles) ? task.cdn_subtitles : [],
+    taskId: typeof task.task_id === "string" ? task.task_id : undefined,
   });
   return parsed.success ? parsed.data : null;
 }

@@ -30,6 +30,25 @@ class Settings(BaseSettings):
     MAX_QUEUED_TASKS: int = 50
     # Background caching is skipped (streaming still works) below this much free disk.
     MIN_FREE_DISK_GB: float = 10.0
+    # Browser pool (extraction). 0 = launch a fresh browser per extraction (the old behaviour).
+    BROWSER_POOL_SIZE: int = 2
+    # A pooled browser is replaced after this many extractions, or when its process tree grows past the RSS limit (0 = no limit).
+    BROWSER_MAX_USES: int = 25
+    BROWSER_RECYCLE_RSS_MB: int = 1500
+    # Skip images, fonts, media and ad/tracker hosts on provider pages (1 = on).
+    BLOCK_ASSETS: int = 1
+
+    # Stream URLs from a recent extraction are reused for other qualities of the same title. 0 = always extract fresh.
+    EXTRACTION_REUSE_TTL_S: int = 300
+
+    # A provider that fails this many times in a row within the window sits out for the cool-down (0 = never skip providers).
+    PROVIDER_FAIL_THRESHOLD: int = 3
+    PROVIDER_FAIL_WINDOW_S: int = 600
+    PROVIDER_COOLDOWN_S: int = 300
+
+    # Keep the YtHD decryptor script on disk by version (1 = on).
+    YTHD_DECRYPTOR_CACHE: int = 1
+
     # Delete leftover files in DOWNLOAD_DIR at startup (they belong to tasks that died with the process).
     CLEAN_ORPHANS_ON_START: bool = False
 

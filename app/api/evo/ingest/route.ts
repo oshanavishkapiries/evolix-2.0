@@ -1,11 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, json, parseBody } from "@/lib/auth/http";
-import { env } from "@/lib/env";
-import { engineHeaders } from "@/lib/evo/engine";
-import { titleContext } from "@/lib/evo/context";
+import { startIngest } from "@/lib/evo/ingest";
 import { allow, viewerId } from "@/lib/evo/guard";
-import { promote, promotionFromTask, QUALITIES } from "@/lib/evo/promote";
+import { QUALITIES } from "@/lib/evo/promote";
 import { TmdbError } from "@/lib/tmdb";
 import { canWatch } from "@/lib/viewer/access";
 
@@ -32,35 +30,13 @@ export async function POST(req: NextRequest) {
   if ("error" in parsed) return parsed.error;
   const { tmdbId, mediaType, quality, season, episode } = parsed.data;
 
-  // Canonical name and IMDb id come from us, not from whichever provider the engine extracts from: providers name
-  // titles after their own site, and without an IMDb id there are no subtitles (and nothing to translate).
-  let ctx;
   try {
-    ctx = await titleContext(mediaType, tmdbId, season, episode);
+    const out = await startIngest({ tmdbId, mediaType, quality, season, episode });
+    if (out.kind === "not_found") return fail(404, "NOT_FOUND", out.message);
+    if (out.kind === "error") return json(out.status, out.body);
+    return json(200, out.data);
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
     throw e;
   }
-  if (!ctx) return fail(404, "NOT_FOUND", "Episode not found");
-
-  try {
-    const res = await fetch(`${env.EVO_ENGINE_URL}/api/v1/media/ingest`, {
-      method: "POST",
-      headers: engineHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: ctx.runtimeMinutes, synopsis: ctx.synopsis.slice(0, 1500) || undefined, characters: ctx.characters, title: ctx.title || undefined, imdb_id: ctx.imdbId ?? undefined }),
-      cache: "no-store",
-    });
-    if (!res.ok) return json(res.status, { error: `Evo engine returned ${res.status}` });
-    const data = (await res.json()) as Record<string, unknown>;
-    await reconcile({ ...data, tmdb_id: tmdbId, media_type: mediaType, season: season ?? null, episode: episode ?? null });
-    return json(200, data);
-  } catch (e) {
-    return json(502, { error: e instanceof Error ? e.message : "Failed to connect to the engine" });
-  }
-}
-
-/** A task the engine already finished may never have reached us (lost webhook): register it now. Idempotent. */
-async function reconcile(task: Record<string, unknown>) {
-  const input = promotionFromTask(task);
-  if (input) await promote(input).catch(() => {});
 }

@@ -21,6 +21,15 @@ SPECS = [
     Spec("MAX_CONCURRENT_DOWNLOADS", "Parallel CDN caches", "Downloads/uploads to the CDN running at once.", "int", 1, 8),
     Spec("MAX_QUEUED_TASKS", "Queue limit", "Jobs waiting for extraction beyond this are refused with 503.", "int", 1, 5000),
     Spec("MIN_FREE_DISK_GB", "Minimum free disk (GB)", "CDN caching is skipped below this much free disk.", "float", 0, 10000),
+    Spec("BROWSER_POOL_SIZE", "Browser pool size", "Long-lived headless browsers shared by extractions. 0 = launch a fresh browser each time.", "int", 0, 8),
+    Spec("BROWSER_MAX_USES", "Browser max uses", "A pooled browser is replaced after this many extractions.", "int", 1, 1000),
+    Spec("BROWSER_RECYCLE_RSS_MB", "Browser memory limit (MB)", "A pooled browser using more memory than this is replaced. 0 = no limit.", "int", 0, 16000),
+    Spec("BLOCK_ASSETS", "Block images, fonts and trackers", "1 = provider pages skip images, fonts, media and ad/tracker hosts during extraction.", "int", 0, 1),
+    Spec("EXTRACTION_REUSE_TTL_S", "Reuse extraction for (s)", "Stream URLs from an extraction are reused for other qualities of the same title for this long. 0 = off.", "int", 0, 3600),
+    Spec("PROVIDER_FAIL_THRESHOLD", "Provider failures before cool-down", "Consecutive failures within the window that put a provider on cool-down. 0 = never skip providers.", "int", 0, 50),
+    Spec("PROVIDER_FAIL_WINDOW_S", "Provider failure window (s)", "Failures older than this no longer count towards a cool-down.", "int", 10, 86400),
+    Spec("PROVIDER_COOLDOWN_S", "Provider cool-down (s)", "How long a failing provider is skipped before one trial request.", "int", 10, 86400),
+    Spec("YTHD_DECRYPTOR_CACHE", "Cache YtHD decryptor", "1 = keep the decryptor script on disk by version instead of downloading it every attempt.", "int", 0, 1),
     Spec("TRANSLATE_DAILY_BUDGET_USD", "Daily translation budget (USD)", "0 = unlimited. Spend is always ledgered.", "float", 0, 100000),
 ]
 BY_KEY = {s.key: s for s in SPECS}

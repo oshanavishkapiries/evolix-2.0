@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as media_router, _repository, load_runtime_config
+from app.core.browser_pool import shutdown_pool
 from app.core.config import settings
 
 logger = logging.getLogger("evo.main")
@@ -33,6 +34,7 @@ async def lifespan(_: FastAPI):
     elif leftovers:
         logger.warning(f"{len(leftovers)} leftover file(s) in {settings.DOWNLOAD_DIR} (set CLEAN_ORPHANS_ON_START=true to remove)")
     yield
+    shutdown_pool()  # closes the pooled browsers cleanly
 
 
 app = FastAPI(

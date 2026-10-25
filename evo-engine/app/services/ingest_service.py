@@ -12,6 +12,7 @@ from typing import List, Optional
 from app.interfaces.contracts import IStreamExtractor, IMediaDownloader, IStorageProvider
 from app.interfaces.repository import ITaskRepository
 from app.domain.models import IngestTask, IngestStatus, MediaType, StreamSource
+from app.core import notes
 from app.core.config import settings
 from app.services.subtitle_service import SubtitleService
 import requests
@@ -114,6 +115,7 @@ class IngestService:
             "paused": self.paused,
             "waiting_extraction": max(0, self._queued - self._extract_limit.active),
             "extracting": self._extract_limit.active,
+            "max_extractions": settings.MAX_CONCURRENT_EXTRACTIONS,
             "caching": self._cache_limit.active,
             "queue_limit": settings.MAX_QUEUED_TASKS,
         }
@@ -530,12 +532,18 @@ class IngestService:
             self._event(task, "extract", "running", "Waiting for a browser slot")
             logger.info(f"[{task_id}] Extracting streams for TMDB {task.tmdb_id} (S{task.season}E{task.episode})")
 
-            streams = self.extractor.extract_streams(
-                task.tmdb_id,
-                task.media_type.value,
-                season=task.season,
-                episode=task.episode,
-            )
+            with notes.collect() as extraction_notes:
+                try:
+                    streams = self.extractor.extract_streams(
+                        task.tmdb_id,
+                        task.media_type.value,
+                        season=task.season,
+                        episode=task.episode,
+                    )
+                finally:
+                    # Reuse/fresh, provider skips and the per-attempt metrics, whether the extraction worked or not.
+                    for line in extraction_notes:
+                        self._event(task, "extract", "running", line)
             if not streams:
                 raise RuntimeError("No streams found for media")
             self._event(task, "extract", "ok", f"{len(streams)} stream(s): " + ", ".join(x.quality for x in streams))

@@ -12,23 +12,26 @@ type CdnFile = { id: string; name: string; size: number; views: number; date_upl
 
 const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
 
-/** Queue status with pause/resume, and the editable engine settings. */
-export function EvoControls() {
+const scoped = (engine?: string) => (engine ? `?engine=${encodeURIComponent(engine)}` : "");
+
+/** Queue status with pause/resume, and the editable settings of one engine (the primary when `engine` is not given). */
+export function EvoControls({ engine }: { engine?: string }) {
   const toast = useToast();
+  const q = scoped(engine);
   const [queue, setQueue] = useState<Queue | null>(null);
   const [settings, setSettings] = useState<Setting[] | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   const loadQueue = useCallback(async () => {
-    const res = await adminApi<{ data: Queue }>("GET", "/api/admin/evo/queue");
+    const res = await adminApi<{ data: Queue }>("GET", `/api/admin/evo/queue${q}`);
     if (res.ok) setQueue(res.data);
-  }, []);
+  }, [q]);
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      const res = await adminApi<{ data: Setting[] }>("GET", "/api/admin/evo/config");
+      const res = await adminApi<{ data: Setting[] }>("GET", `/api/admin/evo/config${q}`);
       if (!alive) return;
       if (!res.ok) return toast.error(errorText(res));
       setSettings(res.data);
@@ -40,11 +43,11 @@ export function EvoControls() {
       alive = false;
       clearInterval(t);
     };
-  }, [loadQueue, toast]);
+  }, [loadQueue, q, toast]);
 
   const setPaused = async (pause: boolean) => {
     setBusy(true);
-    const res = await adminApi<{ data: Queue }>("POST", `/api/admin/evo/queue/${pause ? "pause" : "resume"}`);
+    const res = await adminApi<{ data: Queue }>("POST", `/api/admin/evo/queue/${pause ? "pause" : "resume"}${q}`);
     setBusy(false);
     if (!res.ok) return toast.error(errorText(res));
     setQueue(res.data);
@@ -59,7 +62,7 @@ export function EvoControls() {
       changes[k] = n;
     }
     setBusy(true);
-    const res = await adminApi<{ data: Setting[] }>("PUT", "/api/admin/evo/config", changes);
+    const res = await adminApi<{ data: Setting[] }>("PUT", `/api/admin/evo/config${q}`, changes);
     setBusy(false);
     if (!res.ok) return toast.error(errorText(res));
     setSettings(res.data);
@@ -69,7 +72,7 @@ export function EvoControls() {
 
   const reset = async (key: string) => {
     setBusy(true);
-    const res = await adminApi<{ data: Setting[] }>("DELETE", `/api/admin/evo/config/${key}`);
+    const res = await adminApi<{ data: Setting[] }>("DELETE", `/api/admin/evo/config/${key}${q}`);
     setBusy(false);
     if (!res.ok) return toast.error(errorText(res));
     setSettings(res.data);
@@ -152,8 +155,8 @@ export function EvoControls() {
   );
 }
 
-/** Retry / cancel / remove buttons for one engine task row. */
-export function TaskActions({ id, status, cacheFailed }: { id: string; status: string; cacheFailed: boolean }) {
+/** Retry / cancel / remove buttons for one engine task row; with several engines a failed video task can also move. */
+export function TaskActions({ id, status, cacheFailed, canMove = false }: { id: string; status: string; cacheFailed: boolean; canMove?: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
@@ -174,6 +177,20 @@ export function TaskActions({ id, status, cacheFailed }: { id: string; status: s
       {running && (
         <button type="button" className={btn} disabled={busy} onClick={() => run("POST", `/api/admin/evo/tasks/${id}/cancel`, "Task cancelled")}>
           Cancel
+        </button>
+      )}
+      {canMove && (status === "FAILED" || cacheFailed || running) && (
+        <button
+          type="button"
+          className={btn}
+          disabled={busy}
+          onClick={async () => {
+            if (await confirm({ title: "Retry on another engine?", body: "A new job starts on a different healthy engine and extracts the title again. This task stays with its engine, and anyone watching it may be interrupted.", confirmLabel: "Retry elsewhere", danger: false })) {
+              run("POST", `/api/admin/evo/tasks/${id}/move`, "Started on another engine");
+            }
+          }}
+        >
+          Retry elsewhere
         </button>
       )}
       {!running && (status === "FAILED" || cacheFailed) && (
@@ -200,7 +217,7 @@ export function TaskActions({ id, status, cacheFailed }: { id: string; status: s
 }
 
 /** Deletes a cached source's file from the CDN and its catalog row. */
-export function SourceDeleteButton({ sourceId, label }: { sourceId: string; label: string }) {
+export function SourceDeleteButton({ sourceId, label, engine }: { sourceId: string; label: string; engine?: string }) {
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
@@ -213,7 +230,7 @@ export function SourceDeleteButton({ sourceId, label }: { sourceId: string; labe
       onClick={async () => {
         if (!(await confirm({ title: `Delete the CDN file for ${label}?`, body: "The file is removed from the CDN and the source is deleted. The next play falls back to another quality or caches it again.", confirmLabel: "Delete file" }))) return;
         setBusy(true);
-        const res = await adminApi("POST", "/api/admin/evo/cdn/delete", { sourceId });
+        const res = await adminApi("POST", `/api/admin/evo/cdn/delete${scoped(engine)}`, { sourceId });
         setBusy(false);
         if (!res.ok) return toast.error(errorText(res));
         toast.success("CDN file deleted");
@@ -228,19 +245,19 @@ export function SourceDeleteButton({ sourceId, label }: { sourceId: string; labe
 const mb = (n: number) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} GB` : `${(n / 1024 ** 2).toFixed(0)} MB`);
 
 /** Every file in the CDN account, with delete (also for orphans no source points at). */
-export function CdnFiles() {
+export function CdnFiles({ engine }: { engine?: string }) {
   const toast = useToast();
   const confirm = useConfirm();
   const [files, setFiles] = useState<CdnFile[] | null>(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const res = await adminApi<{ data: CdnFile[] }>("GET", "/api/admin/evo/cdn/files");
+    const res = await adminApi<{ data: CdnFile[] }>("GET", `/api/admin/evo/cdn/files${scoped(engine)}`);
     if (res.ok) {
       setFiles(res.data);
       setError("");
     } else setError(errorText(res));
-  }, []);
+  }, [engine]);
   useEffect(() => {
     const t = setTimeout(load, 0); // deferred: load sets state
     return () => clearTimeout(t);
@@ -282,7 +299,7 @@ export function CdnFiles() {
                     className="btn-danger rounded-md border px-3 py-1.5 text-sm"
                     onClick={async () => {
                       if (!(await confirm({ title: `Delete ${f.name}?`, body: "The file is removed from the CDN. A catalog source pointing at it stops working until it is re-cached or removed.", confirmLabel: "Delete file" }))) return;
-                      const res = await adminApi("POST", "/api/admin/evo/cdn/delete", { url: f.url });
+                      const res = await adminApi("POST", `/api/admin/evo/cdn/delete${scoped(engine)}`, { url: f.url });
                       if (!res.ok) return toast.error(errorText(res));
                       toast.success("CDN file deleted");
                       load();

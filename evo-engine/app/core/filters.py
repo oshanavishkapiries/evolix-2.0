@@ -33,7 +33,25 @@ DEFAULT_BLOCKED = [
     "**/*clarity.ms/**",
     "**/*segment.com/**",
     "**/*sentry.io/**",
+    "**/*doubleclick.net/**",
+    "**/*googlesyndication.com/**",
+    "**/*adnxs.com/**",
+    "**/*taboola.com/**",
+    "**/*outbrain.com/**",
+    "**/*scorecardresearch.com/**",
+    "**/*mixpanel.com/**",
+    "**/*cloudflareinsights.com/**",
 ]
+
+# Resource types a stream extraction never needs: the player only has to ask for its playlist.
+ASSET_RESOURCES = ("image", "font", "media")
+
+
+def extraction_filter(verbose=False):
+    """Filter for provider pages: trackers always, and (while BLOCK_ASSETS is on) images, fonts and media too."""
+    from app.core.config import settings
+
+    return RequestFilter(preset="default", block_resources=ASSET_RESOURCES if settings.BLOCK_ASSETS else None, verbose=verbose)
 
 # Smart stubs: fake bodies for scripts whose globals the page
 # expects — prevents ReferenceError after blocking.

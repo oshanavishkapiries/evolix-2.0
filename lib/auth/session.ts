@@ -49,6 +49,9 @@ export async function refreshSessionId(req: NextRequest) {
   return token ? (await verifyRefreshToken(token))?.sessionId ?? null : null;
 }
 
+/** A just-rotated token replayed within this window is a race, not theft (parallel tabs/navigations). */
+export const ROTATION_GRACE_MS = 30_000;
+
 export type RotateResult =
   | { status: "ok"; access: string; refresh: string }
   | { status: "invalid" }
@@ -74,12 +77,30 @@ export async function rotateSession(token: string, meta: Meta): Promise<RotateRe
     .where(and(eq(sessions.id, row.id), isNull(sessions.revokedAt)))
     .returning({ id: sessions.id });
   if (claimed.length === 0) {
+    if (await withinGrace(row.id)) {
+      // Lost a refresh race: hand this caller its own live session instead of logging everyone out.
+      const sibling = await createSession(row.userId, meta);
+      return { status: "ok", access: sibling.access, refresh: sibling.refresh };
+    }
     await revokeAllSessions(row.userId); // revoked token replayed: assume theft
     return { status: "reuse" };
   }
 
   const next = await createSession(row.userId, meta, newId);
   return { status: "ok", access: next.access, refresh: next.refresh };
+}
+
+/** True when the session was rotated moments ago and its successor is still live. */
+async function withinGrace(sessionId: string) {
+  const [old] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+  if (!old?.revokedAt || !old.replacedBy) return false; // signed out / revoked, not rotated
+  if (Date.now() - old.revokedAt.getTime() > ROTATION_GRACE_MS) return false;
+  const [next] = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(eq(sessions.id, old.replacedBy), isNull(sessions.revokedAt)))
+    .limit(1);
+  return Boolean(next);
 }
 
 /** Validates the access cookie and checks the session is still live in the DB. */

@@ -9,6 +9,7 @@ is real (it creates a source-less catalog row for TMDB 680 the first time; run.s
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -82,12 +83,24 @@ def open_subtitle_panel(page):
     page.get_by_role("button", name="Dual Subtitles settings").click()
 
 
-def chip(page, label):
-    return page.get_by_role("combobox", name="First subtitle").locator("option").filter(has_text=label)
+def picker(page, which="First"):
+    """The track picker button (a custom listbox, not a native <select>)."""
+    return page.get_by_role("button", name=re.compile(f"^{which} subtitle"))
 
 
-def pick_track(page, label):
-    page.get_by_role("combobox", name="First subtitle").select_option(label=label)
+def open_list(page, which="First"):
+    btn = picker(page, which)
+    if btn.get_attribute("aria-expanded") != "true":
+        btn.click()
+    return page.get_by_role("listbox")
+
+
+def chip(page, label, which="First"):
+    return open_list(page, which).get_by_role("option", name=label)
+
+
+def pick_track(page, label, which="First"):
+    chip(page, label, which).click()
 
 
 def run():
@@ -124,7 +137,7 @@ def run():
         expect(page.get_by_text("Part 2 of 8")).to_be_visible(timeout=10_000)
         check(True, "banner shows chunk progress from the engine")
         expect(page.get_by_text("Sinhala subtitles are ready")).to_be_visible(timeout=20_000)
-        expect(page.get_by_role("combobox", name="First subtitle")).to_have_value("si-row", timeout=10_000)
+        expect(picker(page)).to_contain_text("Sinhala (AI)", timeout=10_000)
         check(active_track(page) == "Sinhala (AI)", "when ready the Sinhala track is loaded and selected automatically")
         polls_done = m.poll_calls
         page.wait_for_timeout(7000)
@@ -165,7 +178,7 @@ def run():
         m = Mocks(page, [EN_TRACK, SI_TRACK], translate_start=[{"state": "running"}])
         open_player(page)
         open_subtitle_panel(page)
-        expect(page.get_by_role("combobox", name="First subtitle")).to_have_value(SI_TRACK["id"], timeout=10_000)
+        expect(picker(page)).to_contain_text("Sinhala (AI)", timeout=10_000)
         check(active_track(page) == "Sinhala (AI)", "existing Sinhala track is selected by default")
         check(chip(page, "Sinhala (AI)").count() == 1, "no duplicate placeholder next to the real track")
         pick_track(page, "English")
@@ -192,13 +205,12 @@ def run():
         Mocks(page, [EN_TRACK, french, german], translate_start=[{"state": "running"}])
         open_player(page)
         open_subtitle_panel(page)
-        second = page.get_by_role("combobox", name="Second subtitle")
-        second.select_option(label="French")
+        pick_track(page, "French", "Second")
         expect(page.locator(".v-dual-track")).to_have_count(2)
         expect(page.locator('.v-dual-track[data-slot="0"] span')).to_be_visible()
         expect(page.locator('.v-dual-track[data-slot="1"] span')).to_be_visible()
         check(active_track(page) == "English", "adding a second track keeps the first one")
-        check(second.locator('option[value="sub_1_en_1"]').evaluate("option => option.disabled"), "the same track cannot occupy both slots")
+        check(chip(page, "English", "Second").get_attribute("aria-disabled") == "true", "the same track cannot occupy both slots")
         check(page.locator(".vds-caption-button").count() == 0, "the separate CC button is removed")
         pick_track(page, "German")
         expect(page.locator(".v-dual-track")).to_have_count(2)
@@ -213,7 +225,7 @@ def run():
         Mocks(page, [EN_TRACK], translate_start=[{"state": "done", "subtitle": {**SI_TRACK, "url": SI_URL}}])
         open_player(page)
         open_subtitle_panel(page)
-        page.get_by_role("combobox", name="Second subtitle").select_option(label="Sinhala (AI)")
+        pick_track(page, "Sinhala (AI)", "Second")
         expect(page.locator('.v-dual-track[data-slot="1"]')).to_have_attribute("aria-label", "Sinhala (AI)")
         expect(page.locator(".v-dual-track")).to_have_count(2)
         check(active_track(page) == "English", "generated Sinhala uses the requested second slot and keeps English")
@@ -224,11 +236,10 @@ def run():
         Mocks(page, [EN_TRACK], translate_start=[{"state": "running"}], translate_poll=[{"state": "done", "subtitle": {**SI_TRACK, "url": SI_URL}}])
         open_player(page)
         open_subtitle_panel(page)
-        second = page.get_by_role("combobox", name="Second subtitle")
-        second.select_option(label="Sinhala (AI)")
+        pick_track(page, "Sinhala (AI)", "Second")
         page.get_by_role("button", name="Remove second subtitle").click()
         expect(page.get_by_text("Sinhala subtitles are ready", exact=True)).to_be_visible(timeout=10_000)
-        expect(second).to_have_value("")
+        expect(picker(page, "Second")).to_have_text("Off")
         check(active_track(page) == "English", "removing a pending translation prevents it from switching subtitles later")
         page.close()
 

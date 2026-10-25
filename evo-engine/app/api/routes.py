@@ -6,6 +6,7 @@ from app.domain.models import IngestStatus, MediaType
 from app.services.ingest_service import IngestService
 from app.services.cinesrc_extractor import CineSrcStreamExtractor
 from app.services.composite_extractor import CompositeStreamExtractor
+from app.services.extraction_cache import CachingExtractor
 from app.services.stream_validator import validate_streams
 from app.services.ythd_extractor import YtHdStreamExtractor
 from app.services.ffmpeg_downloader import FFmpegStreamDownloader
@@ -15,7 +16,7 @@ from app.services.subtitle_service import SubtitleService
 from app.services.hls_proxy import HlsProxyService
 from app.services.translation_service import SinhalaTranslator
 from app.core.config import settings
-from app.core import runtime_config
+from app.core import metrics, runtime_config
 
 router = APIRouter(prefix="/api/v1/media", tags=["Media Ingestion & Streaming"])
 
@@ -31,7 +32,10 @@ _subtitle_service = SubtitleService()
 _hls_proxy = HlsProxyService()
 _cinesrc_extractor = CineSrcStreamExtractor()
 _ythd_extractor = YtHdStreamExtractor()
-_extractor = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor], validator=validate_streams)
+_composite = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor], validator=validate_streams)
+# Other qualities of a title reuse a recent extraction instead of launching the providers again.
+_extractor = CachingExtractor(_composite, validator=validate_streams)
+metrics.set_sink(_repository.add_metric)
 _downloader = FFmpegStreamDownloader()
 _storage = PixeldrainStorageProvider(api_key=settings.PIXELDRAIN_API_KEY)
 _translator = SinhalaTranslator(repository=_repository)
@@ -211,6 +215,26 @@ def get_task_events(task_id: str):
 def get_pipeline_summary(hours: int = Query(24, ge=1, le=168)):
     """Per-step outcome counts over a window, for the overview graph."""
     return _repository.step_summary(hours)
+
+
+@router.get("/metrics", dependencies=[Depends(verify_secret_token)])
+def get_extraction_metrics(hours: int = Query(24, ge=1, le=168)):
+    """Median / p95 duration, peak RAM and CPU per provider over a window (the admin pipeline view)."""
+    return _repository.metric_summary(hours)
+
+
+@router.get("/providers", dependencies=[Depends(verify_secret_token)])
+def get_providers():
+    """Health of each stream provider: healthy, cooling down until a time, or waiting for a trial."""
+    return _composite.health.snapshot(_composite.provider_names)
+
+
+@router.post("/providers/{name}/reset", dependencies=[Depends(verify_secret_token)])
+def reset_provider(name: str):
+    if name not in _composite.provider_names:
+        raise HTTPException(status_code=404, detail="Unknown provider")
+    _composite.health.reset(name)
+    return _composite.health.snapshot(_composite.provider_names)
 
 
 # ==============================================================================

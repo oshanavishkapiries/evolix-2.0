@@ -31,6 +31,7 @@ class WebhookNotifier:
             return False
 
         payload = {
+            "taskId": task.task_id,
             "tmdbId": task.tmdb_id,
             "mediaType": task.media_type.value,
             "season": task.season,

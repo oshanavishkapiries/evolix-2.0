@@ -8,6 +8,7 @@ import { isHLSProvider } from "vidstack";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
+import { CenterPlayButton, CenterSkipButton } from "./center-controls";
 import { imageUrl } from "@/lib/images";
 import {
   pixeldrainId,
@@ -40,7 +41,8 @@ const SAVE_EVERY_MS = 15_000;
 /** Streams start (and stay) here unless the viewer picks otherwise. */
 const DEFAULT_HEIGHT = 720;
 const START_NOTE_MS = 6000;
-const PAUSE_OVERLAY_DELAY_MS = 1500;
+/** How long the video must stay paused before the "You are watching" poster appears. */
+const PAUSE_OVERLAY_DELAY_MS = 3 * 60_000;
 
 const isSinhala = (lang: string) => /^si(n)?(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "sinhala";
 const isEnglish = (lang: string) => /^en(-|_|$)/i.test(lang.trim()) || lang.trim().toLowerCase() === "english";
@@ -342,6 +344,12 @@ export default function PlayerImpl({
         slots={{
           captionButton: null,
           captions: null,
+          // Big controls in the middle: skip back, play/pause, skip forward. The compact layout already
+          // renders its own centre play button, so it gets ours in that slot instead.
+          centerControlsGroupStart: <CenterSkipButton />,
+          centerControlsGroupCenter: <CenterPlayButton />,
+          centerControlsGroupEnd: <CenterSkipButton forward />,
+          smallLayout: { centerControlsGroupCenter: null, playButton: <CenterPlayButton /> },
           ...(allSubtitles.length > 0 ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> } : {}),
           ...(qualityMenu
             ? {

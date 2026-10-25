@@ -1,7 +1,7 @@
 "use client";
 
 import { useMediaPlayer, useMediaRemote, useMediaState, type TextTrack } from "@vidstack/react";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 import type { WatchSubtitle } from "@/lib/viewer/watch";
 import type { SubtitleSelection, SubtitleSlot } from "./dual-subtitles";
 import { useSubtitleStatus } from "./dual-subtitles";
@@ -248,15 +248,13 @@ function TrackPicker({ subtitles, selection, choices, onSelect, tracks, note }: 
         const track = tracks.find((t) => t.id === selection[slot]);
         return (
           <div key={slot} className="v-sub-track-slot">
-            <label>
-              <span className="v-sub-label">{slot === 0 ? "First subtitle · Bottom" : "Second subtitle · Top"}</span>
-              <select aria-label={slot === 0 ? "First subtitle" : "Second subtitle"} value={id ?? ""} onChange={(e) => onSelect(slot, e.target.value || null)}>
-                <option value="">Off</option>
-                {subtitles.map((s) => (
-                  <option key={s.id} value={s.id} disabled={choices[other] === s.id || selection[other] === s.id}>{s.label}</option>
-                ))}
-              </select>
-            </label>
+            <span className="v-sub-label" id={`v-sub-pick-${slot}`}>{slot === 0 ? "First subtitle · Bottom" : "Second subtitle · Top"}</span>
+            <TrackSelect
+              labelledBy={`v-sub-pick-${slot}`}
+              value={id}
+              options={[{ id: null, label: "Off" }, ...subtitles.map((t) => ({ id: t.id, label: t.label, disabled: choices[other] === t.id || selection[other] === t.id }))]}
+              onChange={(next) => onSelect(slot, next)}
+            />
             {id && <button type="button" className="v-sub-remove" aria-label={`Remove ${slot === 0 ? "first" : "second"} subtitle`} onClick={() => onSelect(slot, null)}><CloseIcon size={16} /></button>}
             {id === PENDING_ID && <small className="v-sub-note" role="status">Preparing Sinhala (AI)… Your current subtitles stay on.</small>}
             {id && id !== PENDING_ID && <TrackLoadStatus track={track ?? null} />}
@@ -266,6 +264,122 @@ function TrackPicker({ subtitles, selection, choices, onSelect, tracks, note }: 
       <p className="v-sub-hint">Use Style and Sync to adjust each track separately. Select Off to remove a track.</p>
       {note && <p className="v-sub-note">{note}</p>}
     </section>
+  );
+}
+
+type TrackOption = { id: string | null; label: string; disabled?: boolean };
+
+/**
+ * Listbox that replaces the native <select> so the menu matches the player. The list opens inline (inside the
+ * panel's scroll area) so it can never spill outside the panel or player, fullscreen included.
+ */
+function TrackSelect({ labelledBy, value, options, onChange }: { labelledBy: string; value: string | null; options: TrackOption[]; onChange: (id: string | null) => void }) {
+  const listId = useId();
+  const root = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const selected = Math.max(0, options.findIndex((o) => o.id === value));
+
+  const toggle = (next: boolean) => {
+    setOpen(next);
+    if (next) setActive(selected);
+  };
+  const choose = (i: number) => {
+    const o = options[i];
+    if (!o || o.disabled) return;
+    onChange(o.id);
+    setOpen(false);
+    root.current?.querySelector<HTMLElement>("button")?.focus();
+  };
+  const move = (from: number, dir: 1 | -1) => {
+    for (let i = from + dir; i >= 0 && i < options.length; i += dir) if (!options[i].disabled) return i;
+    return from;
+  };
+
+  // Native listener: the panel stops keydown from reaching React's root (and the player shortcuts), so React props never fire.
+  const onKey = useEffectEvent((e: KeyboardEvent) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    switch (e.key) {
+      case "ArrowDown":
+      case "ArrowUp":
+        e.preventDefault();
+        if (!open) return toggle(true);
+        return setActive((a) => move(a, e.key === "ArrowDown" ? 1 : -1));
+      case "Home":
+      case "End":
+        if (!open) return;
+        e.preventDefault();
+        return setActive(e.key === "Home" ? move(-1, 1) : move(options.length, -1));
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        return open ? choose(active) : toggle(true);
+      case "Escape":
+        if (!open) return; // let the panel close
+        e.preventDefault();
+        e.stopPropagation();
+        return setOpen(false);
+      case "Tab":
+        return setOpen(false);
+    }
+  });
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Clicking elsewhere closes the list.
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
+
+  // Keep the highlighted option in view.
+  useEffect(() => {
+    if (open) root.current?.querySelector<HTMLElement>("[data-active]")?.scrollIntoView({ block: "nearest" });
+  }, [open, active]);
+
+  return (
+    <div ref={root} className="v-select">
+      <button
+        type="button"
+        className="v-select-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-labelledby={labelledBy}
+        onClick={() => toggle(!open)}
+      >
+        <span>{options[selected]?.label}</span>
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <ul id={listId} className="v-select-list" role="listbox" aria-labelledby={labelledBy} aria-activedescendant={`${listId}-${active}`} tabIndex={-1}>
+          {options.map((o, i) => (
+            <li
+              key={o.id ?? "off"}
+              id={`${listId}-${i}`}
+              className="v-select-opt"
+              role="option"
+              aria-selected={i === selected}
+              aria-disabled={o.disabled || undefined}
+              data-active={i === active || undefined}
+              onPointerEnter={() => !o.disabled && setActive(i)}
+              onClick={() => choose(i)}
+            >
+              <svg className="v-select-check" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
+              {o.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
