@@ -25,21 +25,31 @@ const schema = z.object({
   EVO_SECRET_TOKEN: z.string().default(""),
 });
 
-const parsed = schema.safeParse(process.env);
-if (!parsed.success) {
-  const problems = parsed.error.issues
-    .map((i) => i.path.join("."))
-    .join(", ");
-  throw new Error(`Invalid or missing environment variables: ${problems}`);
+function load() {
+  const parsed = schema.safeParse(process.env);
+  if (!parsed.success) {
+    const problems = parsed.error.issues
+      .map((i) => i.path.join("."))
+      .join(", ");
+    throw new Error(`Invalid or missing environment variables: ${problems}`);
+  }
+  return {
+    ...parsed.data,
+    adminEmails: parsed.data.ADMIN_EMAILS.split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+    isProd: parsed.data.NODE_ENV === "production",
+    // Never true in production, whatever the variable says.
+    devLogOtp:
+      parsed.data.NODE_ENV !== "production" && parsed.data.DEV_LOG_OTP === "true",
+  };
 }
 
-export const env = {
-  ...parsed.data,
-  adminEmails: parsed.data.ADMIN_EMAILS.split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean),
-  isProd: parsed.data.NODE_ENV === "production",
-  // Never true in production, whatever the variable says.
-  devLogOtp:
-    parsed.data.NODE_ENV !== "production" && parsed.data.DEV_LOG_OTP === "true",
-};
+type Env = ReturnType<typeof load>;
+let loaded: Env | undefined;
+
+// Validated on first read, not at import: `next build` imports every route to collect page data, and CI builds
+// have no runtime secrets. A missing variable still fails loudly the first time a request needs it.
+export const env = new Proxy({} as Env, {
+  get: (_, key) => (loaded ??= load())[key as keyof Env],
+});

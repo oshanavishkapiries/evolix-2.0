@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { engineOverview } from "@/lib/cms/evo";
 import { engineById } from "@/lib/evo/client";
@@ -24,6 +25,7 @@ export default function EnginePage({ params }: Props) {
 }
 
 async function Engine({ params }: Props) {
+  await connection(); // live engine calls: never at build time
   const { id } = await params;
   const ref = engineById(id);
   if (!ref) notFound();

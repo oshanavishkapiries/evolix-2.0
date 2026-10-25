@@ -2,8 +2,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
 import { env } from "@/lib/env";
 
-const accessKey = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
-const refreshKey = new TextEncoder().encode(env.JWT_REFRESH_SECRET);
+// Read on use, not at import, so `next build` works without secrets.
+const accessKey = () => new TextEncoder().encode(env.JWT_ACCESS_SECRET);
+const refreshKey = () => new TextEncoder().encode(env.JWT_REFRESH_SECRET);
 
 export const sha256 = (value: string) =>
   createHash("sha256").update(value).digest("hex");
@@ -14,7 +15,7 @@ export function signAccessToken(userId: string, sessionId: string) {
     .setSubject(userId)
     .setIssuedAt()
     .setExpirationTime(`${env.ACCESS_TOKEN_TTL_SECONDS}s`)
-    .sign(accessKey);
+    .sign(accessKey());
 }
 
 export function signRefreshToken(sessionId: string) {
@@ -23,12 +24,12 @@ export function signRefreshToken(sessionId: string) {
     .setJti(randomUUID())
     .setIssuedAt()
     .setExpirationTime(`${env.REFRESH_TOKEN_TTL_SECONDS}s`)
-    .sign(refreshKey);
+    .sign(refreshKey());
 }
 
 export async function verifyAccessToken(token: string) {
   try {
-    const { payload } = await jwtVerify(token, accessKey, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, accessKey(), { algorithms: ["HS256"] });
     if (!payload.sub || typeof payload.sid !== "string") return null;
     return { userId: payload.sub, sessionId: payload.sid };
   } catch {
@@ -38,7 +39,7 @@ export async function verifyAccessToken(token: string) {
 
 export async function verifyRefreshToken(token: string) {
   try {
-    const { payload } = await jwtVerify(token, refreshKey, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, refreshKey(), { algorithms: ["HS256"] });
     if (typeof payload.sid !== "string") return null;
     return { sessionId: payload.sid };
   } catch {

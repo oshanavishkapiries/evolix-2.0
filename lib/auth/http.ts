@@ -53,16 +53,16 @@ export function clientInfo(req: NextRequest) {
   };
 }
 
-const base = { httpOnly: true, sameSite: "lax", secure: env.isProd } as const;
+const base = () => ({ httpOnly: true, sameSite: "lax", secure: env.isProd }) as const;
 
 export function setAuthCookies(res: NextResponse, access: string, refresh: string) {
   res.cookies.set(ACCESS_COOKIE, access, {
-    ...base,
+    ...base(),
     path: "/",
     maxAge: env.ACCESS_TOKEN_TTL_SECONDS,
   });
   res.cookies.set(REFRESH_COOKIE, refresh, {
-    ...base,
+    ...base(),
     path: "/api/auth",
     maxAge: env.REFRESH_TOKEN_TTL_SECONDS,
   });
@@ -70,7 +70,7 @@ export function setAuthCookies(res: NextResponse, access: string, refresh: strin
 }
 
 export function clearAuthCookies(res: NextResponse) {
-  res.cookies.set(ACCESS_COOKIE, "", { ...base, path: "/", maxAge: 0 });
-  res.cookies.set(REFRESH_COOKIE, "", { ...base, path: "/api/auth", maxAge: 0 });
+  res.cookies.set(ACCESS_COOKIE, "", { ...base(), path: "/", maxAge: 0 });
+  res.cookies.set(REFRESH_COOKIE, "", { ...base(), path: "/api/auth", maxAge: 0 });
   return res;
 }

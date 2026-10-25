@@ -55,8 +55,9 @@ function addressedTo(a: { id: SQLWrapper | string; audience: SQLWrapper | Announ
 // Drizzle drops the table qualifier when a query has a single table, which would make these correlated
 // subqueries resolve "id" to the inner users table; so the outer announcement is referenced by raw name.
 const outer = { id: sql.raw('"announcements"."id"'), audience: sql.raw('"announcements"."audience"') };
-const recipientCountSql = sql<number>`(select count(*)::int from users where ${addressedTo(outer)})`;
-const readCountSql = sql<number>`(
+// Built per query: the admin list comes from env, which is read on use.
+const recipientCountSql = () => sql<number>`(select count(*)::int from users where ${addressedTo(outer)})`;
+const readCountSql = () => sql<number>`(
   select count(*)::int from announcement_reads rd
   join users on users.id = rd.user_id
   where rd.announcement_id = ${outer.id} and ${addressedTo(outer)}
@@ -106,8 +107,8 @@ export async function listAnnouncements({ state, page, pageSize }: { state?: Ann
         publishAt: announcements.publishAt,
         expiresAt: announcements.expiresAt,
         createdAt: announcements.createdAt,
-        recipients: recipientCountSql,
-        reads: readCountSql,
+        recipients: recipientCountSql(),
+        reads: readCountSql(),
       })
       .from(announcements)
       .where(where)
@@ -129,7 +130,7 @@ export async function announcementCounts() {
 
 export async function getAnnouncement(id: string) {
   const [row] = await db
-    .select({ a: announcements, recipients: recipientCountSql, reads: readCountSql })
+    .select({ a: announcements, recipients: recipientCountSql(), reads: readCountSql() })
     .from(announcements)
     .where(eq(announcements.id, id))
     .limit(1);

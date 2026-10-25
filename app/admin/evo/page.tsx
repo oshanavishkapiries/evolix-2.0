@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { recentCachedSources } from "@/lib/cms/evo";
 import { allEngineTasks, combinedSummary, enginesOverview } from "@/lib/evo/overview";
@@ -29,6 +30,7 @@ export default function EvoPage() {
 }
 
 async function EvoOverview() {
+  await connection(); // live engine calls: never at build time
   const [engineList, { tasks, unreachable }, cached, summary] = await Promise.all([enginesOverview(), allEngineTasks(), recentCachedSources(), combinedSummary()]);
   const failed = tasks.filter((t) => t.status === "FAILED" || t.cache_failed);
   const multi = engineList.length > 1;

@@ -18,15 +18,21 @@ export function engineIdFor(url: string) {
   }
 }
 
-/** Parses EVO_ENGINES: a JSON array of URLs or {url, name}. */
+/** Parses EVO_ENGINES: a JSON array of URLs or {url, name}. A bare URL or a comma-separated list is accepted too, and so is a value wrapped in stray quotes. */
 export function parseEngines(list: string): EngineRef[] {
+  let text = list.trim();
+  while (text.length > 1 && /^(["'])[\s\S]*\1$/.test(text)) text = text.slice(1, -1).trim();
   let raw: unknown;
-  try {
-    raw = JSON.parse(list);
-  } catch {
-    throw new Error("EVO_ENGINES must be a JSON array, e.g. [\"http://10.0.0.1:8000\", \"http://10.0.0.2:8000\"]");
+  if (text.startsWith("[")) {
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      throw new Error("EVO_ENGINES must be a JSON array, e.g. [\"http://10.0.0.1:8000\", \"http://10.0.0.2:8000\"]");
+    }
+  } else {
+    raw = text.split(/[,\s]+/).filter(Boolean);
   }
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error("EVO_ENGINES must be a non-empty JSON array");
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error("EVO_ENGINES must list at least one engine URL");
   const entries = raw.map((e) => {
     const entry = typeof e === "string" ? { url: e } : (e as { url?: unknown; name?: unknown });
     if (typeof entry.url !== "string" || !/^https?:\/\//.test(entry.url)) throw new Error(`EVO_ENGINES has an invalid engine URL: ${JSON.stringify(e)}`);
