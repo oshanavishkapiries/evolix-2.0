@@ -19,6 +19,20 @@ def _reason(stderr: str) -> str:
     return ": " + re.sub(r"https?://\S+", "<url>", lines[-1])[:160]
 
 
+# Providers disguise HLS segments as .jpg, .png, .js ... Recent FFmpeg refuses those ("... is not in
+# allowed_segment_extensions"); which options exist depends on the build, and an unknown option aborts the run.
+_RELAX = (("allowed_segment_extensions", "ALL"), ("allowed_extensions", "ALL"), ("extension_picky", "0"))
+
+
+def relax_args(hls_help: str) -> list[str]:
+    """Input options that let the HLS demuxer read any segment extension, limited to what this FFmpeg build knows."""
+    args: list[str] = []
+    for name, value in _RELAX:
+        if re.search(rf"^\s*-{name}\s", hls_help, re.M):
+            args += [f"-{name}", value]
+    return args
+
+
 class FFmpegStreamDownloader(IMediaDownloader):
     """Lossless HLS stream downloader that remuxes .ts chunks directly to .mp4
 
@@ -29,6 +43,18 @@ class FFmpegStreamDownloader(IMediaDownloader):
         self.ffmpeg_bin = ffmpeg_bin
         self.ffprobe_bin = ffprobe_bin
         self.timeout_seconds = timeout_seconds
+        self._relax: Optional[list[str]] = None
+
+    def _hls_relax_args(self) -> list[str]:
+        if self._relax is None:
+            try:
+                out = subprocess.run([self.ffmpeg_bin, "-hide_banner", "-h", "demuxer=hls"], capture_output=True, text=True, timeout=20)
+                self._relax = relax_args(out.stdout + out.stderr)
+            except Exception as e:
+                logger.warning(f"Could not read FFmpeg's HLS options: {e}")
+                self._relax = []
+            logger.info(f"FFmpeg HLS segment options: {' '.join(self._relax) or 'none'}")
+        return self._relax
 
     def probe_duration(self, path: Path) -> Optional[float]:
         """Container duration in seconds, or None when ffprobe is unavailable or cannot read the file."""
@@ -67,6 +93,7 @@ class FFmpegStreamDownloader(IMediaDownloader):
             "1",
             "-reconnect_delay_max",
             "5",
+            *self._hls_relax_args(),
             "-i",
             stream.url,
             "-c",
