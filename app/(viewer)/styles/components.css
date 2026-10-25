@@ -72,6 +72,9 @@
 /* Centre controls (skip back / play-pause / skip forward); they sit in Vidstack's controls group so they fade with the controls. */
 /* The wide centre row must not block taps meant for the video itself; only the buttons take clicks. */
 .vds-video-layout[data-lg] .vds-controls > .vds-controls-group:nth-child(3) { pointer-events: none !important; }
+/* Vidstack spreads the three slots with flex spacers; collapse them so skip buttons sit beside play. */
+.vds-video-layout[data-lg] .vds-controls > .vds-controls-group:nth-child(3) { justify-content: center; }
+.vds-video-layout[data-lg] .vds-controls > .vds-controls-group:nth-child(3) .vds-controls-spacer { flex: 0 0 0; }
 .v-center-btn { display: grid; place-items: center; border: 0; border-radius: 50%; background: rgb(0 0 0 / .45); color: #fff; cursor: pointer; pointer-events: auto; transition: background var(--v-dur-1) var(--v-ease), scale var(--v-dur-1) var(--v-ease); }
 .v-center-btn:hover { background: rgb(0 0 0 / .65); scale: 1.06; }
 .v-center-btn:focus-visible { outline: 2px solid var(--v-primary); outline-offset: 2px; }
