@@ -266,6 +266,7 @@ export default function PlayerImpl({
       style={styleVars(subStyles[0])}
       playsInline
       autoPlay
+      keyTarget="document"
       keyShortcuts={{ toggleCaptions: { keys: "c", callback: () => setSubOpen((open) => !open) } }}
       onQualitiesChange={lockDefaultQuality}
       onPlaying={() => {
