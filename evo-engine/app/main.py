@@ -3,10 +3,9 @@ import shutil
 import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as media_router, _repository, load_runtime_config
 from app.core.browser_pool import shutdown_pool
-from app.core.config import settings
+from app.core.config import APP_NAME, settings
 
 logger = logging.getLogger("evo.main")
 
@@ -39,18 +38,9 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title=settings.APP_NAME,
+    title=APP_NAME,
     description="Encapsulated clean architecture media ingestion and CDN sync microservice.",
     version="1.0.0",
-)
-
-# Enable CORS for Next.js web application
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 app.include_router(media_router)
@@ -60,7 +50,7 @@ app.include_router(media_router)
 def health_check():
     return {
         "status": "healthy",
-        "service": settings.APP_NAME,
+        "service": APP_NAME,
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
         "ffprobe_available": shutil.which("ffprobe") is not None,
         "free_disk_gb": round(shutil.disk_usage(settings.DOWNLOAD_DIR).free / 1024**3, 1),

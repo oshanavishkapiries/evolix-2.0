@@ -17,7 +17,7 @@ from pathlib import Path
 
 from app.core import metrics
 from app.core.browser_pool import run_in_browser, shutdown_pool
-from app.core.config import settings
+from app.core.config import APP_NAME, settings
 from app.domain.models import StreamSource
 from app.interfaces.contracts import IStreamExtractor
 from app.services.extraction_cache import CachingExtractor
@@ -146,7 +146,7 @@ def main():
     lines, lines2 = live(args.live, args.n) if args.live else synthetic(args.n)
     report = [
         f"# Extraction benchmark ({mode})", "",
-        f"Run {started} on {settings.APP_NAME}; {args.n} jobs per scenario, one at a time. "
+        f"Run {started} on {APP_NAME}; {args.n} jobs per scenario, one at a time. "
         + ("Real providers, TMDB ids " + ", ".join(map(str, args.live)) + "." if args.live else
            "Synthetic: a local page with 40 x 150 kB images plus a playlist request, so the numbers show the cost of browser launch and asset loading, not of any provider."),
         "", "RAM and CPU cover the engine process tree (Python + Playwright driver + Chromium).", "", "## Browser pool and asset blocking", "", *lines,

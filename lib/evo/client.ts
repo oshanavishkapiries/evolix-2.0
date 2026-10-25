@@ -18,25 +18,20 @@ export function engineIdFor(url: string) {
   }
 }
 
-/** Parses EVO_ENGINES (JSON array of URLs or {url, name}); without it, the single EVO_ENGINE_URL is the only engine. */
-export function parseEngines(list: string, single: string): EngineRef[] {
-  let entries: { url: string; name?: string }[];
-  if (list.trim()) {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(list);
-    } catch {
-      throw new Error("EVO_ENGINES must be a JSON array, e.g. [\"http://10.0.0.1:8000\", \"http://10.0.0.2:8000\"]");
-    }
-    if (!Array.isArray(raw) || raw.length === 0) throw new Error("EVO_ENGINES must be a non-empty JSON array");
-    entries = raw.map((e) => {
-      const entry = typeof e === "string" ? { url: e } : (e as { url?: unknown; name?: unknown });
-      if (typeof entry.url !== "string" || !/^https?:\/\//.test(entry.url)) throw new Error(`EVO_ENGINES has an invalid engine URL: ${JSON.stringify(e)}`);
-      return { url: entry.url, name: typeof entry.name === "string" ? entry.name : undefined };
-    });
-  } else {
-    entries = [{ url: single }];
+/** Parses EVO_ENGINES: a JSON array of URLs or {url, name}. */
+export function parseEngines(list: string): EngineRef[] {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(list);
+  } catch {
+    throw new Error("EVO_ENGINES must be a JSON array, e.g. [\"http://10.0.0.1:8000\", \"http://10.0.0.2:8000\"]");
   }
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error("EVO_ENGINES must be a non-empty JSON array");
+  const entries = raw.map((e) => {
+    const entry = typeof e === "string" ? { url: e } : (e as { url?: unknown; name?: unknown });
+    if (typeof entry.url !== "string" || !/^https?:\/\//.test(entry.url)) throw new Error(`EVO_ENGINES has an invalid engine URL: ${JSON.stringify(e)}`);
+    return { url: entry.url, name: typeof entry.name === "string" ? entry.name : undefined };
+  });
   const seen = new Set<string>();
   return entries.map((e) => {
     const url = e.url.replace(/\/+$/, "");
@@ -51,7 +46,7 @@ let configured: EngineRef[] | null = null;
 
 /** Engines this deployment can talk to, fixed until restart. The first one is the primary (owner of tasks from before multi-engine). */
 export function engines(): EngineRef[] {
-  return (configured ??= parseEngines(env.EVO_ENGINES, env.EVO_ENGINE_URL));
+  return (configured ??= parseEngines(env.EVO_ENGINES));
 }
 
 export const defaultEngine = (): EngineRef => engines()[0];

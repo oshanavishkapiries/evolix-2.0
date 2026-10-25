@@ -51,7 +51,7 @@ Sinhala is translated **on demand**, the first time a viewer picks it, not by th
 
 ## Engine settings (`evo-engine`, read from `.env`)
 
-`EVO_WEBHOOK_URL`, `MAX_CONCURRENT_EXTRACTIONS`, `MAX_CONCURRENT_DOWNLOADS`, `MIN_FREE_DISK_GB`, `CLEAN_ORPHANS_ON_START`, `CORS_ORIGINS`. The extraction performance settings below are also live-editable under `/admin/evo/engines/<id>`.
+`EVO_WEBHOOK_URL`, `MAX_CONCURRENT_EXTRACTIONS`, `MAX_CONCURRENT_DOWNLOADS`, `MIN_FREE_DISK_GB`, `CLEAN_ORPHANS_ON_START`. The extraction performance settings below are also live-editable under `/admin/evo/engines/<id>`.
 
 ## Extraction performance (engine)
 
@@ -67,7 +67,7 @@ Sinhala is translated **on demand**, the first time a viewer picks it, not by th
 
 The app is the gateway and scheduler; there is no separate gateway service.
 
-- **Config**: `EVO_ENGINES='["http://10.0.0.1:8000", {"url": "http://10.0.0.2:8000", "name": "Frankfurt"}]'`. Unset, the single `EVO_ENGINE_URL` is the only engine and nothing else changes (no claims, no health gating). Read at start: change it and restart or redeploy. All engines share `EVO_SECRET_TOKEN`; each engine's `EVO_WEBHOOK_URL` points at the same app. An engine's id is its address (`host-port`), so reordering the list is safe. The first engine owns tasks created before multi-engine.
+- **Config**: `EVO_ENGINES='["http://10.0.0.1:8000", {"url": "http://10.0.0.2:8000", "name": "Frankfurt"}]'`. A one-entry list is the single-engine setup and nothing else changes; unset, it defaults to `http://127.0.0.1:8000` (no claims, no health gating). Read at start: change it and restart or redeploy. All engines share `EVO_SECRET_TOKEN`; each engine's `EVO_WEBHOOK_URL` points at the same app. An engine's id is its address (`host-port`), so reordering the list is safe. The first engine owns tasks created before multi-engine.
 - **Scheduling** (`lib/evo/scheduler.ts`, tables `evo_engines`, `evo_claims`, `evo_tasks`, `evo_subtitle_owners`): health (`/health` + `/queue`) is checked at most every 10 s and saved with the last good time. A new job goes to the healthy, non-draining engine with the lowest (active + queued) / parallelism, disk breaking ties; another quality of a title prefers the engine that already has that title (it can reuse the extraction). Jobs just placed are counted immediately so a burst spreads out.
 - **No duplicates**: a job identity (`ingest:<type>:<tmdb>:<season>:<episode>:<quality>`, `sinhala:...`) is claimed with `INSERT ... ON CONFLICT DO NOTHING`; every request, from any app instance, then talks to the claimed engine, which joins the running job.
 - **Routing**: `evo_tasks` records the owner of every task (also Sinhala jobs). Status, HLS playlists/segments, translate polling, admin task views and actions all go to the owner; subtitle ids are looked up in `evo_subtitle_owners`. Ownership never changes.

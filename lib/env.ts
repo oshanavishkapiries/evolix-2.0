@@ -20,9 +20,8 @@ const schema = z.object({
   DEV_LOG_OTP: z.string().default("false"),
   TMDB_API_KEY: z.string().min(1),
   ADMIN_EMAILS: z.string().default(""),
-  EVO_ENGINE_URL: z.string().default("http://127.0.0.1:8000"),
-  // JSON array of engine URLs (or {"url", "name"} objects) for several engines; EVO_ENGINE_URL alone keeps working.
-  EVO_ENGINES: z.string().default(""),
+  // JSON array of engine URLs (or {"url", "name"} objects); one entry is a single-engine setup.
+  EVO_ENGINES: z.string().default("").transform((v) => v.trim() || '["http://127.0.0.1:8000"]'),
   EVO_SECRET_TOKEN: z.string().default(""),
 });
 

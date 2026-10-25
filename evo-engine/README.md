@@ -38,7 +38,7 @@ changes the host port. The container always listens on port 8000.
 In the **Next.js application's** environment, configure:
 
 ```dotenv
-EVO_ENGINE_URL=https://engine.your-domain.example
+EVO_ENGINES='["https://engine.your-domain.example"]'
 EVO_SECRET_TOKEN=<same value as the engine's EVO_SECRET_TOKEN>
 ```
 

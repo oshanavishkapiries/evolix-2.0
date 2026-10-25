@@ -8,7 +8,7 @@ from curl_cffi import requests
 from app.interfaces.contracts import IStreamExtractor
 from app.domain.models import StreamSource
 from app.core.browser_pool import run_in_browser
-from app.core.config import settings
+from app.core.config import BASE_DIR, settings
 from app.core.stealth import StealthBrowser
 from app.services.decryptor_cache import DecryptorCache, version_from_page
 
@@ -24,7 +24,7 @@ class YtHdStreamExtractor(IStreamExtractor):
 
     def __init__(self, base_url: str = "https://ythd.org", decryptors: Optional[DecryptorCache] = None):
         self.base_url = base_url.rstrip("/")
-        self._decryptors = decryptors or DecryptorCache(settings.BASE_DIR / "data" / "decryptors")
+        self._decryptors = decryptors or DecryptorCache(BASE_DIR / "data" / "decryptors")
 
     def extract_streams(
         self,

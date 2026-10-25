@@ -2,14 +2,12 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
-class Settings(BaseSettings):
-    APP_NAME: str = "Evo-Engine Media Service"
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
-    DEBUG: bool = False
+APP_NAME = "Evo-Engine Media Service"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+
+class Settings(BaseSettings):
     # Directories
-    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     DOWNLOAD_DIR: Path = BASE_DIR / "downloads"
     TEMP_DIR: Path = BASE_DIR / "temp"
     SQLITE_DB_PATH: Path = BASE_DIR / "data" / "evo_engine.sqlite3"
@@ -62,18 +60,8 @@ class Settings(BaseSettings):
     # Hard stop for the day (UTC); translation resumes tomorrow or when raised. 0 or less = unlimited (spend is still ledgered).
     TRANSLATE_DAILY_BUDGET_USD: float = 0.0
 
-    # Browsers never call the engine directly (Next.js proxies it); list origins here only if that changes.
-    CORS_ORIGINS: str = ""
-
-    # Database integration (optional direct update)
-    DATABASE_URL: str = ""
-
     class Config:
-        env_file = [
-            Path(__file__).resolve().parent.parent.parent / ".env",
-            Path(__file__).resolve().parent.parent.parent.parent / ".env",
-            Path(__file__).resolve().parent.parent.parent.parent.parent / ".env",
-        ]
+        env_file = BASE_DIR / ".env"
         extra = "ignore"
 
 

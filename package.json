@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "test:env": "tsx tests/env-sync.ts && (cd evo-engine && test/.venv/bin/python -m unittest tests.test_env_sync)",
     "evo:start": "pm2 start tools/evo-engine/ecosystem.config.cjs",
     "evo:stop": "pm2 stop evo-engine",
     "evo:restart": "pm2 restart evo-engine",
