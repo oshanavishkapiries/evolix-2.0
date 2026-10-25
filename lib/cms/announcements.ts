@@ -23,6 +23,7 @@ export const announcementInput = z.object({
   body: z.string().trim().max(BODY_MAX).default(""),
   linkUrl: z.string().trim().max(500).nullish().transform((v) => v || null).refine((v) => v === null || isSafeLink(v), "Use a page of this app (/...) or an https:// address"),
   imageUrl: z.string().trim().max(1000).nullish().transform((v) => v || null).refine((v) => v === null || isSafeImage(v), "Use an https:// image address"),
+  bannerImageUrl: z.string().trim().max(1000).nullish().transform((v) => v || null).refine((v) => v === null || isSafeImage(v), "Use an https:// image address"),
   audience: z.enum(AUDIENCE_KEYS).default("everyone"),
   priority: z.enum(PRIORITY_KEYS).default("inbox"),
   publishAt: date,
@@ -218,6 +219,7 @@ export async function createAnnouncement(input: AnnouncementInput, createdBy: st
       body: input.body,
       linkUrl: input.linkUrl,
       imageUrl: input.imageUrl,
+      bannerImageUrl: input.bannerImageUrl,
       audience: input.audience,
       priority: input.priority,
       status: publish ? "published" : "draft",
@@ -247,6 +249,7 @@ export async function updateAnnouncement(id: string, input: AnnouncementInput) {
       body: input.body,
       linkUrl: input.linkUrl,
       imageUrl: input.imageUrl,
+      bannerImageUrl: input.bannerImageUrl,
       audience: input.audience,
       priority: input.priority,
       publishAt,
@@ -290,7 +293,7 @@ export async function duplicateAnnouncement(id: string, createdBy: string) {
   if (!full) return null;
   const [row] = await db
     .insert(announcements)
-    .values({ title: `${full.title} (copy)`.slice(0, TITLE_MAX), body: full.body, linkUrl: full.linkUrl, imageUrl: full.imageUrl, audience: full.audience, priority: full.priority, status: "draft", createdBy })
+    .values({ title: `${full.title} (copy)`.slice(0, TITLE_MAX), body: full.body, linkUrl: full.linkUrl, imageUrl: full.imageUrl, bannerImageUrl: full.bannerImageUrl, audience: full.audience, priority: full.priority, status: "draft", createdBy })
     .returning({ id: announcements.id });
   if (full.audience === "users") await setRecipients(row.id, "users", full.recipientEmails.map((e) => e.toLowerCase()));
   return row;

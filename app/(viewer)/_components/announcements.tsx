@@ -155,9 +155,9 @@ export function AnnouncementBanner() {
   if (!next) return null;
   return (
     <div className="v-announce" role="status">
-      {next.imageUrl && (
+      {next.bannerImageUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- admin-supplied address, any host
-        <img className="v-announce-img" src={next.imageUrl} alt="" decoding="async" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.hidden = true)} />
+        <img className="v-announce-img" src={next.bannerImageUrl} alt="" decoding="async" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.hidden = true)} />
       )}
       <div className="v-announce-text">
         <strong>{next.title}</strong>

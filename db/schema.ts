@@ -374,6 +374,7 @@ export const announcements = pgTable(
     body: text("body").notNull().default(""),
     linkUrl: text("link_url"),
     imageUrl: text("image_url"),
+    bannerImageUrl: text("banner_image_url"),
     audience: announcementAudience("audience").notNull().default("everyone"),
     priority: announcementPriority("priority").notNull().default("inbox"),
     status: announcementStatus("status").notNull().default("draft"),

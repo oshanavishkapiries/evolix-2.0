@@ -92,6 +92,13 @@
       "when": 1792923204165,
       "tag": "0012_announcement_image",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792923670307,
+      "tag": "0013_announcement_banner_image",
+      "breakpoints": true
     }
   ]
 }

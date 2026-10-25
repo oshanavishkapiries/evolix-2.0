@@ -64,6 +64,7 @@ export type InboxItem = {
   body: string;
   linkUrl: string | null;
   imageUrl: string | null;
+  bannerImageUrl: string | null;
   priority: AnnouncementPriority;
   publishedAt: string;
   read: boolean;

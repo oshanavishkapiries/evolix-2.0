@@ -22,6 +22,7 @@ export type AnnouncementFormData = {
   body: string;
   linkUrl: string;
   imageUrl: string;
+  bannerImageUrl: string;
   audience: AnnouncementAudience;
   priority: AnnouncementPriority;
   /** ISO strings; the inputs show them in the browser's time zone. */
@@ -36,6 +37,7 @@ export const EMPTY_ANNOUNCEMENT: AnnouncementFormData = {
   body: "",
   linkUrl: "",
   imageUrl: "",
+  bannerImageUrl: "",
   audience: "everyone",
   priority: "inbox",
   publishAt: null,
@@ -70,6 +72,7 @@ export function AnnouncementForm({ initial }: { initial: AnnouncementFormData })
     body: v.body,
     linkUrl: v.linkUrl,
     imageUrl: v.imageUrl,
+    bannerImageUrl: v.bannerImageUrl,
     audience: v.audience,
     priority: v.priority,
     publishAt: v.publishAt,
@@ -148,14 +151,26 @@ export function AnnouncementForm({ initial }: { initial: AnnouncementFormData })
         </p>
         <p className="wide">
           <label>
-            Image (optional) <small>an https:// address of a picture, shown with the message</small>
-            <input type="url" value={v.imageUrl} placeholder="https://example.com/banner.jpg" onChange={(e) => set("imageUrl", e.target.value)} />
+            Inbox image (optional) <small>https:// picture shown in the notification list</small>
+            <input type="url" value={v.imageUrl} placeholder="https://example.com/inbox.jpg" onChange={(e) => set("imageUrl", e.target.value)} />
           </label>
           {v.imageUrl.trim().startsWith("https://") && (
             // eslint-disable-next-line @next/next/no-img-element -- admin preview of an arbitrary address
             <img className="ann-preview" src={v.imageUrl.trim()} alt="" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = "none")} onLoad={(e) => (e.currentTarget.style.display = "")} />
           )}
         </p>
+        {v.priority === "banner" && (
+        <p className="wide">
+          <label>
+            Banner image (optional) <small>https:// picture shown in the banner; separate from the inbox image</small>
+            <input type="url" value={v.bannerImageUrl} placeholder="https://example.com/banner-wide.jpg" onChange={(e) => set("bannerImageUrl", e.target.value)} />
+          </label>
+          {v.bannerImageUrl.trim().startsWith("https://") && (
+            // eslint-disable-next-line @next/next/no-img-element -- admin preview of an arbitrary address
+            <img className="ann-preview" src={v.bannerImageUrl.trim()} alt="" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = "none")} onLoad={(e) => (e.currentTarget.style.display = "")} />
+          )}
+        </p>
+        )}
         <p>
           <label>
             Audience
