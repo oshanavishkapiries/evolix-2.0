@@ -16,10 +16,6 @@ The catalog is TMDB-driven. A title becomes playable the first time someone play
 - A banner ("Now streaming in 720p") slides in when playback starts. After 20s of playback the **quality advisor** may suggest one change: up to 1080p when the measured throughput is far above what 1080p needs, or down one step after repeated stalls. It is only ever a suggestion (OK switches; closing it stores "never ask again" in `localStorage`).
 - Every pre-playback state (connecting, preparing, errors) is one shared component (`player-status.tsx`); banners are `player-banner.tsx`. Both use the viewer design tokens.
 
-## Kids section
-
-Kids is TMDB-driven like the main catalog: movies are TMDB discover with US certification G/PG plus Family or Animation; shows use TMDB's own "Kids" genre (its Family/Animation tags also cover adult sitcoms). Search is restricted to the same genres. Titles entering the DB through Evo get an audience from genres plus their US age rating (`lib/evo/audience.ts`), which is what puts them in the Kids My List / Continue Watching. Featured cards show TMDB title logos.
-
 ## Sinhala subtitles
 
 Sinhala is translated **on demand**, the first time a viewer picks it, not by the ingest pipeline (titles nobody watches in Sinhala cost nothing). The English track is translated to casual spoken Sinhala through OpenRouter (`TRANSLATE_MODEL`, default `google/gemini-3.1-flash-lite`).
@@ -46,7 +42,7 @@ Sinhala is translated **on demand**, the first time a viewer picks it, not by th
 ## Invariants
 
 - `sources` is unique per `(movie_id | episode_id, quality)`; `subtitles` per `(parent, language)`. Promotion is idempotent.
-- A title shows in browse/Kids listings only when it has an active source; rows without one are identity anchors.
+- A title shows in browse listings only when it has an active source; rows without one are identity anchors.
 - Engine -> app calls need `EVO_SECRET_TOKEN`; app -> engine calls send it as `X-Evo-Secret`. Segment/variant URLs are HMAC-signed, so the engine never fetches a URL it did not hand out.
 
 ## Engine settings (`evo-engine`, read from `.env`)

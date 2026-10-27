@@ -83,7 +83,7 @@ export const videoType = pgEnum("video_type", [
   "other",
 ]);
 export const subtitleFormat = pgEnum("subtitle_format", ["vtt", "srt"]);
-/** Where a title is listed: the main app, the Kids section only, or both. */
+/** Legacy: the Kids section was removed and nothing reads this column; kept so no data migration is needed. */
 export const audience = pgEnum("audience", ["general", "kids", "both"]);
 
 export type CastMember = {

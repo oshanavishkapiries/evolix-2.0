@@ -5,13 +5,11 @@ import {
   MIN_QUERY,
   SEARCH_PAGE_SIZE,
   SORTS,
-  type Scope,
   type Sort,
   type TypeFilter,
 } from "@/lib/viewer/catalog";
 import { GridSkeleton } from "./skeletons";
 import { MediaCard } from "./media-card";
-import { KidsNav } from "./kids-nav";
 import { PageHeader } from "./page-header";
 import { SearchBar } from "./search-bar";
 import { CardSizeSlider } from "./view-controls";
@@ -45,23 +43,22 @@ function href(base: Query, patch: Partial<Query>, path: string) {
   return s ? `${path}?${s}` : path;
 }
 
-/** Search page body; the Kids section reuses it with its own path and scope. */
-export function SearchView({ searchParams, scope = "main" }: { searchParams: Promise<Raw>; scope?: Scope }) {
+/** Search page body. */
+export function SearchView({ searchParams }: { searchParams: Promise<Raw> }) {
   return (
     <PageMotion>
     <div className="v-page">
-      <PageHeader title="Search" subtitle={scope === "kids" ? "Kids" : "Movies & Shows"} controls={<CardSizeSlider />} />
-      {scope === "kids" && <div className="v-page-pad"><KidsNav current="search" /></div>}
+      <PageHeader title="Search" subtitle="Movies & Shows" controls={<CardSizeSlider />} />
       <Suspense fallback={<SkeletonOut><GridSkeleton count={12} /></SkeletonOut>}>
-        <Reveal><SearchContent searchParams={searchParams} scope={scope} /></Reveal>
+        <Reveal><SearchContent searchParams={searchParams} /></Reveal>
       </Suspense>
     </div>
     </PageMotion>
   );
 }
 
-async function SearchContent({ searchParams, scope }: { searchParams: Promise<Raw>; scope: Scope }) {
-  const path = scope === "kids" ? "/kids/search" : "/search";
+async function SearchContent({ searchParams }: { searchParams: Promise<Raw> }) {
+  const path = "/search";
   const query = parse(await searchParams);
   const { q, type, sort, genre, page } = query;
   return (
@@ -91,13 +88,13 @@ async function SearchContent({ searchParams, scope }: { searchParams: Promise<Ra
         )}
       </nav>
       <Suspense key={`${q}|${type}|${sort}|${genre}|${page}`} fallback={<GridSkeleton />}>
-        <Results query={query} scope={scope} path={path} />
+        <Results query={query} path={path} />
       </Suspense>
     </>
   );
 }
 
-async function Results({ query, scope, path }: { query: Query; scope: Scope; path: string }) {
+async function Results({ query, path }: { query: Query; path: string }) {
   const { q, type, sort, genre, page } = query;
   const { items, total } = await browse({
     q,
@@ -107,7 +104,6 @@ async function Results({ query, scope, path }: { query: Query; scope: Scope; pat
     limit: SEARCH_PAGE_SIZE,
     offset: (page - 1) * SEARCH_PAGE_SIZE,
     withTotal: true,
-    scope,
   });
   const pages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
 

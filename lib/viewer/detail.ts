@@ -7,11 +7,23 @@ import { episodes, movies, seasons, shows, sources, videos } from "@/db/schema";
 import { parseMediaId } from "./ids";
 import { findMovieIdByTmdb } from "@/lib/cms/movies";
 import { findShowIdByTmdb } from "@/lib/cms/shows";
-import { getMovieDetails, getShowDetails } from "@/lib/tmdb";
+import { getMovieDetails, getShowDetails, getTmdbVideos } from "@/lib/tmdb";
 
 /** Language codes of a title's sources in display order, without the unspecified one. */
 const dubCodes = (rows: { audioLanguage: string }[]) =>
   AUDIO_LANGUAGES.map((l) => l.code as string).filter((c) => rows.some((r) => r.audioLanguage === c));
+
+type VideoRow = Awaited<ReturnType<typeof visibleVideos>>[number];
+
+/** Titles Evo created on demand have no stored videos: fall back to TMDB's trailers so the Extras row is not empty. */
+async function withTmdbVideos(stored: VideoRow[], kind: "movie" | "tv", tmdbId: number | null): Promise<VideoRow[]> {
+  if (stored.length || !tmdbId) return stored;
+  try {
+    return (await getTmdbVideos(kind, tmdbId)).map((v, i) => ({ id: `tmdb-vid-${i}`, site: v.site, key: v.key, name: v.name, type: v.type }));
+  } catch {
+    return stored;
+  }
+}
 
 // Viewer reads: published titles, visible seasons/episodes/videos, active sources only.
 
@@ -77,7 +89,7 @@ async function getDbMovieDetail(id: string) {
       .limit(1),
   ]);
   const hasSources = hasSourcesRow.length > 0;
-  return movie ? { ...movie, videos: vids, playable: hasSources || Boolean(movie.tmdbId), isEvo: !hasSources && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
+  return movie ? { ...movie, videos: await withTmdbVideos(vids, "movie", movie.tmdbId), playable: hasSources || Boolean(movie.tmdbId), isEvo: !hasSources && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
 }
 
 export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getDbMovieDetail>>>;
@@ -202,7 +214,7 @@ async function getDbShowDetail(id: string, seasonNumber: number | null) {
         .where(and(eq(episodes.seasonId, selected.id), eq(episodes.isVisible, true)))
         .orderBy(asc(episodes.episodeNumber))
     : [];
-  return { ...show, videos: vids, seasons: seasonRows, selected, episodes: eps, first, dubs: dubCodes(langs) };
+  return { ...show, videos: await withTmdbVideos(vids, "tv", show.tmdbId), seasons: seasonRows, selected, episodes: eps, first, dubs: dubCodes(langs) };
 }
 
 export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getDbShowDetail>>>;

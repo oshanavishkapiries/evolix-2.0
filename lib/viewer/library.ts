@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bookmarks, episodes, movies, seasons, shows, watchProgress } from "@/db/schema";
-import { audienceIn, type Card, type Scope } from "./catalog";
+import type { Card } from "./catalog";
 import { isUuid } from "./ids";
 
 /** A position this far in counts as finished. */
@@ -42,7 +42,7 @@ export async function bookmarkIds(userId: string) {
 }
 
 /** Bookmarked, still-published titles, newest bookmark first. */
-export async function listBookmarks(userId: string, limit = 200, scope: Scope = "main"): Promise<Card[]> {
+export async function listBookmarks(userId: string, limit = 200): Promise<Card[]> {
   const [m, s] = await Promise.all([
     db
       .select({
@@ -56,7 +56,7 @@ export async function listBookmarks(userId: string, limit = 200, scope: Scope = 
       })
       .from(bookmarks)
       .innerJoin(movies, eq(movies.id, bookmarks.movieId))
-      .where(and(eq(bookmarks.userId, userId), eq(movies.isPublished, true), audienceIn(movies.audience, scope)))
+      .where(and(eq(bookmarks.userId, userId), eq(movies.isPublished, true)))
       .orderBy(desc(bookmarks.createdAt))
       .limit(limit),
     db
@@ -71,7 +71,7 @@ export async function listBookmarks(userId: string, limit = 200, scope: Scope = 
       })
       .from(bookmarks)
       .innerJoin(shows, eq(shows.id, bookmarks.showId))
-      .where(and(eq(bookmarks.userId, userId), eq(shows.isPublished, true), audienceIn(shows.audience, scope)))
+      .where(and(eq(bookmarks.userId, userId), eq(shows.isPublished, true)))
       .orderBy(desc(bookmarks.createdAt))
       .limit(limit),
   ]);
@@ -104,7 +104,7 @@ const code = (s: number, e: number) => `S${s}:E${e}`;
  * Unfinished movies plus one entry per show: the episode being watched, or the next visible
  * episode after a finished one. Most recent first.
  */
-export async function continueWatching(userId: string, limit = 20, scope: Scope | "all" = "main"): Promise<ContinueItem[]> {
+export async function continueWatching(userId: string, limit = 20): Promise<ContinueItem[]> {
   const [movieRows, episodeRows] = await Promise.all([
     db
       .select({
@@ -124,7 +124,6 @@ export async function continueWatching(userId: string, limit = 20, scope: Scope 
           eq(watchProgress.completed, false),
           sql`${watchProgress.positionSeconds} >= ${MIN_RESUME_SECONDS}`,
           eq(movies.isPublished, true),
-          audienceIn(movies.audience, scope),
         ),
       )
       .orderBy(desc(watchProgress.updatedAt))
@@ -152,7 +151,6 @@ export async function continueWatching(userId: string, limit = 20, scope: Scope 
         and(
           eq(watchProgress.userId, userId),
           eq(shows.isPublished, true),
-          audienceIn(shows.audience, scope),
           eq(seasons.isVisible, true),
           eq(episodes.isVisible, true),
         ),
@@ -243,5 +241,5 @@ export async function continueWatching(userId: string, limit = 20, scope: Scope 
 export async function resumeFor(userId: string, kind: "movie" | "show", id: string): Promise<ContinueItem | null> {
   if (!isUuid(id)) return null;
   const key = `${kind === "movie" ? "m" : "s"}-${id}`;
-  return (await continueWatching(userId, 200, "all")).find((it) => it.key === key) ?? null;
+  return (await continueWatching(userId, 200)).find((it) => it.key === key) ?? null;
 }

@@ -420,56 +420,6 @@ export async function getTrendingMedia(kind: "movie" | "tv", timeWindow: "day" |
   return { page: data.page ?? page, totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
 }
 
-const mapCatalogPage = (kind: "movie" | "tv", data: Raw, page: number): TmdbCatalogPage => {
-  const items: TmdbCatalogItem[] = (data.results ?? []).map((r: Raw) => ({
-    tmdbId: r.id,
-    title: str(kind === "movie" ? r.title : r.name),
-    date: strOrNull(kind === "movie" ? r.release_date : r.first_air_date),
-    posterPath: strOrNull(r.poster_path),
-    backdropPath: strOrNull(r.backdrop_path),
-    rating: rating(r.vote_average),
-    overview: str(r.overview),
-  }));
-  return { page: data.page ?? page, totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
-};
-
-// Not for children even when tagged Family/Animation/Kids: crime, mystery, reality, soap, talk, war & politics.
-const KIDS_EXCLUDED_GENRES = "80,9648,10764,10766,10767,10768";
-
-export type KidsSort = "popular" | "newest" | "title";
-
-/**
- * Kids catalog from TMDB. Movies: US certification G/PG plus Family or Animation. Shows: TMDB has no certification
- * filter for TV, and its Family/Animation tags also cover adult sitcoms, so shows must carry TMDB's own "Kids" genre.
- * `genre` narrows within that (movies: any G/PG title of the genre; shows: Kids shows of the genre).
- */
-export async function getKidsMedia(kind: "movie" | "tv", params: { genre?: number; sort?: KidsSort; page?: number } = {}): Promise<TmdbCatalogPage> {
-  const today = new Date().toISOString().slice(0, 10);
-  const sort = params.sort ?? "popular";
-  const q: Record<string, string | number> = { page: params.page ?? 1, include_adult: "false", "vote_count.gte": 15 };
-  if (kind === "movie") {
-    q.certification_country = "US";
-    q["certification.lte"] = "PG";
-    q.with_genres = params.genre ? String(params.genre) : "10751|16";
-    q["primary_release_date.lte"] = today;
-    q.sort_by = sort === "newest" ? "primary_release_date.desc" : sort === "title" ? "original_title.asc" : "popularity.desc";
-  } else {
-    q.with_genres = params.genre ? `10762,${params.genre}` : "10762";
-    q.without_genres = KIDS_EXCLUDED_GENRES;
-    q["first_air_date.lte"] = today;
-    q.sort_by = sort === "newest" ? "first_air_date.desc" : sort === "title" ? "name.asc" : "popularity.desc";
-  }
-  return mapCatalogPage(kind, await tmdb<Raw>(`/discover/${kind}`, q), params.page ?? 1);
-}
-
-/** Search restricted to kid-friendly genres (TMDB's search cannot filter by certification, so movies are judged by genre). */
-export async function searchKidsMedia(kind: "movie" | "tv", query: string, page = 1): Promise<TmdbCatalogPage> {
-  const data = await tmdb<Raw>(`/search/${kind}`, { query, page, include_adult: "false" });
-  const wanted = kind === "movie" ? [10751, 16] : [10762];
-  const kept = (data.results ?? []).filter((r: Raw) => Array.isArray(r.genre_ids) && r.genre_ids.some((g: number) => wanted.includes(g)) && !r.genre_ids.some((g: number) => [80, 9648, 10764, 10766, 10767, 10768].includes(g)));
-  return mapCatalogPage(kind, { ...data, results: kept }, page);
-}
-
 export async function getDiscoverMedia(kind: "movie" | "tv", params: { withGenres?: string; sortBy?: string; page?: number } = {}): Promise<TmdbCatalogPage> {
   const tmdbParams: Record<string, string | number> = {
     page: params.page ?? 1,

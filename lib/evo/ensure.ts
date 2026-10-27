@@ -4,7 +4,6 @@ import { episodes, movies, seasons } from "@/db/schema";
 import { createShowTree, findShowIdByTmdb } from "@/lib/cms/shows";
 import { findMovieIdByTmdb } from "@/lib/cms/movies";
 import { getMovieDetails, getShowDetails, type ShowPrefill } from "@/lib/tmdb";
-import { audienceFromGenres } from "./audience";
 
 /**
  * Evo titles live in the catalog tables as identity anchors (progress, bookmarks, reports, cached sources).
@@ -45,7 +44,6 @@ export async function ensureMovie(tmdbId: number): Promise<string> {
       galleryBackdrops: m.galleryBackdrops,
       cast: m.cast,
       isPublished: true,
-      audience: audienceFromGenres(m.genres, m.certification),
     })
     .onConflictDoNothing({ target: movies.tmdbId });
   const id = await findMovieIdByTmdb(tmdbId);
@@ -74,7 +72,6 @@ async function createShow(prefill: ShowPrefill): Promise<string> {
       galleryBackdrops: prefill.galleryBackdrops,
       cast: prefill.cast,
       isPublished: true,
-      audience: audienceFromGenres(prefill.genres, prefill.certification),
       seasons: prefill.seasons.map(({ episodes: eps, ...s }) => ({ ...s, episodes: eps })),
       videos: [],
     });

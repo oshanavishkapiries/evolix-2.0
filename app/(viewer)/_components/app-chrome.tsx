@@ -6,22 +6,22 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
 import { NotificationBell } from "./announcements";
-import { FilmIcon, HomeIcon, KidsIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
+import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
 import { activeNavKey, SIDEBAR_ITEMS } from "./nav-items";
 import { PREF_SIDEBAR, savePref } from "./prefs";
 
-const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, kids: KidsIcon, "my-list": ListIcon };
+const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon };
 const DESKTOP = "(min-width: 80rem)";
 
 /**
  * Header search. On the search pages it is the only input on wide screens (the in-page bar is hidden there), so it
- * shows and edits the current ?q=; elsewhere it jumps to search. The Kids section searches within Kids.
+ * shows and edits the current ?q=; elsewhere it jumps to search.
  */
 function NavSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const base = pathname.startsWith("/kids") ? "/kids/search" : "/search";
+  const base = "/search";
   const onSearch = pathname === base;
   const urlQ = onSearch ? (params.get("q") ?? "") : "";
   const [value, setValue] = useState(urlQ);

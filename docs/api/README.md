@@ -230,11 +230,7 @@ Newest first.
 | `galleryBackdrops` | image path[] (≤5) |        | `[]`    |
 | `cast`             | `{ name, character?, profilePath? }[]` (≤50) | | `[]` |
 | `isPublished`      | boolean         |          | **`false`** |
-| `audience`         | `"general"` \| `"kids"` \| `"both"` | | `"general"` |
 | `videos`           | Video input[] (§7) |       | `[]`    |
-
-`audience` decides where a title is listed: `general` = main app only, `kids` = the Kids section only (hidden from
-Home, Movies, TV, Search and genres), `both` = in both. Shows take the same field.
 
 `409 ALREADY_EXISTS` (with the existing `id`) when that `tmdbId` is already stored.
 
