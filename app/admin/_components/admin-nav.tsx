@@ -14,9 +14,9 @@ const LINKS = [
   { href: "/admin/cdn", label: "CDN files", icon: CdnIcon, match: (p: string) => p.startsWith("/admin/cdn") },
   { href: "/admin/activity", label: "Activity", icon: ActivityIcon, match: (p: string) => p.startsWith("/admin/activity") },
   { href: "/admin/users", label: "Users", icon: UsersIcon, match: (p: string) => p.startsWith("/admin/users") },
-  { href: "/admin/settings", label: "Settings", icon: SettingsIcon, match: (p: string) => p === "/admin/settings" },
   { href: "/admin/reports", label: "Reports", icon: FlagIcon, match: (p: string) => p.startsWith("/admin/reports") },
   { href: "/admin/announcements", label: "Announcements", icon: BellIcon, match: (p: string) => p.startsWith("/admin/announcements") },
+  { href: "/admin/settings", label: "Settings", icon: SettingsIcon, match: (p: string) => p === "/admin/settings" },
 ];
 
 /** Sidebar on desktop (sticky, full height); collapsible top bar below 768px. */
