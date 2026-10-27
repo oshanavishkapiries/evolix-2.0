@@ -3,6 +3,9 @@ import { clearAuthCookies, clientInfo, REFRESH_COOKIE, setAuthCookies } from "@/
 import { safeNext } from "@/lib/auth/redirect";
 import { rotateSession } from "@/lib/auth/session";
 
+/** Relative Location: req.url holds the server's bind address, which is wrong behind a proxy or tunnel. */
+const redirectTo = (path: string) => new NextResponse(null, { status: 303, headers: { Location: path } });
+
 /**
  * Navigation-time refresh: the browser only sends the refresh cookie to /api/auth/*,
  * so the proxy bounces here when the access token is missing or expired.
@@ -15,9 +18,7 @@ export async function GET(req: NextRequest) {
   const result = token ? await rotateSession(token, clientInfo(req)) : { status: "invalid" as const };
 
   if (result.status !== "ok") {
-    const login = new URL("/login", req.url);
-    login.searchParams.set("next", next);
-    return clearAuthCookies(NextResponse.redirect(login, 303));
+    return clearAuthCookies(redirectTo(`/login?next=${encodeURIComponent(next)}`));
   }
-  return setAuthCookies(NextResponse.redirect(new URL(next, req.url), 303), result.access, result.refresh);
+  return setAuthCookies(redirectTo(next), result.access, result.refresh);
 }

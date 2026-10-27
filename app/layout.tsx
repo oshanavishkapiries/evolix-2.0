@@ -14,11 +14,21 @@ export const viewport: Viewport = { themeColor: "#161616" };
 
 const gateOff = process.env.NEXT_PUBLIC_PWA_GATE === "off";
 
+// Brand preloader: shown once per browser session. Runs before paint so a repeat visit never flashes it.
+const INTRO_SCRIPT = `(function(){var d=document.documentElement;try{if(sessionStorage.getItem("evolix-intro")){d.classList.add("intro-done");return}sessionStorage.setItem("evolix-intro","1")}catch(e){}setTimeout(function(){d.classList.add("intro-out")},1600);setTimeout(function(){d.classList.add("intro-done")},2100)})()`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>{!gateOff && <script dangerouslySetInnerHTML={{ __html: GATE_SCRIPT }} />}</head>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
+        {!gateOff && <script dangerouslySetInnerHTML={{ __html: GATE_SCRIPT }} />}
+      </head>
       <body>
+        <div className="intro" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG, must paint before hydration */}
+          <img src="/svg/evolix.svg" alt="" width={220} height={65} />
+        </div>
         {children}
         <Suspense fallback={null}>
           <PwaGate />

@@ -139,3 +139,9 @@
   .data-table th { @apply whitespace-nowrap bg-gray-50 px-3 py-2 font-semibold dark:bg-gray-800/60; }
   .data-table td { @apply border-t border-gray-200 px-3 py-2 align-middle dark:border-gray-800; }
 }
+
+/* First-visit brand preloader (see INTRO_SCRIPT in app/layout.tsx) */
+.intro { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: #0b0b0b; transition: opacity .5s ease; }
+.intro img { width: min(220px, 55vw); height: auto; }
+html.intro-out .intro { opacity: 0; pointer-events: none; }
+html.intro-done .intro { display: none; }
