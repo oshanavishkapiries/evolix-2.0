@@ -8,7 +8,6 @@ import { useToast } from "./toast";
 
 type Setting = { key: string; label: string; description: string; kind: "int" | "float"; min: number; max: number; value: number; default: number; overridden: boolean };
 type Queue = { paused: boolean; waiting_extraction: number; extracting: number; caching: number; queue_limit: number };
-type CdnFile = { id: string; name: string; size: number; views: number; date_upload: string; url: string };
 
 const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
 
@@ -239,80 +238,5 @@ export function SourceDeleteButton({ sourceId, label, engine }: { sourceId: stri
     >
       Delete file
     </button>
-  );
-}
-
-const mb = (n: number) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} GB` : `${(n / 1024 ** 2).toFixed(0)} MB`);
-
-/** Every file in the CDN account, with delete (also for orphans no source points at). */
-export function CdnFiles({ engine }: { engine?: string }) {
-  const toast = useToast();
-  const confirm = useConfirm();
-  const [files, setFiles] = useState<CdnFile[] | null>(null);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    const res = await adminApi<{ data: CdnFile[] }>("GET", `/api/admin/evo/cdn/files${scoped(engine)}`);
-    if (res.ok) {
-      setFiles(res.data);
-      setError("");
-    } else setError(errorText(res));
-  }, [engine]);
-  useEffect(() => {
-    const t = setTimeout(load, 0); // deferred: load sets state
-    return () => clearTimeout(t);
-  }, [load]);
-
-  if (error) return <p className="mt-2 text-sm">{error}</p>;
-  if (!files) return <div className="skeleton mt-2 h-32" aria-busy="true" />;
-  const total = files.reduce((n, f) => n + (f.size ?? 0), 0);
-  return (
-    <>
-      <p className="mt-2 text-sm">
-        {files.length} file(s) · {mb(total)}
-      </p>
-      <div className="table-wrap mt-2">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Size</th>
-              <th>Views</th>
-              <th>Uploaded</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {files.map((f) => (
-              <tr key={f.id}>
-                <td style={{ overflowWrap: "anywhere" }}>
-                  <a href={f.url} target="_blank" rel="noreferrer">
-                    {f.name}
-                  </a>
-                </td>
-                <td>{mb(f.size ?? 0)}</td>
-                <td>{f.views}</td>
-                <td style={{ whiteSpace: "nowrap" }}>{f.date_upload ? new Date(f.date_upload).toLocaleString("en-GB", { timeZone: "UTC" }) : "—"}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn-danger rounded-md border px-3 py-1.5 text-sm"
-                    onClick={async () => {
-                      if (!(await confirm({ title: `Delete ${f.name}?`, body: "The file is removed from the CDN. A catalog source pointing at it stops working until it is re-cached or removed.", confirmLabel: "Delete file" }))) return;
-                      const res = await adminApi("POST", `/api/admin/evo/cdn/delete${scoped(engine)}`, { url: f.url });
-                      if (!res.ok) return toast.error(errorText(res));
-                      toast.success("CDN file deleted");
-                      load();
-                    }}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
   );
 }

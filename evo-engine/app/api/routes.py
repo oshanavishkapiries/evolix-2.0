@@ -495,3 +495,70 @@ def list_cdn_files():
          "url": f"https://pixeldrain.com/api/file/{f.get('id')}"}
         for f in files
     ]
+
+
+class CdnUrls(BaseModel):
+    urls: list[str]
+
+
+class CdnAlbum(BaseModel):
+    title: str = ""
+    ids: list[str] = []
+    add: list[str] = []
+    remove: list[str] = []
+
+
+def _cdn_call(fn, *a):
+    try:
+        return fn(*a)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/cdn/delete-many", dependencies=_AUTH)
+def delete_cdn_files(body: CdnUrls):
+    """Batch delete: each file is deleted and forgotten; one failure does not stop the rest."""
+    done, failed, reset = [], [], 0
+    for url in body.urls[:200]:
+        try:
+            _storage.delete_file(_pixeldrain_id(url))
+            reset += _repository.clear_cdn_url(url.strip())
+            done.append(url)
+        except Exception as e:
+            failed.append({"url": url, "error": e.detail if isinstance(e, HTTPException) else str(e)})
+    return {"deleted": done, "failed": failed, "tasks_reset": reset}
+
+
+@router.get("/cdn/user", dependencies=_AUTH)
+def cdn_account():
+    return _cdn_call(_storage.user_info)
+
+
+@router.get("/cdn/albums", dependencies=_AUTH)
+def cdn_albums():
+    return _cdn_call(_storage.list_albums)
+
+
+@router.get("/cdn/albums/{list_id}", dependencies=_AUTH)
+def cdn_album(list_id: str):
+    return _cdn_call(_storage.get_album, list_id)
+
+
+@router.post("/cdn/albums", dependencies=_AUTH)
+def cdn_create_album(body: CdnAlbum):
+    if not body.title.strip() or not body.ids:
+        raise HTTPException(status_code=422, detail="An album needs a title and at least one file")
+    return {"id": _cdn_call(_storage.create_album, body.title.strip(), body.ids)}
+
+
+@router.put("/cdn/albums/{list_id}", dependencies=_AUTH)
+def cdn_update_album(list_id: str, body: CdnAlbum):
+    return _cdn_call(_storage.update_album, list_id, body.title.strip() or None, body.add, body.remove)
+
+
+@router.delete("/cdn/albums/{list_id}", dependencies=_AUTH)
+def cdn_delete_album(list_id: str):
+    _cdn_call(_storage.delete_album, list_id)
+    return {"deleted": True}

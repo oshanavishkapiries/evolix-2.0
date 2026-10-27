@@ -96,3 +96,42 @@ class PixeldrainStorageProvider(IStorageProvider):
         if resp.status_code != 200:
             raise RuntimeError(f"Pixeldrain list failed: HTTP {resp.status_code}")
         return resp.json().get("files", [])
+
+    # ---- account and albums (Pixeldrain "lists"); every call needs the API key ----
+
+    def _need_key(self) -> None:
+        if not self.api_key:
+            raise RuntimeError("PIXELDRAIN_API_KEY is not set")
+
+    def _call(self, method: str, path: str, ok: tuple = (200,), **kw):
+        self._need_key()
+        resp = requests.request(method, f"https://pixeldrain.com/api{path}", auth=self._auth(), timeout=30, **kw)
+        if resp.status_code not in ok:
+            raise RuntimeError(f"Pixeldrain {method} {path} failed: HTTP {resp.status_code} - {resp.text[:200]}")
+        return resp.json() if resp.content else {}
+
+    def user_info(self) -> dict:
+        """Account, subscription, storage used and bandwidth numbers."""
+        return self._call("GET", "/user")
+
+    def list_albums(self) -> list:
+        return self._call("GET", "/user/lists").get("lists", [])
+
+    def get_album(self, list_id: str) -> dict:
+        return self._call("GET", f"/list/{urllib.parse.quote(list_id)}")
+
+    def create_album(self, title: str, file_ids: list) -> str:
+        data = self._call("POST", "/list", ok=(200, 201), json={"title": title, "anonymous": False, "files": [{"id": i} for i in file_ids]})
+        return data.get("id", "")
+
+    def update_album(self, list_id: str, title: Optional[str], add: list, remove: list) -> dict:
+        """Renames an album and/or adds and removes files (Pixeldrain replaces the whole file list on update)."""
+        current = self.get_album(list_id)
+        ids = [f["id"] for f in current.get("files", []) if isinstance(f, dict) and f.get("id")]
+        drop = set(remove)
+        ids = [i for i in ids if i not in drop] + [i for i in add if i not in ids]
+        self._call("PUT", f"/list/{urllib.parse.quote(list_id)}", json={"title": title or current.get("title", "Album"), "files": [{"id": i} for i in ids]})
+        return {"id": list_id, "files": len(ids)}
+
+    def delete_album(self, list_id: str) -> None:
+        self._call("DELETE", f"/list/{urllib.parse.quote(list_id)}", ok=(200, 404))

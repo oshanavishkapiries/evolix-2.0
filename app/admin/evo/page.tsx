@@ -18,7 +18,7 @@ export default function EvoPage() {
         actions={
           <>
             <Link href="/admin/evo/settings" className="btn-link rounded-md border px-3 py-1.5 text-sm">Pipeline control</Link>
-            <Link href="/admin/evo/cdn" className="btn-link rounded-md border px-3 py-1.5 text-sm">CDN files</Link>
+            <Link href="/admin/cdn" className="btn-link rounded-md border px-3 py-1.5 text-sm">CDN files</Link>
           </>
         }
       />

@@ -42,7 +42,7 @@ async function Engine({ params }: Props) {
         actions={
           <>
             {multi && <DrainButton id={e.id} draining={e.draining} />}
-            <Link href={`/admin/evo/cdn?engine=${encodeURIComponent(e.id)}`} className="btn-link rounded-md border px-3 py-1.5 text-sm">CDN files</Link>
+            <Link href={`/admin/cdn?engine=${encodeURIComponent(e.id)}`} className="btn-link rounded-md border px-3 py-1.5 text-sm">CDN files</Link>
           </>
         }
       />
