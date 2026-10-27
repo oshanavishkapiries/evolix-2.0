@@ -22,6 +22,12 @@ export function TitleList({ kind }: { kind: TitleKind }) {
   const [page, setPage] = useState(() => Math.max(1, Number(params.get("page")) || 1));
   const noun = kind === "movies" ? "movies" : "shows";
 
+  // Bumping `tick` re-runs the search, so the list stays current without a reload (paused while the tab is hidden).
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => document.visibilityState === "visible" && setTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const search = useDebouncedSearch<Listing>(
     async (term, signal) => {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
@@ -31,7 +37,7 @@ export function TitleList({ kind }: { kind: TitleKind }) {
       if (!res.ok) throw new Error(errorText(res));
       return { rows: res[kind] as TitleRow[], total: res.total as number };
     },
-    { initialQuery: params.get("q") ?? "", allowEmpty: true, extraKey: `${status}|${page}` },
+    { initialQuery: params.get("q") ?? "", allowEmpty: true, extraKey: `${status}|${page}|${tick}` },
   );
   const { term } = search;
 

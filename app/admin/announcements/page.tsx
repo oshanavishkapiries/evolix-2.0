@@ -1,3 +1,4 @@
+import { AutoRefresh } from "../_components/auto-refresh";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ANNOUNCEMENT_STATES, audienceLabel, type AnnouncementState } from "@/lib/announcements";
@@ -13,6 +14,7 @@ const label = (s: string) => s[0].toUpperCase() + s.slice(1);
 export default function AnnouncementsPage({ searchParams }: Props) {
   return (
     <>
+      <AutoRefresh seconds={30} />
       <PageHeader title="Announcements" actions={<Link href="/admin/announcements/new" className="btn">New announcement</Link>} />
       <Suspense fallback={<div className="skeleton mt-4 h-32" aria-busy="true" />}>
         <List searchParams={searchParams} />

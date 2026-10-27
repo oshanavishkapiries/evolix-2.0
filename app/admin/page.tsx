@@ -1,3 +1,4 @@
+import { AutoRefresh } from "./_components/auto-refresh";
 import { Suspense } from "react";
 import { AdminOverview } from "./_components/admin-overview";
 import { PageHeader } from "./_components/page-header";
@@ -25,6 +26,7 @@ export default function AdminPage() {
           </>
         }
       />
+      <AutoRefresh seconds={30} />
       <Suspense
         fallback={<div className="skeleton mt-4 h-32" aria-busy="true" />}
       >

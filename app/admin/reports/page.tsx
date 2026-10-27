@@ -1,3 +1,4 @@
+import { AutoRefresh } from "../_components/auto-refresh";
 import Link from "next/link";
 import { Suspense } from "react";
 import { listReports, reportCounts } from "@/lib/cms/reports";
@@ -13,6 +14,7 @@ const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeSt
 export default function ReportsPage({ searchParams }: Props) {
   return (
     <>
+      <AutoRefresh seconds={30} />
       <PageHeader title="Reports" />
       <Suspense fallback={<div className="skeleton mt-4 h-32" aria-busy="true" />}>
         <ReportsList searchParams={searchParams} />
