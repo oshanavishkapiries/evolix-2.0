@@ -23,6 +23,8 @@ const schema = z.object({
   // JSON array of engine URLs (or {"url", "name"} objects); one entry is a single-engine setup.
   EVO_ENGINES: z.string().default("").transform((v) => v.trim() || '["http://127.0.0.1:8000"]'),
   EVO_SECRET_TOKEN: z.string().default(""),
+  // Optional: admin dashboard OpenRouter analytics. /activity needs a management key (openrouter.ai/settings/management-keys).
+  OPENROUTER_API_KEY: z.string().default(""),
 });
 
 function load() {
