@@ -6,8 +6,9 @@ import { allEngineTasks, combinedSummary, enginesOverview } from "@/lib/evo/over
 import { SummaryFlow } from "../_components/pipeline-graph";
 import { SourceDeleteButton, TaskActions } from "../_components/evo-controls";
 import { PageHeader } from "../_components/page-header";
+import { TZ } from "@/lib/tz";
 
-const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 const code = (s: number | null, e: number | null) => (s !== null && e !== null ? `S${s}E${e}` : "Movie");
 
 export default function EvoPage() {

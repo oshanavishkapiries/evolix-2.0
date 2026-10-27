@@ -7,12 +7,13 @@ import { isAdminEmail } from "@/lib/auth/admin";
 import { getSetting } from "@/lib/settings";
 import { PageHeader } from "../_components/page-header";
 import { UserActions } from "../_components/user-actions";
+import { TZ } from "@/lib/tz";
 
 const ago = (d: Date) => {
   const m = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
   return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.floor(m / 60)} h ago` : `${Math.floor(m / 1440)} d ago`;
 };
-const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const { q = "", status = "" } = await searchParams;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";
+import { TZ } from "@/lib/tz";
 
 type CdnFile = { id: string; name: string; size: number | null; views: number | null; date_upload: string | null; url: string };
 type Album = { id: string; title: string; file_count?: number; date_created?: string };
@@ -19,7 +20,7 @@ const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
 const danger = "btn-danger rounded-md border px-3 py-1.5 text-sm";
 const scoped = (engine?: string) => (engine ? `?engine=${encodeURIComponent(engine)}` : "");
 const size = (n: number) => (n >= 1024 ** 4 ? `${(n / 1024 ** 4).toFixed(2)} TB` : n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} GB` : `${(n / 1024 ** 2).toFixed(0)} MB`);
-const when = (s: string | null | undefined) => (s ? new Date(s).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) : "—");
+const when = (s: string | null | undefined) => (s ? new Date(s).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ }) : "—");
 
 /** Pixeldrain CDN manager: account usage, searchable/sortable files with batch delete and album creation, and albums. */
 export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: string[] }) {

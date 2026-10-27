@@ -6,8 +6,9 @@ import { episodes, movies, seasons, shows, users, watchProgress } from "@/db/sch
 import { isAdminEmail } from "@/lib/auth/admin";
 import { PageHeader } from "../../_components/page-header";
 import { UserForm } from "../../_components/user-form";
+import { TZ } from "@/lib/tz";
 
-const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {

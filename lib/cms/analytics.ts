@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
 /**
- * Admin analytics over a rolling window of UTC days, read-only.
+ * Admin analytics over a rolling window of Sri Lanka (Asia/Colombo) days, read-only.
  * watch_progress keeps one row per user and title, so a "play" is a title someone watched (or resumed) in the window,
  * dated by its last update; earlier sessions on the same title are not counted separately.
  */
@@ -18,15 +18,15 @@ const plays = (days: number) => sql`
     select wp.user_id, wp.updated_at, wp.position_seconds, wp.duration_seconds, wp.completed,
            coalesce(wp.movie_id, s.id) as title_id,
            case when wp.movie_id is not null then 'movie' else 'show' end as kind,
-           (wp.updated_at >= date_trunc('day', now() at time zone 'utc') at time zone 'utc' - make_interval(days => ${days - 1})) as cur
+           (wp.updated_at >= date_trunc('day', now() at time zone 'Asia/Colombo') at time zone 'Asia/Colombo' - make_interval(days => ${days - 1})) as cur
     from watch_progress wp
     left join episodes e on e.id = wp.episode_id
     left join seasons se on se.id = e.season_id
     left join shows s on s.id = se.show_id
-    where wp.updated_at >= date_trunc('day', now() at time zone 'utc') at time zone 'utc' - make_interval(days => ${2 * days - 1})
+    where wp.updated_at >= date_trunc('day', now() at time zone 'Asia/Colombo') at time zone 'Asia/Colombo' - make_interval(days => ${2 * days - 1})
   )`;
 
-const since = (days: number) => sql`date_trunc('day', now() at time zone 'utc') at time zone 'utc' - make_interval(days => ${days - 1})`;
+const since = (days: number) => sql`date_trunc('day', now() at time zone 'Asia/Colombo') at time zone 'Asia/Colombo' - make_interval(days => ${days - 1})`;
 
 export type Kpis = { plays: number; viewers: number; hours: number; completed: number; signups: number; bookmarks: number };
 
@@ -43,20 +43,20 @@ export async function analytics(days: Range) {
       select created_at >= ${since(days)} as cur, count(*)::int as n from bookmarks
       where created_at >= ${since(2 * days)} group by 1`),
     q<{ day: string; movies: number; episodes: number; viewers: number; seconds: number; signups: number }>(sql`
-      with d as (select generate_series(${since(days)}, date_trunc('day', now() at time zone 'utc') at time zone 'utc', interval '1 day') as day),
+      with d as (select generate_series(${since(days)}, date_trunc('day', now() at time zone 'Asia/Colombo') at time zone 'Asia/Colombo', interval '1 day') as day),
       w as (
-        select date_trunc('day', updated_at at time zone 'utc') at time zone 'utc' as day,
+        select date_trunc('day', updated_at at time zone 'Asia/Colombo') at time zone 'Asia/Colombo' as day,
                count(*) filter (where movie_id is not null)::int as movies,
                count(*) filter (where episode_id is not null)::int as episodes,
                count(distinct user_id)::int as viewers, coalesce(sum(position_seconds), 0)::float as seconds
         from watch_progress where updated_at >= ${since(days)} group by 1),
-      u as (select date_trunc('day', created_at at time zone 'utc') at time zone 'utc' as day, count(*)::int as n from users where created_at >= ${since(days)} group by 1)
-      select to_char(d.day at time zone 'utc', 'YYYY-MM-DD') as day,
+      u as (select date_trunc('day', created_at at time zone 'Asia/Colombo') at time zone 'Asia/Colombo' as day, count(*)::int as n from users where created_at >= ${since(days)} group by 1)
+      select to_char(d.day at time zone 'Asia/Colombo', 'YYYY-MM-DD') as day,
              coalesce(w.movies, 0) as movies, coalesce(w.episodes, 0) as episodes, coalesce(w.viewers, 0) as viewers,
              coalesce(w.seconds, 0) as seconds, coalesce(u.n, 0) as signups
       from d left join w on w.day = d.day left join u on u.day = d.day order by d.day`),
     q<{ dow: number; hour: number; n: number }>(sql`
-      select extract(isodow from updated_at at time zone 'utc')::int as dow, extract(hour from updated_at at time zone 'utc')::int as hour, count(*)::int as n
+      select extract(isodow from updated_at at time zone 'Asia/Colombo')::int as dow, extract(hour from updated_at at time zone 'Asia/Colombo')::int as hour, count(*)::int as n
       from watch_progress where updated_at >= ${since(days)} group by 1, 2`),
     q<{ id: string; kind: "movie" | "show"; title: string; poster: string | null; plays: number; viewers: number; seconds: number; completed: number }>(sql`${plays(days)}
       select p.title_id as id, p.kind, coalesce(m.title, s.name) as title, coalesce(m.poster_path, s.poster_path) as poster,

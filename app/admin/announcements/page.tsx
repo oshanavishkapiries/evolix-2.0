@@ -4,11 +4,12 @@ import { Suspense } from "react";
 import { ANNOUNCEMENT_STATES, audienceLabel, type AnnouncementState } from "@/lib/announcements";
 import { announcementCounts, listAnnouncements } from "@/lib/cms/announcements";
 import { PageHeader } from "../_components/page-header";
+import { TZ } from "@/lib/tz";
 
 const PAGE_SIZE = 20;
 type Props = { searchParams: Promise<{ state?: string; page?: string }> };
 
-const fmt = (d: Date | null) => (d ? d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC" : "—");
+const fmt = (d: Date | null) => (d ? d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ }) : "—");
 const label = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 export default function AnnouncementsPage({ searchParams }: Props) {

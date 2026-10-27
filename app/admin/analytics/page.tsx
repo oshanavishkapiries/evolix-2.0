@@ -161,7 +161,7 @@ async function AnalyticsBody({ days }: { days: Range }) {
       </div>
 
       <p className="an-note">
-        All times UTC. A play is a title someone watched or resumed in the period; repeat sessions on the same title count once, on the day they last watched.
+        All times are Sri Lanka time (UTC+5:30). A play is a title someone watched or resumed in the period; repeat sessions on the same title count once, on the day they last watched.
         Changes compare with the {days} days before.
       </p>
     </div>

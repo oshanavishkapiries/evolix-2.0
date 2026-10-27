@@ -10,8 +10,9 @@ import { Breadcrumbs } from "../../../_components/breadcrumbs";
 import { EvoControls, TaskActions } from "../../../_components/evo-controls";
 import { PageHeader } from "../../../_components/page-header";
 import { SummaryFlow } from "../../../_components/pipeline-graph";
+import { TZ } from "@/lib/tz";
 
-const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 const code = (s: number | null, e: number | null) => (s !== null && e !== null ? `S${s}E${e}` : "Movie");
 
 type Props = { params: Promise<{ id: string }> };

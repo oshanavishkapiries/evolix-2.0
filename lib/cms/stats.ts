@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { movies, shows, users, watchProgress } from "@/db/schema";
 import { listMovies } from "./movies";
 import { listShows } from "./shows";
+import { tzDay } from "@/lib/tz";
 
 const published = (col: typeof movies.isPublished | typeof shows.isPublished) =>
   sql<number>`count(*) filter (where ${col})`.mapWith(Number);
@@ -25,29 +26,29 @@ const DAYS = 14;
 
 export type DayPoint = { day: string; plays: number; viewers: number; signups: number; hours: number; gb: number; cost: number };
 
-/** One point per UTC day for the last 14 days, oldest first; days with no data are zero. */
+/** One point per Sri Lanka day for the last 14 days, oldest first; days with no data are zero. */
 export async function adminAnalytics(): Promise<DayPoint[]> {
-  const since = sql`(date_trunc('day', now() at time zone 'utc') - interval '${sql.raw(String(DAYS - 1))} days')`;
+  const since = sql`(date_trunc('day', now() at time zone 'Asia/Colombo') - interval '${sql.raw(String(DAYS - 1))} days')`;
   const [watch, signups] = await Promise.all([
     db.execute(sql`
-      select to_char(date_trunc('day', ${watchProgress.updatedAt} at time zone 'utc'), 'YYYY-MM-DD') as day,
+      select to_char(date_trunc('day', ${watchProgress.updatedAt} at time zone 'Asia/Colombo'), 'YYYY-MM-DD') as day,
              count(*)::int as plays,
              count(distinct ${watchProgress.userId})::int as viewers,
              coalesce(sum(${watchProgress.positionSeconds}), 0)::float as seconds
       from ${watchProgress}
-      where ${watchProgress.updatedAt} at time zone 'utc' >= ${since}
+      where ${watchProgress.updatedAt} at time zone 'Asia/Colombo' >= ${since}
       group by 1`),
     db.execute(sql`
-      select to_char(date_trunc('day', ${users.createdAt} at time zone 'utc'), 'YYYY-MM-DD') as day, count(*)::int as n
+      select to_char(date_trunc('day', ${users.createdAt} at time zone 'Asia/Colombo'), 'YYYY-MM-DD') as day, count(*)::int as n
       from ${users}
-      where ${users.createdAt} at time zone 'utc' >= ${since}
+      where ${users.createdAt} at time zone 'Asia/Colombo' >= ${since}
       group by 1`),
   ]);
   const w = new Map((watch.rows as { day: string; plays: number; viewers: number; seconds: number }[]).map((r) => [r.day, r]));
   const u = new Map((signups.rows as { day: string; n: number }[]).map((r) => [r.day, r.n]));
   const out: DayPoint[] = [];
   for (let i = DAYS - 1; i >= 0; i--) {
-    const day = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+    const day = tzDay(new Date(Date.now() - i * 86_400_000));
     const r = w.get(day);
     const hours = (r?.seconds ?? 0) / 3600;
     const gb = hours * GB_PER_HOUR;

@@ -94,7 +94,7 @@ export function HBars({
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-/** Weekday x hour grid (UTC); cell opacity scales with the count. */
+/** Weekday x hour grid (Sri Lanka time); cell opacity scales with the count. */
 export function Heatmap({
   cells,
 }: {
@@ -113,7 +113,7 @@ export function Heatmap({
         <div
           className="an-heat"
           role="img"
-          aria-label="Plays by weekday and hour, UTC"
+          aria-label="Plays by weekday and hour, Sri Lanka time"
         >
           <span />
           {Array.from({ length: 24 }, (_, h) => (
@@ -134,7 +134,7 @@ export function Heatmap({
                       opacity: n ? 0.18 + (n / max) * 0.82 : 1,
                       background: n ? "var(--a-gold)" : undefined,
                     }}
-                    title={`${d} ${String(h).padStart(2, "0")}:00 UTC - ${n} plays`}
+                    title={`${d} ${String(h).padStart(2, "0")}:00 - ${n} plays`}
                   />
                 );
               })}
@@ -144,9 +144,9 @@ export function Heatmap({
       </div>
       <p className="an-note">
         {peak
-          ? `Busiest: ${DOW[peak.dow - 1]} around ${String(peak.hour).padStart(2, "0")}:00 UTC (${peak.n} plays).`
+          ? `Busiest: ${DOW[peak.dow - 1]} around ${String(peak.hour).padStart(2, "0")}:00 (${peak.n} plays).`
           : "No plays in this period."}{" "}
-        Hours are UTC.
+        Hours are Sri Lanka time.
       </p>
     </figure>
   );

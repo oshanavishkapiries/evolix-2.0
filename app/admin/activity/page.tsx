@@ -3,9 +3,10 @@ import { db } from "@/db";
 import { episodes, movies, seasons, sessions, shows, users, watchProgress } from "@/db/schema";
 import { AutoRefresh } from "../_components/auto-refresh";
 import { PageHeader } from "../_components/page-header";
+import { TZ } from "@/lib/tz";
 
 const ACTIVE_MINUTES = 5;
-const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 const ago = (d: Date) => {
   const m = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));

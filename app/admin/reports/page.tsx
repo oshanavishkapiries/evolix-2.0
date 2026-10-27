@@ -5,11 +5,12 @@ import { listReports, reportCounts } from "@/lib/cms/reports";
 import { REPORT_STATUSES, reasonLabel, type ReportStatus } from "@/lib/reports";
 import { PageHeader } from "../_components/page-header";
 import { ReportActions } from "../_components/report-actions";
+import { TZ } from "@/lib/tz";
 
 const PAGE_SIZE = 20;
 type Props = { searchParams: Promise<{ status?: string; page?: string }> };
 
-const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 
 export default function ReportsPage({ searchParams }: Props) {
   return (

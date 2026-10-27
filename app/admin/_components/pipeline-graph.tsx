@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
 import { EDGES, NODES, NODE_H, NODE_W, STEP_IDS, VIEW_H, VIEW_W, edgeState, foldEvents, formatDuration, parseTs, type FlowEvent, type StepId, type StepState, type StepView, type Summary } from "@/lib/evo/flow";
+import { TZ } from "@/lib/tz";
 
 type NodeView = { state: StepState; sub: string };
 
@@ -169,7 +170,7 @@ function StepLog({ id, view }: { id: StepId | null; view: StepView | null }) {
         <ul>
           {view.events.map((e, i) => (
             <li key={i}>
-              <time dateTime={e.ts}>{new Date(parseTs(e.ts)).toLocaleTimeString("en-GB", { timeZone: "UTC" })} UTC</time>
+              <time dateTime={e.ts}>{new Date(parseTs(e.ts)).toLocaleTimeString("en-GB", { timeZone: TZ })}</time>
               <span className="flow-pill" data-state={e.state}>{e.state}</span>
               <span>{e.detail || "—"}</span>
             </li>
