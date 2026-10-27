@@ -17,10 +17,14 @@ const gateOff = process.env.NEXT_PUBLIC_PWA_GATE === "off";
 // Brand preloader: shown once per browser session. Runs before paint so a repeat visit never flashes it.
 const INTRO_SCRIPT = `(function(){var d=document.documentElement;try{if(sessionStorage.getItem("evolix-intro")){d.classList.add("intro-done");return}sessionStorage.setItem("evolix-intro","1")}catch(e){}setTimeout(function(){d.classList.add("intro-out")},1600);setTimeout(function(){d.classList.add("intro-done")},2100)})()`;
 
+// Inline (not in globals.css) so the preloader is styled before any stylesheet loads, and cannot be lost by CSS bundling.
+const INTRO_CSS = `.intro{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#0b0b0b;transition:opacity .5s ease}.intro img{width:min(220px,55vw);height:auto}html.intro-out .intro{opacity:0;pointer-events:none}html.intro-done .intro{display:none}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <style dangerouslySetInnerHTML={{ __html: INTRO_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
         {!gateOff && <script dangerouslySetInnerHTML={{ __html: GATE_SCRIPT }} />}
       </head>
