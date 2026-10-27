@@ -35,8 +35,9 @@ export function AdminNav({ footer }: { footer?: React.ReactNode }) {
   return (
     <aside className="adm-side" data-open={open}>
       <div className="adm-side-head">
-        <Link href="/admin" className="adm-brand">
-          evolix
+        <Link href="/admin" className="adm-brand" aria-label="Evolix admin">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/svg/evolix.svg" alt="Evolix" width={520} height={153} />
         </Link>
         <button type="button" className="adm-menu-btn" aria-expanded={open} aria-controls="admin-menu" aria-label="Toggle menu" onClick={() => setOpen((o) => !o)}>
           <MenuIcon />
