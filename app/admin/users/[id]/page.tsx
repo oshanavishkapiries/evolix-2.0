@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { episodes, movies, seasons, shows, users, watchProgress } from "@/db/schema";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { PageHeader } from "../../_components/page-header";
-import { UserActions } from "../../_components/user-actions";
+import { UserForm } from "../../_components/user-form";
 
 const fmt = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -43,11 +43,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
         <Link href="/admin/users">← All users</Link> · Joined {fmt(user.createdAt)} · Email {user.emailVerifiedAt ? "verified" : "not verified"} ·{" "}
         {admin ? "admin" : user.approvedAt ? `approved ${fmt(user.approvedAt)}` : "not approved"}
       </p>
-      {!admin && (
-        <div className="mt-3">
-          <UserActions id={user.id} approved={Boolean(user.approvedAt)} />
-        </div>
-      )}
+      <UserForm user={{ id: user.id, email: user.email, verified: Boolean(user.emailVerifiedAt), approved: Boolean(user.approvedAt), admin }} />
       <h2 className="mt-5 text-lg font-semibold">Watch history ({history.length})</h2>
       {history.length ? (
         <div className="table-wrap mt-3">
