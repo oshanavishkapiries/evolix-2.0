@@ -117,8 +117,13 @@ export function AnnouncementForm({ initial }: { initial: AnnouncementFormData })
     );
 
   async function remove() {
-    if (!(await confirm({ title: "Delete this draft?", body: "It was never sent, so nothing is lost for users." , confirmLabel: "Delete" }))) return;
-    await run("Draft deleted", () => adminApi("DELETE", `/api/admin/announcements/${initial.id}`), () => router.push("/admin/announcements"));
+    const ok = await confirm(
+      isDraft
+        ? { title: "Delete this draft?", body: "It was never sent, so nothing is lost for users.", confirmLabel: "Delete" }
+        : { title: "Delete this announcement permanently?", body: "Users stop seeing it and its read statistics are deleted. This cannot be undone; archive it instead to keep the stats.", confirmLabel: "Delete permanently" },
+    );
+    if (!ok) return;
+    await run(isDraft ? "Draft deleted" : "Announcement deleted", () => adminApi("DELETE", `/api/admin/announcements/${initial.id}`), () => router.push("/admin/announcements"));
   }
 
   const scheduled = isDraft && v.publishAt && new Date(v.publishAt) > new Date();
@@ -221,6 +226,7 @@ export function AnnouncementForm({ initial }: { initial: AnnouncementFormData })
             <>
               <button type="button" className="btn-secondary" disabled={busy} onClick={duplicate}>Duplicate</button>
               <button type="button" className="btn-secondary" disabled={busy} onClick={() => archive(!archived)}>{archived ? "Restore" : "Archive"}</button>
+              <button type="button" className="btn-danger" disabled={busy} onClick={remove}>Delete</button>
             </>
           )}
           {!isNew && isDraft && <button type="button" className="btn-secondary" disabled={busy} onClick={remove}>Delete draft</button>}

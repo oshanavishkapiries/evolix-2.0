@@ -300,7 +300,8 @@ export async function duplicateAnnouncement(id: string, createdBy: string) {
 }
 
 /** Only drafts can be deleted; anything that was sent keeps its history. */
-export async function deleteDraft(id: string) {
-  const rows = await db.delete(announcements).where(and(eq(announcements.id, id), eq(announcements.status, "draft"))).returning({ id: announcements.id });
+/** Permanently removes an announcement in any state; its recipients and read receipts cascade with it. */
+export async function deleteAnnouncement(id: string) {
+  const rows = await db.delete(announcements).where(eq(announcements.id, id)).returning({ id: announcements.id });
   return rows.length > 0;
 }

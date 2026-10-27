@@ -1,5 +1,6 @@
 import { AutoRefresh } from "../_components/auto-refresh";
 import Link from "next/link";
+import { AnnouncementDelete } from "../_components/announcement-delete";
 import { Suspense } from "react";
 import { ANNOUNCEMENT_STATES, audienceLabel, type AnnouncementState } from "@/lib/announcements";
 import { announcementCounts, listAnnouncements } from "@/lib/cms/announcements";
@@ -62,6 +63,7 @@ async function List({ searchParams }: Props) {
                 <th>Published</th>
                 <th>Expires</th>
                 <th>Read</th>
+                <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -79,6 +81,9 @@ async function List({ searchParams }: Props) {
                     <td style={{ whiteSpace: "nowrap" }}>{fmt(a.expiresAt)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       {a.state === "draft" ? "—" : `${a.reads} / ${a.recipients} (${rate}%)`}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <AnnouncementDelete id={a.id} title={a.title} draft={a.state === "draft"} />
                     </td>
                   </tr>
                 );

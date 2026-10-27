@@ -1,7 +1,7 @@
 import { json, parseBody } from "@/lib/auth/http";
 import { adminRoute, isUuid, notFound } from "@/lib/cms/api";
 import { announcementWrite } from "@/lib/cms/announcement-api";
-import { announcementInput, deleteDraft, getAnnouncement, updateAnnouncement } from "@/lib/cms/announcements";
+import { announcementInput, deleteAnnouncement, getAnnouncement, updateAnnouncement } from "@/lib/cms/announcements";
 
 export const GET = adminRoute<{ id: string }>(async (_req, { id }) => {
   const row = isUuid(id) ? await getAnnouncement(id) : null;
@@ -19,8 +19,8 @@ export const PATCH = adminRoute<{ id: string }>(async (req, { id }) => {
   });
 });
 
-/** Drafts only: anything that was sent is archived instead, so its read stats survive. */
+/** Permanent for any state; the UI suggests archiving first for sent ones, which keeps read stats. */
 export const DELETE = adminRoute<{ id: string }>(async (_req, { id }) => {
   if (!isUuid(id)) return notFound("Announcement");
-  return (await deleteDraft(id)) ? json(200, { deleted: true }) : notFound("Draft");
+  return (await deleteAnnouncement(id)) ? json(200, { deleted: true }) : notFound("Announcement");
 });
