@@ -14,8 +14,11 @@ type Row = {
   reasoning_tokens: number;
 };
 
+/** Totals a regular (non-management) key can read about itself from /key. */
+export type KeyUsage = { label: string; daily: number; weekly: number; monthly: number; total: number; limit: number | null; remaining: number | null };
+
 export type OpenRouterStats =
-  | { ok: false; reason: "unconfigured" | "unauthorized" | "error"; message: string }
+  | { ok: false; reason: "unconfigured" | "unauthorized" | "error"; message: string; key?: KeyUsage }
   | {
       ok: true;
       days: string[];
@@ -46,7 +49,27 @@ export async function openRouterStats(): Promise<OpenRouterStats> {
   try {
     const [act, cred] = await Promise.all([get<{ data: Row[] }>("/activity"), get<{ data: { total_credits: number; total_usage: number } }>("/credits")]);
     if (act.status === 401 || act.status === 403) {
-      return { ok: false, reason: "unauthorized", message: "OpenRouter rejected the key. /activity needs a management key (sk-or-v1-...) from openrouter.ai/settings/management-keys." };
+      // Regular keys cannot read /activity, but can still report their own spend.
+      const k = await get<{ data: { label?: string; usage: number; usage_daily?: number; usage_weekly?: number; usage_monthly?: number; limit: number | null; limit_remaining: number | null } }>("/key");
+      const key: KeyUsage | undefined = k.body
+        ? {
+            label: k.body.data.label ?? "",
+            daily: k.body.data.usage_daily ?? 0,
+            weekly: k.body.data.usage_weekly ?? 0,
+            monthly: k.body.data.usage_monthly ?? 0,
+            total: k.body.data.usage,
+            limit: k.body.data.limit,
+            remaining: k.body.data.limit_remaining,
+          }
+        : undefined;
+      return {
+        ok: false,
+        reason: "unauthorized",
+        key,
+        message: key
+          ? "Daily charts need a management key (openrouter.ai/settings/management-keys); showing this key's own usage."
+          : "OpenRouter rejected the key.",
+      };
     }
     if (!act.body) return { ok: false, reason: "error", message: `OpenRouter returned ${act.status}.` };
 

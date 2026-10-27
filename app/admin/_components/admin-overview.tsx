@@ -52,7 +52,29 @@ export async function AdminOverview() {
       <section>
         <h2>OpenRouter</h2>
         {!or.ok ? (
-          <p className="stat text-sm">{or.message}</p>
+          <>
+            {or.key && (
+              <div className="mb-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  ["Today", or.key.daily],
+                  ["This week", or.key.weekly],
+                  ["This month", or.key.monthly],
+                  ["All time", or.key.total],
+                ].map(([label, v]) => (
+                  <div key={label} className="stat">
+                    <h3 className="text-sm font-semibold">{label}</h3>
+                    <strong>{usd(v as number)}</strong>
+                    {label === "All time" && or.key?.limit != null && (
+                      <small>
+                        {usd(or.key.remaining ?? 0)} left of {usd(or.key.limit)} limit
+                      </small>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-sm">{or.message}</p>
+          </>
         ) : (
           <>
             {or.credits && (
