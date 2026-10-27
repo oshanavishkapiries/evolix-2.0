@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BellIcon, FilmIcon, FlagIcon, MenuIcon, TvIcon } from "@/app/(viewer)/_components/icons";
-import { ActivityIcon, CdnIcon, DashboardIcon, PipelineIcon, SettingsIcon, UsersIcon } from "./admin-icons";
+import { ActivityIcon, AnalyticsIcon, CdnIcon, DashboardIcon, PipelineIcon, SettingsIcon, UsersIcon } from "./admin-icons";
 
 const LINKS = [
   { href: "/admin", label: "Overview", icon: DashboardIcon, match: (p: string) => p === "/admin" },
+  { href: "/admin/analytics", label: "Analytics", icon: AnalyticsIcon, match: (p: string) => p.startsWith("/admin/analytics") },
   { href: "/admin/movies", label: "Movies", icon: FilmIcon, match: (p: string) => p.startsWith("/admin/movies") },
   { href: "/admin/shows", label: "TV shows", icon: TvIcon, match: (p: string) => p.startsWith("/admin/shows") },
   { href: "/admin/evo", label: "Evo pipeline", icon: PipelineIcon, match: (p: string) => p.startsWith("/admin/evo") },
