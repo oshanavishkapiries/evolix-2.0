@@ -7,6 +7,7 @@ import { movies, shows } from "@/db/schema";
 import { escapeLike } from "@/lib/cms/search";
 import { getDiscoverMedia, getPopularMedia, getTmdbLogo, getTrendingMedia, searchMovies, searchShows, type TmdbCatalogItem } from "@/lib/tmdb";
 import type { CardKind } from "./ids";
+import { captureException } from "@/lib/errors/capture";
 
 // Everything here only ever returns PUBLISHED titles.
 
@@ -316,6 +317,7 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
     return tmdbRes;
   } catch (err) {
     console.error("TMDB catalog fetch failed, falling back to local DB:", err);
+    await captureException(err, { level: "warning", route: "catalog TMDB fetch", tags: { mechanism: "catalogFallback" } });
     return browseDb(p);
   }
 }

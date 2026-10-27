@@ -14,6 +14,8 @@ const matches = (path: string, bases: string[]) =>
 // Signature-only check (no DB). Revoked sessions are caught by GET /api/auth/me.
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+  // Source maps stay on the server (the error tracker reads them from disk); publishing them would publish the source.
+  if (pathname.endsWith(".map")) return new NextResponse(null, { status: 404 });
   const token = req.cookies.get(ACCESS_COOKIE)?.value;
   const valid = token ? (await verifyAccessToken(token)) !== null : false;
 
@@ -53,6 +55,7 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/_next/static/:path*.map",
     "/",
     "/dashboard/:path*",
     "/admin/:path*",

@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { reportError } from "@/lib/client/error-reporter";
 
 export default function AdminError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportError(error, { mechanism: "admin error boundary" });
   }, [error]);
   return (
     <div className="card" role="alert" style={{ maxWidth: "32rem", margin: "3rem auto", padding: "2rem", textAlign: "center" }}>

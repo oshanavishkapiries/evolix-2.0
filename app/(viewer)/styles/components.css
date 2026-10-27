@@ -374,3 +374,34 @@
 .v-sub-note { margin: 0; font-size: .78rem; line-height: 1.4; color: var(--v-fg-faint); }
 .v-notice { margin: 0 var(--v-gutter) 1.5rem; padding: 1rem 1.25rem; border: 1px solid var(--v-line, #444); border-radius: .75rem; background: rgb(255 255 255 / .05); }
 .v-notice h2 { font-size: 1.1rem; }
+
+/* Player feedback survey */
+.v-fb { position: absolute; z-index: 33; right: var(--v-gutter); bottom: 6.5rem; width: min(23rem, calc(100% - 2 * var(--v-gutter))); display: grid; gap: .55rem; padding: .95rem 1rem 1rem; background: rgb(22 22 22 / .97); border: 1px solid var(--v-border); border-radius: var(--v-radius); box-shadow: 0 14px 34px rgb(0 0 0 / .6); color: var(--v-fg); animation: v-banner-in var(--v-dur-3) var(--v-ease); }
+.v-fb-x { position: absolute; top: .55rem; right: .6rem; margin: 0; }
+.v-fb-title { display: flex; align-items: center; gap: .45rem; padding-right: 1.6rem; font-size: .95rem; font-weight: 700; line-height: 1.3; }
+.v-fb-sub { margin-top: -.3rem; font-size: .8rem; color: var(--v-fg-dim); }
+.v-fb-faces { display: grid; grid-template-columns: repeat(5, 1fr); gap: .25rem; }
+.v-fb-face { display: grid; justify-items: center; gap: .15rem; padding: .4rem .1rem .35rem; border: 0; border-radius: .6rem; background: transparent; color: var(--v-fg-dim); cursor: pointer; transition: background var(--v-dur-1) var(--v-ease), transform var(--v-dur-1) var(--v-ease), color var(--v-dur-1) var(--v-ease); }
+.v-fb-face span { font-size: 1.85rem; line-height: 1; filter: grayscale(.35); transition: filter var(--v-dur-1) var(--v-ease), transform var(--v-dur-2) var(--v-ease); }
+.v-fb-face small { font-size: .66rem; font-weight: 600; white-space: nowrap; }
+.v-fb-face:hover, .v-fb-face:focus-visible { background: rgb(255 255 255 / .08); color: var(--v-fg); }
+.v-fb-face:hover span, .v-fb-face:focus-visible span { filter: none; transform: scale(1.18) translateY(-2px); }
+.v-fb-face:active span { transform: scale(.95); }
+.v-fb-picked { font-size: 1.4rem; line-height: 1; }
+.v-fb-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.v-fb-chip { padding: .35rem .7rem; border: 1px solid var(--v-border); border-radius: 999px; background: transparent; color: var(--v-fg-dim); font-size: .78rem; font-weight: 600; cursor: pointer; transition: background var(--v-dur-1) var(--v-ease), border-color var(--v-dur-1) var(--v-ease), color var(--v-dur-1) var(--v-ease); }
+.v-fb-chip:hover { color: var(--v-fg); border-color: rgb(255 255 255 / .35); }
+.v-fb-chip[aria-pressed="true"] { background: var(--v-primary); border-color: var(--v-primary); color: var(--v-primary-fg); }
+.v-fb-comment textarea { width: 100%; resize: none; padding: .5rem .6rem; border: 1px solid var(--v-border); border-radius: .5rem; background: rgb(255 255 255 / .05); color: var(--v-fg); font: inherit; font-size: .82rem; }
+.v-fb-comment textarea:focus { outline: 2px solid var(--v-primary); outline-offset: 1px; }
+.v-fb-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+.v-fb-actions .v-btn { padding: .35rem 1rem; font-size: .84rem; }
+.v-fb-thanks { display: flex; align-items: center; gap: .55rem; padding-right: 1.6rem; font-size: .92rem; font-weight: 600; }
+.v-fb-thanks span { font-size: 1.6rem; line-height: 1; animation: v-fb-pop var(--v-dur-3) var(--v-ease); }
+@keyframes v-fb-pop { 0% { transform: scale(.4); } 60% { transform: scale(1.25); } }
+@media (max-width: 560px) {
+  .v-fb { bottom: 4.5rem; padding: .75rem .8rem .8rem; }
+  .v-fb-face span { font-size: 1.55rem; }
+  .v-fb-face small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .v-fb, .v-fb-thanks span, .v-fb-face span { animation: none; transition: none; } }

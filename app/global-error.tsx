@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/client/error-reporter";
 import { StatusScreen } from "./_components/status-screen";
 
 /** Last resort: replaces the root layout, so it brings its own <html> and <body>. */
 export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportError(error, { mechanism: "global error boundary", level: "fatal" });
   }, [error]);
   return (
     <html lang="en">

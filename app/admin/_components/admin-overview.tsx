@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { adminAnalytics, adminOverview, COST_PER_GB, GB_PER_HOUR } from "@/lib/cms/stats";
+import { errorSummary } from "@/lib/errors/queries";
 import { openRouterStats } from "@/lib/openrouter";
 import { StackChart } from "./stack-chart";
 import { TitleRows } from "./title-rows";
@@ -20,7 +21,7 @@ function Stat({ label, href, total, published }: { label: string; href: string; 
 
 /** Dashboard: counts plus the newest titles. Server-rendered. */
 export async function AdminOverview() {
-  const [o, days, or] = await Promise.all([adminOverview(), adminAnalytics(), openRouterStats()]);
+  const [o, days, or, errs] = await Promise.all([adminOverview(), adminAnalytics(), openRouterStats(), errorSummary().catch(() => null)]);
   const labels = days.map((d) => d.day);
   const one = (title: string, f: (d: (typeof days)[number]) => number, color: string, o2: { type?: "bar" | "area"; digits?: number; unit?: string; money?: boolean } = {}) => {
     const values = days.map(f);
@@ -34,9 +35,20 @@ export async function AdminOverview() {
   const PALETTE = ["#1a8cff", "#f5a623", "#8bc34a", "#ec4899", "#ff5a43", "#9a9a9a"];
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Movies" href="/admin/movies" {...o.movies} />
         <Stat label="TV shows" href="/admin/shows" {...o.shows} />
+        {errs && (
+          <div className="stat">
+            <h2 className="text-base">
+              <Link href="/admin/errors">Errors</Link>
+            </h2>
+            <strong style={errs.open ? { color: "#ff8a7a" } : undefined}>{errs.open}</strong>
+            <small>
+              open - {errs.new24} new, {errs.events24} events since yesterday
+            </small>
+          </div>
+        )}
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {one("Viewing activity", (d) => d.plays, "#8b5cf6", { type: "area", unit: "plays" })}

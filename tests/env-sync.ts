@@ -6,7 +6,7 @@ const root = join(__dirname, "..");
 const SKIP = new Set(["node_modules", ".next", "evo-engine", "tests", ".git", "drizzle"]);
 
 // NODE_ENV is set by the runtime, not configured by hand.
-const RUNTIME = new Set(["NODE_ENV"]);
+const RUNTIME = new Set(["NODE_ENV", "NEXT_RUNTIME"]);
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

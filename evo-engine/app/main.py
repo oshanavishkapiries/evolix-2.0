@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.api.routes import router as media_router, _repository, load_runtime_config
 from app.core.browser_pool import shutdown_pool
 from app.core.config import APP_NAME, settings
+from app.core.error_reporting import install as install_error_reporting
 
 logger = logging.getLogger("evo.main")
 
@@ -15,6 +16,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
+install_error_reporting()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):

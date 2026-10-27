@@ -467,3 +467,114 @@ export const evoSubtitleOwners = pgTable("evo_subtitle_owners", {
   subId: text("sub_id").primaryKey(),
   engineId: text("engine_id").notNull(),
 });
+
+// ---------------------------------------------------------------- Error tracking
+
+export const errorStatus = pgEnum("error_status", ["unresolved", "resolved", "ignored"]);
+
+/** One stack frame after source-map resolution. `inApp` is our own code (not node_modules or framework internals). */
+export type ErrorFrame = { fn: string; file: string; line: number | null; col: number | null; inApp: boolean; context?: { start: number; lines: string[] } };
+export type Breadcrumb = { t: number; type: "nav" | "click" | "fetch" | "console" | "log"; message: string; level?: "info" | "warning" | "error" };
+
+/** An issue groups every event with the same fingerprint (error type + normalised message + top in-app frame). */
+export const errorIssues = pgTable(
+  "error_issues",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fingerprint: text("fingerprint").notNull().unique(),
+    /** "server", "client" or "engine". */
+    source: text("source").notNull(),
+    type: text("type").notNull(),
+    message: text("message").notNull(),
+    /** Where it happened: the top in-app frame ("fn (file:line)") or the route. */
+    culprit: text("culprit").notNull().default(""),
+    level: text("level").notNull().default("error"),
+    status: errorStatus("status").notNull().default("unresolved"),
+    count: integer("count").notNull().default(0),
+    firstSeen: timestamp("first_seen", { withTimezone: true }).notNull().defaultNow(),
+    lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    firstRelease: text("first_release"),
+    lastRelease: text("last_release"),
+    /** Last alert sent for this issue, so a noisy issue does not flood the inbox. */
+    alertedAt: timestamp("alerted_at", { withTimezone: true }),
+  },
+  (t) => [index("error_issues_status_last_idx").on(t.status, t.lastSeen)],
+);
+
+/** A sample occurrence with its full context. Only the newest events per issue are kept (see lib/errors/store.ts). */
+export const errorEvents = pgTable(
+  "error_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => errorIssues.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    message: text("message").notNull(),
+    stack: text("stack").notNull().default(""),
+    frames: jsonb("frames").$type<ErrorFrame[]>().notNull().default(sql`'[]'::jsonb`),
+    url: text("url"),
+    method: text("method"),
+    route: text("route"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userEmail: text("user_email"),
+    userAgent: text("user_agent"),
+    release: text("release"),
+    environment: text("environment"),
+    breadcrumbs: jsonb("breadcrumbs").$type<Breadcrumb[]>().notNull().default(sql`'[]'::jsonb`),
+    /** Everything else: tags, scrubbed request headers, digest, component stack, runtime. */
+    context: jsonb("context").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  },
+  (t) => [index("error_events_issue_created_idx").on(t.issueId, t.createdAt), index("error_events_user_idx").on(t.userId)],
+);
+
+/** Exact per-day counts (events are sampled, these are not), for trend charts. Days are Asia/Colombo. */
+export const errorIssueDays = pgTable(
+  "error_issue_days",
+  {
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => errorIssues.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.issueId, t.day] })],
+);
+
+// ---------------------------------------------------------------- Player feedback
+
+/** Emoji survey answers from the player (1 = terrible ... 5 = loved it), with the playback context they were given in. */
+export const playerFeedback = pgTable(
+  "player_feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    movieId: uuid("movie_id").references(() => movies.id, { onDelete: "set null" }),
+    episodeId: uuid("episode_id").references(() => episodes.id, { onDelete: "set null" }),
+    /** Stable title key ("movie:<uuid>", "tv:<tmdbId>:<s>:<e>"...), also for titles not in the catalog yet. */
+    mediaKey: text("media_key").notNull(),
+    title: text("title").notNull(),
+    rating: integer("rating").notNull(),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    comment: text("comment").notNull().default(""),
+    positionSeconds: integer("position_seconds"),
+    durationSeconds: integer("duration_seconds"),
+    quality: text("quality"),
+    /** Times playback stalled (buffering) during this viewing before the answer. */
+    stalls: integer("stalls"),
+    /** What opened the survey: "pause", "ended" or "playing". */
+    trigger: text("trigger"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("player_feedback_rating_chk", sql`${t.rating} between 1 and 5`),
+    index("player_feedback_created_idx").on(t.createdAt),
+    index("player_feedback_user_created_idx").on(t.userId, t.createdAt),
+    index("player_feedback_media_idx").on(t.mediaKey),
+  ],
+);

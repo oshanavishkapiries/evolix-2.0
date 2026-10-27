@@ -6,7 +6,7 @@ export default async function AdminSettingsPage() {
   return (
     <>
       <PageHeader title="Settings" />
-      <PlatformSettings requireApproval={await getSetting("requireApproval")} />
+      <PlatformSettings requireApproval={await getSetting("requireApproval")} playerFeedback={await getSetting("playerFeedback")} />
     </>
   );
 }

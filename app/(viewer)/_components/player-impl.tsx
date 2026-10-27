@@ -23,6 +23,7 @@ import { PlayerBanner, useQualityAdvisor } from "./player-banner";
 import { useSinhalaSubtitles, type SinhalaTarget } from "./sinhala-subtitles";
 import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 import { DualSubtitles, useDualSubtitleSelection, type SubtitleSlot, type SubtitleStyles } from "./dual-subtitles";
+import { usePlayerFeedback } from "./player-feedback";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
 /** Shown over the video while paused, Netflix-style. */
@@ -253,6 +254,12 @@ export default function PlayerImpl({
   const noteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(noteTimer.current), []);
   const advisor = useQualityAdvisor({ active: started, current: nowQuality, offered: offeredQualities, readMbps, onSwitch: switchTo });
+  const feedback = usePlayerFeedback({
+    mediaKey,
+    title,
+    track,
+    context: () => ({ position: player.current?.state.currentTime ?? 0, duration: player.current?.state.duration ?? 0, quality: nowQuality() }),
+  });
 
   if (failed && healable && !healChecked) {
     return (
@@ -298,7 +305,10 @@ export default function PlayerImpl({
       }}
       onWaiting={() => {
         const st = player.current?.state;
-        if (started && st && !st.seeking && !st.paused) advisor.noteStall();
+        if (started && st && !st.seeking && !st.paused) {
+          advisor.noteStall();
+          feedback.onStall();
+        }
       }}
       onProviderChange={(provider: MediaProviderAdapter | null) => {
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
@@ -313,19 +323,26 @@ export default function PlayerImpl({
       }}
       onTimeUpdate={() => {
         if (Date.now() - lastSave.current >= SAVE_EVERY_MS) save();
+        const st = player.current?.state;
+        feedback.onTime(Boolean(st?.playing && !st.waiting && !st.seeking));
       }}
-      onPlay={resumed}
+      onPlay={() => {
+        resumed();
+        feedback.onPlay();
+      }}
       onSeeking={resumed}
       onPause={() => {
         save();
         const s = player.current?.state;
         if (s?.ended || s?.seeking) return;
+        feedback.onPause();
         clearTimeout(pauseTimer.current);
         pauseTimer.current = setTimeout(() => setPaused(true), PAUSE_OVERLAY_DELAY_MS);
       }}
       onEnded={() => {
         resumed();
         save();
+        feedback.onEnded();
       }}
       onError={() => {
         if (attempt + 1 < candidates.length) setAttempt(attempt + 1);
@@ -349,7 +366,8 @@ export default function PlayerImpl({
       {info && paused && !subOpen && <PauseOverlay info={info} />}
       {!subOpen && si.banner}
       {!subOpen && startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
-      {!subOpen && advisor.advice && (
+      {!subOpen && feedback.survey}
+      {!subOpen && !feedback.survey && advisor.advice && (
         <PlayerBanner
           place="side"
           title={advisor.advice.dir === "up" ? "Fast connection detected" : "Playback is struggling"}

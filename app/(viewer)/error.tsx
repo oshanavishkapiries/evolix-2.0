@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { reportError } from "@/lib/client/error-reporter";
 
 export default function ViewerError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportError(error, { mechanism: "viewer error boundary" });
   }, [error]);
   return (
     <div className="v-empty v-status" role="alert">

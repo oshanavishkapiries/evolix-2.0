@@ -25,6 +25,12 @@ const schema = z.object({
   EVO_SECRET_TOKEN: z.string().default(""),
   // Optional: admin dashboard OpenRouter analytics. /activity needs a management key (openrouter.ai/settings/management-keys).
   OPENROUTER_API_KEY: z.string().default(""),
+  // Error tracking: public base URL for links in alerts, who gets alert emails (default: ADMIN_EMAILS),
+  // "off" to stop alert emails, and an optional Discord/Slack-compatible webhook.
+  APP_URL: z.string().default(""),
+  ERROR_ALERT_EMAILS: z.string().default(""),
+  ERROR_ALERT_EMAIL: z.string().default("on"),
+  ERROR_ALERT_WEBHOOK: z.string().default(""),
 });
 
 function load() {

@@ -2,6 +2,7 @@
 
 import React, { Component, type ReactNode } from "react";
 import Link from "next/link";
+import { reportError } from "@/lib/client/error-reporter";
 
 type Props = {
   children: ReactNode;
@@ -26,6 +27,7 @@ export class SafePlayerBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("SafePlayerBoundary caught error:", error, errorInfo);
+    reportError(error, { mechanism: "player boundary", componentStack: errorInfo.componentStack ?? undefined });
   }
 
   reset = () => {

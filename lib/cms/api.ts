@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/admin";
 import { fail, parseBody } from "@/lib/auth/http";
+import { captureException } from "@/lib/errors/capture";
 import { TmdbError } from "@/lib/tmdb";
 import { CATALOG_TAG } from "@/lib/viewer/cache";
 
@@ -26,6 +27,7 @@ export function adminRoute<P extends Record<string, string> = Record<string, nev
       if (code === "23505") return fail(409, "CONFLICT", "A record with these unique values already exists");
       if (code === "23503") return fail(404, "NOT_FOUND", "Referenced record does not exist");
       console.error("admin route error", e instanceof Error ? e.message : e);
+      await captureException(e, { url: req.nextUrl.pathname + req.nextUrl.search, method: req.method, route: req.nextUrl.pathname, headers: req.headers, tags: { mechanism: "adminRoute" } });
       return fail(500, "INTERNAL", "Unexpected server error");
     }
   };

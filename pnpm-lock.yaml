@@ -196,6 +196,9 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
+      source-map-js:
+        specifier: 1.2.2
+        version: 1.2.2
       vidstack:
         specifier: ^1.15.7
         version: 1.15.7

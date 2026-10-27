@@ -20,6 +20,10 @@ class Settings(BaseSettings):
 
     # Where finished cache jobs are reported (Next.js POST /api/evo/complete). Empty = no webhook.
     EVO_WEBHOOK_URL: str = ""
+    # Where errors are reported (the app's POST /api/errors). Empty = derived from EVO_WEBHOOK_URL's host.
+    ERROR_REPORT_URL: str = ""
+    # Name shown on reported errors; empty = the host name.
+    ENGINE_NAME: str = ""
 
     # Resource limits: extraction launches a headless browser, downloads/uploads move whole films.
     MAX_CONCURRENT_EXTRACTIONS: int = 2

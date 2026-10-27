@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { otps } from "@/db/schema";
 import { env } from "@/lib/env";
 import { sendOtpEmail } from "./mailer";
+import { captureException } from "@/lib/errors/capture";
 
 export type OtpPurpose = "verify_email" | "reset_password";
 
@@ -61,6 +62,7 @@ export async function issueOtp(
     await sendOtpEmail(email, code, purpose);
   } catch (err) {
     console.error("OTP email failed:", err instanceof Error ? err.message : "unknown");
+    await captureException(err, { level: "warning", route: "otp email", tags: { mechanism: "otpEmail", purpose } });
     // In dev with OTP logging the code is still usable, so do not fail the flow.
     if (!env.devLogOtp) return { status: "mail_failed" };
   }

@@ -6,6 +6,8 @@ import { appSettings } from "@/db/schema";
 export const SETTINGS = {
   /** On: signed-in users can browse but cannot watch until an admin approves their account. */
   requireApproval: { default: false },
+  /** On: the player occasionally asks viewers to rate their watching experience with an emoji. */
+  playerFeedback: { default: true },
 } as const;
 export type SettingKey = keyof typeof SETTINGS;
 
