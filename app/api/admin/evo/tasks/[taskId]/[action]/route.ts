@@ -29,7 +29,7 @@ async function moveTask(taskId: string) {
   try {
     const out = await startIngest(input, { avoidEngine: row.engineId });
     if (out.kind === "not_found") return fail(404, "NOT_FOUND", out.message);
-    if (out.kind === "error") return fail(out.status === 503 ? 503 : 502, "ENGINE_REFUSED", String(out.body.error ?? "Could not start the job"));
+    if (out.kind === "error") return fail(out.status === 503 ? 503 : 502, "ENGINE_REFUSED", String(out.body.detail ?? out.body.error ?? "Could not start the job"));
     return json(200, { taskId: out.data.task_id, engineId: out.engineId });
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");

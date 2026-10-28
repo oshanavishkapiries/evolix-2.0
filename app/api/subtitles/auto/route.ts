@@ -6,6 +6,8 @@ import { subtitleRoute } from "@/lib/subtitles/http";
 import { titleTarget } from "@/lib/subtitles/schema";
 import { listTracks, publicTrack, resolveParent } from "@/lib/subtitles/store";
 import { downloadTrack, HiddenSubtitleError } from "@/lib/subtitles/service";
+import { captureException } from "@/lib/errors/capture";
+import { PROBLEMS } from "@/lib/evo/problems";
 
 /** Titles with no usable automatic subtitle are not searched again for a while; the picker still searches on demand. */
 const NO_AUTO_MS = 10 * 60_000;
@@ -34,13 +36,14 @@ export const POST = subtitleRoute(async (req, userId) => {
     remember(titleKey, "No automatic English subtitles were found");
     return json(200, { track: null, needsChoice: true, message: "No automatic English subtitles were found" });
   }
-  let message = "All automatic subtitle downloads failed";
+  let message: string = PROBLEMS.SUBTITLES.message;
   for (const choice of choices.slice(0, 5)) {
     try {
       const track = await downloadTrack(t, engine, choice.ref, "en", "English", "auto");
       return json(200, { track: publicTrack(track, userId) });
     } catch (e) {
-      message = e instanceof Error ? e.message : message;
+      if (e instanceof HiddenSubtitleError) message = e.message;
+      else await captureException(e, { url: req.nextUrl.pathname, method: req.method, headers: req.headers, level: "warning", tags: { provider: "opensubtitles", step: "auto" } });
       // A rejected library origin may have downloaded correctly; continue to the next release.
       if (!(e instanceof HiddenSubtitleError)) break;
     }

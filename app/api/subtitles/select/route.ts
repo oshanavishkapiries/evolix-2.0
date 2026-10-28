@@ -5,7 +5,9 @@ import { engineById } from "@/lib/evo/client";
 import { subtitleRoute } from "@/lib/subtitles/http";
 import { readCandidate } from "@/lib/subtitles/candidates";
 import { publicTrack } from "@/lib/subtitles/store";
-import { downloadTrack } from "@/lib/subtitles/service";
+import { downloadTrack, HiddenSubtitleError } from "@/lib/subtitles/service";
+import { captureException } from "@/lib/errors/capture";
+import { PROBLEMS } from "@/lib/evo/problems";
 import { CATALOG_TAG } from "@/lib/viewer/cache";
 
 export const POST = subtitleRoute(async (req, userId) => {
@@ -19,5 +21,10 @@ export const POST = subtitleRoute(async (req, userId) => {
     const track = await downloadTrack(choice.target, engine, choice.providerRef, choice.lang, choice.label, "opensubtitles");
     revalidateTag(CATALOG_TAG, { expire: 0 });
     return json(200, { track: publicTrack(track, userId) });
-  } catch (e) { return json(422, { message: e instanceof Error ? e.message : "Could not download this subtitle" }); }
+  } catch (e) {
+    // A hidden release already has a plain message; anything else is provider trouble the viewer cannot act on.
+    if (e instanceof HiddenSubtitleError) return json(422, { code: "SUBTITLES", message: e.message });
+    await captureException(e, { url: req.nextUrl.pathname, method: req.method, headers: req.headers, level: "warning", tags: { provider: "opensubtitles" } });
+    return json(422, { code: "SUBTITLES", title: PROBLEMS.SUBTITLES.title, message: PROBLEMS.SUBTITLES.message });
+  }
 }, 10);

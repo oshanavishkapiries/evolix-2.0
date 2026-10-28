@@ -4,6 +4,7 @@ import { subtitles } from "@/db/schema";
 import type { WatchSubtitle } from "@/lib/viewer/watch";
 import { ensureEpisode, ensureMovie } from "./ensure";
 import { promote } from "./promote";
+import { SINHALA_FAILED } from "./problems";
 import { visibleTo } from "@/lib/subtitles/store";
 
 export type SinhalaTarget = { tmdbId: number; mediaType: "movie" | "tv"; season?: number; episode?: number; sourceTrackId?: string };
@@ -56,7 +57,10 @@ export async function settleSinhala(t: SinhalaTarget, engine: Record<string, unk
     return { state: "failed", message: "The subtitles could not be registered" };
   }
   if (state === "running" || state === "failed" || state === "unavailable" || state === "none") {
-    return { state, message: typeof engine.message === "string" ? engine.message : undefined, progress: (engine.progress as SinhalaState["progress"]) ?? null };
+    const raw = typeof engine.message === "string" ? engine.message : undefined;
+    // A failed job's text names providers and HTTP codes; viewers get one plain sentence (the wait-30-seconds notice is already plain).
+    const message = state === "failed" && !/try again in \d+ seconds/i.test(raw ?? "") ? SINHALA_FAILED : raw;
+    return { state, message, progress: (engine.progress as SinhalaState["progress"]) ?? null };
   }
   return { state: "failed", message: "Unexpected answer from the subtitle service" };
 }

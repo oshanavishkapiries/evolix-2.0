@@ -79,7 +79,7 @@ def trigger_media_ingestion(
     background_tasks: BackgroundTasks,
 ):
     """Triggers on-demand media stream resolution, quality selection, instant HLS streaming, and CDN upload."""
-    task = _service_instance.create_task(
+    task, created = _service_instance.create_or_join(
         tmdb_id=request.tmdb_id,
         media_type=request.media_type,
         requested_quality=request.quality,
@@ -92,10 +92,11 @@ def trigger_media_ingestion(
         imdb_id=request.imdb_id,
     )
     if task.status == IngestStatus.PENDING and not _service_instance.enqueue(task.task_id):
-        task.status = IngestStatus.FAILED
-        task.message = "Engine is busy, try again shortly"
-        _repository.save(task)
-        raise HTTPException(status_code=503, detail="Engine is busy, try again shortly", headers={"Retry-After": "30"})
+        # A refused request leaves no trace: a FAILED row per "busy" answer would pile up as every viewer retries.
+        # A task that already existed was joined, not created: it is already waiting, so it keeps its place.
+        if created:
+            _repository.delete_task(task.task_id)
+            raise HTTPException(status_code=503, detail="Engine is busy, try again shortly", headers={"Retry-After": "30"})
 
     return IngestResponse(
         task_id=task.task_id,

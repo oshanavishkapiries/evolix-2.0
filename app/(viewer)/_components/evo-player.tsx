@@ -8,6 +8,8 @@ import { SafePlayerBoundary } from "./safe-player-boundary";
 import type { PauseInfo, ProgressTarget } from "./player-impl";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { normalizeSource } from "@/lib/viewer/providers";
+import { networkProblem, problemFromBody, problemOf, readProblem, type ViewerProblem } from "@/lib/client/problem";
+import { busyDelay, MAX_BUSY_RETRIES } from "@/lib/evo/problems";
 
 type Props = {
   tmdbId: number;
@@ -67,13 +69,42 @@ export function EvoPlayer({
   const [, setStatus] = useState<TaskStatus>("PENDING");
   const [progressPct, setProgressPct] = useState(0);
   const [message, setMessage] = useState("Loading stream (720p)...");
-  const [error, setError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ViewerProblem | null>(null);
+  /** Seconds until the next automatic try while the servers are busy (null when not waiting). */
+  const [retryIn, setRetryIn] = useState<number | null>(null);
+  const busyTries = useRef(0);
+  const [busyTry, setBusyTry] = useState(0); // the same count, for the screen
+  const countdown = useRef<ReturnType<typeof setInterval>>(undefined);
+  const startAgain = useRef<(quality: string, automatic: boolean) => void>(() => {});
   const pollTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const stopCountdown = useCallback(() => {
+    clearInterval(countdown.current);
+    setRetryIn(null);
+  }, []);
+  const waitThenRetry = useCallback((seconds: number, quality: string) => {
+    clearInterval(countdown.current);
+    let left = seconds;
+    setRetryIn(left);
+    countdown.current = setInterval(() => {
+      left -= 1;
+      if (left > 0) return setRetryIn(left);
+      clearInterval(countdown.current);
+      setRetryIn(null);
+      startAgain.current(quality, true);
+    }, 1000);
+  }, []);
 
   // Trigger ingestion with 720p default
   const startIngest = useCallback(
-    async (qualityToUse: string = "720p") => {
-      setError(null);
+    async (qualityToUse: string = "720p", automatic = false) => {
+      stopCountdown();
+      // A viewer pressing the button starts a fresh set of busy retries; our own retries use up the same set.
+      if (!automatic) {
+        busyTries.current = 0;
+        setBusyTry(0);
+      }
+      setProblem(null);
       setStage("INGESTING");
       setStatus("PENDING");
       setProgressPct(0);
@@ -93,10 +124,24 @@ export function EvoPlayer({
         });
 
         if (!res.ok) {
-          const errJson = await res.json().catch(() => ({ error: "Failed to queue stream" }));
-          throw new Error(errJson.error || errJson.message || `HTTP ${res.status}`);
+          const failure = await readProblem(res);
+          if (failure.code === "BUSY") {
+            if (busyTries.current < MAX_BUSY_RETRIES) {
+              // Busy is not an error: stay on a calm waiting scene and come back by ourselves, a little later each time.
+              setProblem(failure);
+              waitThenRetry(busyDelay(failure.retryAfter, busyTries.current), qualityToUse);
+              busyTries.current += 1;
+              setBusyTry(busyTries.current);
+              return;
+            }
+            failure.message = "It’s still very busy. Please try again in a few minutes.";
+          }
+          setProblem(failure);
+          setStatus("FAILED");
+          return;
         }
 
+        busyTries.current = 0;
         const data = await res.json();
 
         // Merge extracted subtitles if available
@@ -141,13 +186,24 @@ export function EvoPlayer({
         setTaskId(data.task_id);
         setStatus(data.status ?? "PENDING");
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Connection failed";
-        setError(msg);
+        // fetch itself failing (a TypeError) means the request never got out; anything else is a bug on our side.
+        setProblem(err instanceof TypeError ? networkProblem() : problemOf("UNKNOWN"));
         setStatus("FAILED");
       }
     },
-    [tmdbId, mediaType, season, episode]
+    [tmdbId, mediaType, season, episode, stopCountdown, waitThenRetry]
   );
+  useEffect(() => {
+    startAgain.current = startIngest;
+  }, [startIngest]);
+
+  // Offline: carry on by ourselves the moment the connection is back.
+  useEffect(() => {
+    if (problem?.code !== "OFFLINE") return;
+    const back = () => startIngest("720p");
+    window.addEventListener("online", back);
+    return () => window.removeEventListener("online", back);
+  }, [problem, startIngest]);
 
   // Auto-start ingest on mount if no active source
   useEffect(() => {
@@ -160,18 +216,21 @@ export function EvoPlayer({
   useEffect(() => {
     if (!taskId || activeSource || stage !== "INGESTING") return;
 
+    let misses = 0;
     const poll = async () => {
       try {
         const res = await fetch(`/api/evo/status/${taskId}`, { cache: "no-store" });
         if (!res.ok) {
-          // The engine that owns this task is down: stop waiting and offer the normal retry (which picks a healthy engine).
-          const body = await res.json().catch(() => ({}));
-          if (body.code === "ENGINE_UNAVAILABLE") {
-            setError("The server preparing this video is unavailable right now. Try again to continue on another one.");
+          const failure = await readProblem(res);
+          // The engine that owns this task is down or no longer knows it: stop waiting and offer the normal retry
+          // (which picks a healthy engine). Anything else may pass, so it is tried again a few times first.
+          if (failure.code === "ENGINE_UNAVAILABLE" || failure.code === "NO_SOURCE" || ++misses >= 6) {
+            setProblem(failure);
             return;
           }
           throw new Error(`HTTP ${res.status}`);
         }
+        misses = 0;
 
         const data = await res.json();
         setStatus(data.status);
@@ -216,7 +275,7 @@ export function EvoPlayer({
         }
 
         if (data.status === "FAILED") {
-          setError(data.message || "Unable to load stream");
+          setProblem(problemFromBody(data));
           return;
         }
 
@@ -233,7 +292,10 @@ export function EvoPlayer({
 
   // Clean up poll timer on unmount
   useEffect(() => {
-    return () => clearTimeout(pollTimer.current);
+    return () => {
+      clearTimeout(pollTimer.current);
+      clearInterval(countdown.current);
+    };
   }, []);
 
   // 1. Playback stage
@@ -262,18 +324,20 @@ export function EvoPlayer({
   }
 
   // 2. Connecting to the stream
+  const waiting = problem?.code === "BUSY" && retryIn !== null;
   return (
     <PlayerStatus
       backdropPath={backdropPath}
-      kicker={error ? undefined : "On demand"}
-      title={error ? "Couldn’t start the stream" : title}
-      message={error ?? (message || "Connecting to the stream…")}
-      progress={error ? undefined : progressPct}
-      error={Boolean(error)}
+      kicker={waiting ? "Busy" : problem ? undefined : "On demand"}
+      title={problem ? problem.title : title}
+      message={waiting ? `${problem.message} Trying again in ${retryIn}s…` : problem ? problem.message : (message || "Connecting to the stream…")}
+      note={waiting ? `Retry ${busyTry} of ${MAX_BUSY_RETRIES}` : problem?.ref ? `Reference: ${problem.ref}` : undefined}
+      progress={problem ? undefined : progressPct}
+      error={Boolean(problem) && !waiting}
     >
-      {error && (
+      {problem && (
         <>
-          <button type="button" className="v-btn v-btn-primary" onClick={() => startIngest("720p")}>Try again</button>
+          <button type="button" className="v-btn v-btn-primary" onClick={() => startIngest("720p")}>{waiting ? "Try now" : "Try again"}</button>
           <Link href={backHref} className="v-btn">Back</Link>
         </>
       )}

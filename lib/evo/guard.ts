@@ -27,3 +27,8 @@ export function allow(key: string, max: number, windowMs: number): boolean {
   if (hits.size > 5000) for (const [k, v] of hits) if (!v.some((t) => now - t < windowMs)) hits.delete(k);
   return true;
 }
+
+/** Gives back the latest hit for `key`: a request that was turned away for a reason that is not the viewer's fault (busy servers) must not use up their allowance. */
+export function release(key: string) {
+  hits.get(key)?.pop();
+}

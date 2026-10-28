@@ -161,7 +161,10 @@ class IngestService:
             if task.task_id not in self._cancelled:
                 self._cache_stage(task, stream)
 
-    def create_task(
+    def create_task(self, *args, **kwargs) -> IngestTask:
+        return self.create_or_join(*args, **kwargs)[0]
+
+    def create_or_join(
         self,
         tmdb_id: int,
         media_type: MediaType = MediaType.MOVIE,
@@ -173,7 +176,8 @@ class IngestService:
         characters: Optional[List[str]] = None,
         title: Optional[str] = None,
         imdb_id: Optional[str] = None,
-    ) -> IngestTask:
+    ) -> tuple[IngestTask, bool]:
+        """Returns the job for this title and quality, and whether it was just created (False: an existing job was joined)."""
         with self._create_lock:
             # Join a job that is already done or in flight for this exact media & quality.
             existing = self.repository.get_by_tmdb_id(
@@ -185,12 +189,12 @@ class IngestService:
             )
             if existing:
                 if existing.status == IngestStatus.COMPLETED and existing.result_url:
-                    return existing
+                    return existing, False
                 # A streaming task whose CDN copy died is not reused: a new job retries the cache.
                 if existing.status == IngestStatus.STREAMING and existing.stream_url and not existing.cache_failed:
-                    return existing
+                    return existing, False
                 if existing.status in [IngestStatus.PENDING, IngestStatus.EXTRACTING, IngestStatus.DOWNLOADING, IngestStatus.UPLOADING]:
-                    return existing
+                    return existing, False
 
             task = IngestTask(
                 task_id=str(uuid.uuid4()),
@@ -207,7 +211,7 @@ class IngestService:
             )
             self.repository.save(task)
             self._event(task, "request", "ok", f"{media_type.value} tmdb {tmdb_id}" + (f" S{season}E{episode}" if season is not None else "") + f" · asked {requested_quality}")
-            return task
+            return task, True
 
     def get_task(self, task_id: str) -> Optional[IngestTask]:
         return self.repository.get_by_id(task_id)

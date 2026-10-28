@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
+import { networkProblem, problemFromBody, problemText } from "@/lib/client/problem";
 import { normalizeSource } from "@/lib/viewer/providers";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import type { PauseInfo, ProgressTarget } from "./player-impl";
@@ -84,13 +85,13 @@ export function QualityPlayer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tmdbId, mediaType, quality: q, season, episode }),
         });
-        const task = (await res.json()) as { task_id?: string; error?: string; message?: string };
-        if (!res.ok || !task.task_id) throw new Error(task.error ?? task.message ?? "Could not start");
+        const task = (await res.json().catch(() => ({}))) as { task_id?: string };
+        if (!res.ok || !task.task_id) throw new Error(problemText(problemFromBody(task, res.status)));
 
         for (let i = 0; i < MAX_POLLS && live(); i++) {
           const stRes = await fetchWithRefresh(`/api/evo/status/${task.task_id}`, { cache: "no-store" });
           const st = (await stRes.json().catch(() => ({}))) as Status & { error?: string; code?: string };
-          if (!stRes.ok && st.code === "ENGINE_UNAVAILABLE") throw new Error("The server preparing this quality is unavailable right now. Try again to use another one.");
+          if (!stRes.ok && (st.code === "ENGINE_UNAVAILABLE" || st.code === "NO_SOURCE")) throw new Error(problemText(problemFromBody(st, stRes.status)));
           if (!live()) return;
           if (st.status === "COMPLETED" && st.result_url) {
             const got = st.resolved_quality ?? q;
@@ -101,13 +102,13 @@ export function QualityPlayer({
             router.refresh(); // pulls the new source row into the page data
             return;
           }
-          if (st.status === "FAILED" || st.cache_failed) throw new Error(st.message ?? "Could not prepare this quality");
+          if (st.status === "FAILED" || st.cache_failed) throw new Error(st.status === "FAILED" ? problemText(problemFromBody(st)) : "We couldn’t prepare this quality right now. Please try again in a few minutes.");
           setPrep({ quality: q, message: st.message ?? "Working…" });
           await new Promise((r) => setTimeout(r, POLL_MS));
         }
         if (live()) throw new Error("This is taking longer than expected. It keeps preparing in the background; try again in a few minutes.");
       } catch (e) {
-        if (live()) setPrep({ quality: q, message: "", error: e instanceof Error ? e.message : "Something went wrong" });
+        if (live()) setPrep({ quality: q, message: "", error: e instanceof TypeError ? networkProblem().message : e instanceof Error ? e.message : "Something went wrong on our side. Please try again." });
       }
     },
     [tmdbId, mediaType, season, episode, router],

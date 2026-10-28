@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='evolix-subtitle-tests-') as folder:
     sys.path.insert(0, str(engine))
     warnings.filterwarnings('ignore', category=DeprecationWarning)
     suite = unittest.defaultTestLoader.loadTestsFromNames([
-        'tests.test_subtitle_fallback', 'tests.test_subtitle_library',
+        'tests.test_subtitle_fallback', 'tests.test_subtitle_library', 'tests.test_busy_refusal',
         'tests.test_sinhala_on_demand', 'tests.test_ingest_events', 'tests.test_ffmpeg_args',
     ])
     result = unittest.TextTestRunner(verbosity=1).run(suite)
