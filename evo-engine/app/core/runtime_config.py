@@ -1,4 +1,5 @@
 """Settings an admin may change while the engine runs (stored in SQLite, applied onto `settings` in place)."""
+import re
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -10,7 +11,7 @@ class Spec:
     key: str
     label: str
     description: str
-    kind: str  # "int" | "float" | "choice"
+    kind: str  # "int" | "float" | "choice" | "text"
     min: float
     max: float
     live: bool = True
@@ -39,16 +40,26 @@ SPECS = [
     Spec("PROVIDER_MISS_THRESHOLD", "\"Not found\" answers before cool-down", "A provider that says \"title not found\" this many times in a row, without finding any title in between, is treated as broken. 0 = never.", "int", 0, 500),
     Spec("EXTRACTOR_ORDER", "Provider order", "Which stream provider is tried first. The other one is the fallback when it fails or is cooling down.", "choice", 0, 0, choices=EXTRACTOR_ORDERS),
     Spec("YTHD_DECRYPTOR_CACHE", "Cache YtHD decryptor", "1 = keep the decryptor script on disk by version instead of downloading it every attempt.", "int", 0, 1),
+    Spec("TRANSLATE_MODEL", "Translation model", "OpenRouter model that translates subtitles to Sinhala (e.g. google/gemini-3.1-flash-lite). Takes effect on the next job.", "text", 0, 0),
     Spec("TRANSLATE_DAILY_BUDGET_USD", "Daily translation budget (USD)", "0 = unlimited. Spend is always ledgered.", "float", 0, 100000),
 ]
 BY_KEY = {s.key: s for s in SPECS}
 DEFAULTS = {s.key: getattr(settings, s.key) for s in SPECS}
 
 
+# OpenRouter model ids look like "vendor/name" with optional ":variant" (":free", ":nitro").
+MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._:~-]*$")
+
+
 def coerce(key: str, value: Any):
     spec = BY_KEY.get(key)
     if spec is None:
         raise ValueError(f"Unknown setting {key}")
+    if spec.kind == "text":
+        text = value.strip() if isinstance(value, str) else ""
+        if len(text) > 120 or not MODEL_ID.match(text):
+            raise ValueError(f"{key} must be an OpenRouter model id such as vendor/model-name")
+        return text
     if spec.kind == "choice":
         if value not in [c[0] for c in spec.choices]:
             raise ValueError(f"{key} must be one of: " + ", ".join(c[0] for c in spec.choices))

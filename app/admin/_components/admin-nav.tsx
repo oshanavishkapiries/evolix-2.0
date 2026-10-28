@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BellIcon, FilmIcon, FlagIcon, MenuIcon, TvIcon } from "@/app/(viewer)/_components/icons";
-import { ActivityIcon, AnalyticsIcon, BugIcon, CdnIcon, FeedbackIcon, DashboardIcon, PipelineIcon, SettingsIcon, UsersIcon } from "./admin-icons";
+import { ActivityIcon, AnalyticsIcon, BugIcon, CdnIcon, FeedbackIcon, DashboardIcon, ModelIcon, PipelineIcon, SettingsIcon, UsersIcon } from "./admin-icons";
 
 const LINKS = [
   { href: "/admin", label: "Overview", icon: DashboardIcon, match: (p: string) => p === "/admin" },
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin/movies", label: "Movies", icon: FilmIcon, match: (p: string) => p.startsWith("/admin/movies") },
   { href: "/admin/shows", label: "TV shows", icon: TvIcon, match: (p: string) => p.startsWith("/admin/shows") },
   { href: "/admin/evo", label: "Evo pipeline", icon: PipelineIcon, match: (p: string) => p.startsWith("/admin/evo") },
+  { href: "/admin/openrouter", label: "OpenRouter", icon: ModelIcon, match: (p: string) => p.startsWith("/admin/openrouter") },
   { href: "/admin/cdn", label: "CDN files", icon: CdnIcon, match: (p: string) => p.startsWith("/admin/cdn") },
   { href: "/admin/activity", label: "Activity", icon: ActivityIcon, match: (p: string) => p.startsWith("/admin/activity") },
   { href: "/admin/feedback", label: "Feedback", icon: FeedbackIcon, match: (p: string) => p.startsWith("/admin/feedback") },

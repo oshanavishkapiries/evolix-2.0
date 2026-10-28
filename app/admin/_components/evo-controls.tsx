@@ -6,7 +6,7 @@ import { adminApi, errorText } from "@/lib/client/admin";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";
 
-type Setting = { key: string; label: string; description: string; kind: "int" | "float" | "choice"; min: number; max: number; choices: { value: string; label: string }[]; value: number | string; default: number | string; overridden: boolean };
+type Setting = { key: string; label: string; description: string; kind: "int" | "float" | "choice" | "text"; min: number; max: number; choices: { value: string; label: string }[]; value: number | string; default: number | string; overridden: boolean };
 type Queue = { paused: boolean; waiting_extraction: number; extracting: number; caching: number; queue_limit: number };
 
 const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
@@ -115,7 +115,7 @@ export function EvoControls({ engine }: { engine?: string }) {
                 </tr>
               </thead>
               <tbody>
-                {settings.map((s) => (
+                {settings.filter((s) => s.kind !== "text").map((s) => (
                   <tr key={s.key}>
                     <td>
                       <label htmlFor={s.key}>{s.label}</label>

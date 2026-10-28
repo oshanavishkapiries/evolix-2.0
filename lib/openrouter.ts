@@ -109,3 +109,27 @@ export async function openRouterStats(): Promise<OpenRouterStats> {
     return { ok: false, reason: "error", message: "Could not reach OpenRouter." };
   }
 }
+
+export type OrModel = { id: string; name: string; context: number; promptPer1M: number; completionPer1M: number };
+
+type RawModel = { id?: unknown; name?: unknown; context_length?: unknown; pricing?: { prompt?: unknown; completion?: unknown }; architecture?: { input_modalities?: unknown; output_modalities?: unknown } };
+
+const perMillion = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 1_000_000 * 1e6) / 1e6 : 0; // rounded: 0.0000001 * 1e6 is 0.09999999999999999
+};
+
+/** Models that read and write text, from OpenRouter's public catalogue (no key needed). Empty when it cannot be reached. */
+export async function openRouterModels(): Promise<OrModel[]> {
+  try {
+    const res = await fetch(`${BASE}/models`, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return [];
+    const rows = ((await res.json()) as { data?: RawModel[] }).data ?? [];
+    return rows
+      .filter((m) => typeof m.id === "string" && Array.isArray(m.architecture?.input_modalities) && (m.architecture.input_modalities as unknown[]).includes("text") && Array.isArray(m.architecture?.output_modalities) && (m.architecture.output_modalities as unknown[]).length === 1 && (m.architecture.output_modalities as unknown[])[0] === "text")
+      .map((m) => ({ id: m.id as string, name: typeof m.name === "string" ? m.name : (m.id as string), context: Number(m.context_length) || 0, promptPer1M: perMillion(m.pricing?.prompt), completionPer1M: perMillion(m.pricing?.completion) }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+  } catch {
+    return [];
+  }
+}
