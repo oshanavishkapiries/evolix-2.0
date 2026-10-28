@@ -24,7 +24,7 @@ import { useSinhalaSubtitles, type SinhalaTarget } from "./sinhala-subtitles";
 import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 import { DualSubtitles, useDualSubtitleSelection, type SubtitleSlot, type SubtitleStyles } from "./dual-subtitles";
 import { usePlayerFeedback } from "./player-feedback";
-import { libraryId, rankTracks, SubtitleLibraryBanner, SubtitleLibraryPicker, useSubtitleLibrary, useSubtitlePlays } from "./subtitle-library";
+import { libraryId, rankTracks, SubtitleLibraryBanner, SubtitleLibraryPicker, SubtitleSuggestion, useSubtitleLibrary, useSubtitlePlays } from "./subtitle-library";
 import { PENDING_ID } from "./sinhala-subtitles";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
@@ -90,8 +90,8 @@ export default function PlayerImpl({
   const defaultSub = (allSubtitles.find((s) => s.url && isSinhala(s.language)) ?? allSubtitles.find((s) => isEnglish(s.language)))?.id;
   const dual = useDualSubtitleSelection({ mediaKey, subtitles: allSubtitles, defaultId: defaultSub, generatedTrack: si.generatedTrack, requestSinhala: si.request, ready: !library.busy });
   const countSubtitlePlay = useSubtitlePlays();
-  const [manualPicker, setPicker] = useState<{ slot: SubtitleSlot; mode: "library" | "search" } | null>(null);
-  const picker = manualPicker ?? (library.needsChoice ? { slot: 0 as const, mode: "search" as const } : null);
+  // The picker never opens by itself: when no subtitle was found automatically, a side alert suggests it first.
+  const [picker, setPicker] = useState<{ slot: SubtitleSlot; mode: "library" | "search"; intro?: string } | null>(null);
   const [pendingTranslate, setPendingTranslate] = useState<{ slot: SubtitleSlot; id: string } | null>(null);
   const translatedRequest = useRef<typeof pendingTranslate>(null);
   const dismissLibraryChoice = library.dismiss;
@@ -165,6 +165,8 @@ export default function PlayerImpl({
   };
 
   const [subOpen, setSubOpen] = useState(false);
+  // Notification banners step aside while the viewer is busy in the subtitle panel or the picker.
+  const overlay = subOpen || Boolean(picker);
   const [subTab, setSubTab] = useState<SubTab>("tracks");
   const [subSlot, setSubSlot] = useState<SubtitleSlot>(0);
   // Client-only component (dynamic, ssr: false), so localStorage is safe to read here.
@@ -395,12 +397,18 @@ export default function PlayerImpl({
         ))}
       </MediaProvider>
       <DualSubtitles selection={dual.selection} styles={subStyles} mediaKey={mediaKey} />
-      {!subOpen && !picker && <SubtitleLibraryBanner busy={library.busy} />}
+      {!overlay && <SubtitleLibraryBanner busy={library.busy} />}
       {info && paused && !subOpen && <PauseOverlay info={info} />}
-      {!subOpen && si.banner}
-      {!subOpen && startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
-      {!subOpen && feedback.survey}
-      {!subOpen && !feedback.survey && advisor.advice && (
+      {!overlay && si.banner}
+      {!overlay && startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
+      {!overlay && feedback.survey}
+      {!overlay && !feedback.survey && !advisor.advice && library.needsChoice && (
+        <SubtitleSuggestion
+          onFind={() => setPicker({ slot: 0, mode: "search", intro: "We couldn’t find subtitles for this automatically. Pick one below, or upload your own." })}
+          onClose={dismissLibraryChoice}
+        />
+      )}
+      {!overlay && !feedback.survey && advisor.advice && (
         <PlayerBanner
           place="side"
           title={advisor.advice.dir === "up" ? "Fast connection detected" : "Playback is struggling"}
@@ -464,7 +472,7 @@ export default function PlayerImpl({
           notice={si.banner}
         />
       )}
-      {picker && <SubtitleLibraryPicker target={sinhala} tracks={allSubtitles} initialMode={picker.mode} message={library.needsChoice ? library.message : undefined} onClose={closePicker}
+      {picker && <SubtitleLibraryPicker target={sinhala} tracks={allSubtitles} currentId={dual.selection[picker.slot] ?? undefined} initialMode={picker.mode} intro={picker.intro} onClose={closePicker}
         onAdd={library.add} onPick={(s) => { if (s.language === "en" && libraryId(s.id)) setSourceTrackId(s.id); dual.select(picker.slot, s.id); closePicker(); }}
         onTranslate={(s) => { setSourceTrackId(s.id); setPendingTranslate({ slot: picker.slot, id: s.id }); closePicker(); }} />}
     </MediaPlayer>

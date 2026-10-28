@@ -5,8 +5,7 @@ import { fetchWithRefresh } from "@/lib/client/api";
 import type { WatchSubtitle } from "@/lib/viewer/watch";
 import type { SinhalaTarget } from "./sinhala-subtitles";
 import { PlayerBanner } from "./player-banner";
-import { PlayerStatus } from "./player-status";
-import { CloseIcon } from "./icons";
+import { CaptionsIcon, CheckIcon, CloseIcon, UploadIcon } from "./icons";
 
 export const libraryId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 export const sourceLabel = (s: WatchSubtitle) => ({ auto: "Auto", opensubtitles: "OpenSubtitles", upload: "Uploaded", translation: "Translation" }[s.source ?? "auto"]);
@@ -67,17 +66,28 @@ export function useSubtitleLibrary({ target, initial }: { target?: SinhalaTarget
 }
 
 type Candidate = { ref: string; release: string; downloads: number; rating: number | null; lang: string; fileName: string };
-export function SubtitleLibraryPicker({ target, tracks, onPick, onAdd, onClose, onTranslate, initialMode = "library", message }: {
+type Mode = "library" | "search" | "upload";
+const LANGUAGES = [["en", "English"], ["si", "Sinhala"], ["es", "Spanish"], ["fr", "French"], ["de", "German"], ["pt", "Portuguese"], ["it", "Italian"], ["ar", "Arabic"], ["ru", "Russian"], ["hi", "Hindi"]];
+const REPORTS = [["out_of_sync", "Out of sync"], ["wrong_language", "Wrong language"], ["wrong_movie", "Wrong movie"]];
+
+/**
+ * Choose, find or upload a subtitle. A side sheet in the same style as the subtitle settings panel, so the video
+ * stays visible on the left while the viewer picks.
+ */
+export function SubtitleLibraryPicker({ target, tracks, currentId, onPick, onAdd, onClose, onTranslate, initialMode = "library", intro }: {
   target?: SinhalaTarget;
   tracks: WatchSubtitle[];
+  /** The track showing in the slot being changed, marked as current. */
+  currentId?: string;
   onPick: (track: WatchSubtitle) => void;
   onAdd: (track: WatchSubtitle) => void;
   onClose: () => void;
   onTranslate: (track: WatchSubtitle) => void;
   initialMode?: "library" | "search";
-  message?: string;
+  /** A short explanation at the top, e.g. why the sheet was suggested. */
+  intro?: string;
 }) {
-  const [mode, setMode] = useState<"library" | "search" | "upload">(initialMode);
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [lang, setLang] = useState("en");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [busy, setBusy] = useState(false);
@@ -91,7 +101,7 @@ export function SubtitleLibraryPicker({ target, tracks, onPick, onAdd, onClose, 
     const escape = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); }
       if (e.key === "Tab") {
-        const nodes = [...(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, select, [tabindex="0"]') ?? [])];
+        const nodes = [...(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, select, summary, [tabindex="0"]') ?? [])];
         const index = nodes.indexOf(document.activeElement as HTMLElement);
         const next = e.shiftKey ? (index <= 0 ? nodes.length - 1 : index - 1) : (index + 1) % nodes.length;
         if (nodes[next]) { e.preventDefault(); nodes[next].focus(); }
@@ -109,27 +119,28 @@ export function SubtitleLibraryPicker({ target, tracks, onPick, onAdd, onClose, 
         const q = new URLSearchParams(Object.entries({ ...target, lang }).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
         const res = await fetchWithRefresh(`/api/subtitles/search?${q}`, { signal: ctrl.signal });
         const body = await res.json();
-        if (!res.ok) throw new Error(body.message ?? "Could not search subtitles");
+        if (!res.ok) throw new Error(body.message ?? "We couldn’t search for subtitles right now. Try again in a moment.");
         setCandidates(body.candidates);
-      } catch (e) { if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Search failed"); }
+      } catch (e) { if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "We couldn’t search for subtitles right now. Try again in a moment."); }
       finally { if (!ctrl.signal.aborted) setBusy(false); }
     };
     void search();
     return () => ctrl.abort();
   }, [mode, target, lang]);
+  const switchTo = (m: Mode) => { setMode(m); setError(""); setNote(""); };
   const accept = async (request: () => Promise<Response>) => {
     setBusy(true); setError("");
     try {
       const res = await request();
       const body = await res.json();
-      if (!res.ok || !body.track) throw new Error(body.message ?? "Could not load this subtitle");
+      if (!res.ok || !body.track) throw new Error(body.message ?? "That subtitle didn’t load. Try another one.");
       onAdd(body.track); onPick(body.track);
-    } catch (e) { setError(e instanceof Error ? e.message : "Subtitle request failed"); }
+    } catch (e) { setError(e instanceof Error ? e.message : "That subtitle didn’t load. Try another one."); }
     finally { setBusy(false); }
   };
   const feedback = async (trackId: string, action: "good" | "report", reason?: string) => {
     const res = await fetchWithRefresh("/api/subtitles/activity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trackId, action, reason }) }).catch(() => null);
-    setNote(res?.ok ? action === "good" ? "Thanks for your vote" : "Problem reported. Thank you." : "Could not save your feedback. Try again.");
+    setNote(res?.ok ? action === "good" ? "Thanks! That helps other viewers pick." : "Problem reported. Thank you." : "Could not save your feedback. Try again.");
   };
   const invite = async (trackId: string) => {
     try {
@@ -138,42 +149,127 @@ export function SubtitleLibraryPicker({ target, tracks, onPick, onAdd, onClose, 
       if (!res.ok) throw new Error(data.message ?? "Could not create an invitation");
       const link = new URL(window.location.href); link.searchParams.set("subtitleInvite", data.invite);
       await navigator.clipboard.writeText(link.toString());
-      setNote("Invitation copied. It expires in 7 days. Three successful viewers can promote this upload.");
+      setNote("Link copied. It works for 7 days. If three people watch with it, everyone can use your subtitle.");
     } catch (e) { setNote(e instanceof Error ? e.message : "Could not copy this invitation"); }
   };
+  const upload = (file: File | undefined) => {
+    if (!file || !target) return;
+    if (file.size > 2 * 1024 * 1024) return setError("That file is too big. Subtitles must be 2 MB or smaller.");
+    const form = new FormData();
+    Object.entries(target).forEach(([k, v]) => { if (v !== undefined) form.set(k, String(v)); });
+    form.set("file", file); form.set("language", lang);
+    void accept(() => fetchWithRefresh("/api/subtitles/upload", { method: "POST", body: form }));
+  };
+  const usable = tracks.filter((t) => t.url);
+  const tab = (m: Mode, label: string) => <button type="button" role="tab" aria-selected={mode === m} onClick={() => switchTo(m)}>{label}</button>;
   return (
-    <div className="v-sub-library-backdrop" onClick={onClose}>
-      <div ref={panel} className="v-sub-library" role="dialog" aria-modal="true" aria-label="Subtitle library" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        <header className="v-sub-head"><strong>Subtitle library</strong><button ref={first} className="v-bar-icon" aria-label="Close subtitle library" onClick={onClose}><CloseIcon size={18} /></button></header>
-        <nav className="v-sub-chips" aria-label="Subtitle options">
-          <button className="v-sub-chip" aria-pressed={mode === "library"} onClick={() => setMode("library")}>Stored tracks</button>
-          {target && <><button className="v-sub-chip" aria-pressed={mode === "search"} onClick={() => setMode("search")}>Find another subtitle</button><button className="v-sub-chip" aria-pressed={mode === "upload"} onClick={() => setMode("upload")}>Upload my own</button></>}
-        </nav>
-        {message && <p className="v-sub-note">{message}</p>}
-        {(mode === "search" || mode === "upload") && <label className="v-sub-field">Language<select aria-label="Subtitle language" value={lang} onChange={(e) => setLang(e.target.value)}>{[["en", "English"], ["si", "Sinhala"], ["es", "Spanish"], ["fr", "French"], ["de", "German"], ["pt", "Portuguese"], ["it", "Italian"], ["ar", "Arabic"], ["ru", "Russian"], ["hi", "Hindi"]].map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>}
-        {busy && <div className="v-sub-library-progress"><PlayerStatus title={mode === "search" ? "Finding subtitles…" : "Preparing subtitle…"} message="You can keep watching while this completes." /></div>}
-        {error && <p role="alert">{error}</p>}{note && <p role="status">{note}</p>}
-        {mode === "library" && <ul className="v-sub-library-list">{tracks.filter((t) => t.url).map((t) => <li key={t.id}>
-          <button className="v-btn v-btn-sm" onClick={() => onPick(t)}>{t.label} · {sourceLabel(t)}{t.visibility === "private" ? " · Private" : ""}</button>
-          {libraryId(t.id) && <div className="v-sub-chips">
-            {t.language === "en" && <button className="v-sub-chip" onClick={() => onTranslate(t)}>Translate to Sinhala</button>}
-            {t.canShare && t.visibility === "private" && <button className="v-sub-chip" onClick={() => void invite(t.id)}>Invite a viewer to try</button>}
-            <button className="v-sub-chip" onClick={() => void feedback(t.id, "good")}>Good subtitle</button>
-            <details><summary>Subtitle problem?</summary>{[["out_of_sync", "Out of sync"], ["wrong_language", "Wrong language"], ["wrong_movie", "Wrong movie"]].map(([reason, label]) => <button key={reason} className="v-sub-chip" onClick={() => void feedback(t.id, "report", reason)}>{label}</button>)}</details>
-          </div>}
-        </li>)}{!tracks.some((t) => t.url) && <li>No stored subtitles yet.</li>}</ul>}
-        {mode === "search" && !busy && <ul className="v-sub-library-list">{candidates.map((c) => <li key={c.ref}><button className="v-btn" onClick={() => void accept(() => fetchWithRefresh("/api/subtitles/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: c.ref }) }))}>{c.release || c.fileName}<small>{c.downloads} downloads{c.rating !== null ? ` · ${c.rating} rating` : ""}</small></button></li>)}{!candidates.length && <li>No subtitles found. Try another language or upload your own.</li>}</ul>}
-        {mode === "upload" && <div className="v-sub-field"><p className="v-sub-note">SRT or VTT, up to 2 MB. Your upload starts private.</p><input aria-label="Upload subtitle file" type="file" accept=".srt,.vtt" disabled={busy} onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file || !target) return;
-          if (file.size > 2 * 1024 * 1024) return setError("Subtitle must be at most 2 MB");
-          const form = new FormData();
-          Object.entries(target).forEach(([k, v]) => { if (v !== undefined) form.set(k, String(v)); });
-          form.set("file", file); form.set("language", lang);
-          void accept(() => fetchWithRefresh("/api/subtitles/upload", { method: "POST", body: form }));
-        }} /></div>}
+    <div className="v-sub-sheet-backdrop" onClick={onClose}>
+      <div ref={panel} className="v-sub-panel v-sub-sheet" data-open="true" role="dialog" aria-modal="true" aria-label="Subtitle library" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <header className="v-sub-head">
+          <div className="v-sub-tabs" role="tablist" aria-label="Subtitle options">
+            {tab("library", "Available")}
+            {target && <>{tab("search", "Find more")}{tab("upload", "Upload")}</>}
+          </div>
+          <button ref={first} type="button" className="v-bar-icon" aria-label="Close subtitle library" onClick={onClose}><CloseIcon size={18} /></button>
+        </header>
+        <div className="v-sub-body">
+          {intro && <div className="v-sub-callout"><CaptionsIcon size={18} /><p>{intro}</p></div>}
+          {mode !== "library" && (
+            <label className="v-sub-field">
+              <span className="v-sub-label">Language</span>
+              <select className="v-sub-select" aria-label="Subtitle language" value={lang} onChange={(e) => setLang(e.target.value)}>
+                {LANGUAGES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+              </select>
+            </label>
+          )}
+          {busy && <div className="v-sub-busy" role="status"><span className="v-spin" aria-hidden="true" />{mode === "search" ? "Searching subtitles…" : "Getting your subtitle ready…"}</div>}
+          {error && <p className="v-sub-msg" data-tone="error" role="alert">{error}</p>}
+          {note && <p className="v-sub-msg" role="status">{note}</p>}
+
+          {mode === "library" && (usable.length ? (
+            <ul className="v-sub-list">
+              {usable.map((t, i) => {
+                const current = t.id === currentId;
+                return (
+                  <li key={t.id} className="v-sub-item" data-current={current || undefined}>
+                    <button type="button" className="v-sub-item-main" aria-label={`Use ${t.label} (${sourceLabel(t)})`} aria-pressed={current} onClick={() => onPick(t)}>
+                      <span className="v-sub-item-title">{t.label}</span>
+                      <span className="v-sub-item-meta">
+                        <span className="v-sub-badge">{sourceLabel(t)}</span>
+                        {i === 0 && (t.score ?? 0) > 0 && <span className="v-sub-badge" data-tone="gold">Top rated</span>}
+                        {t.visibility === "private" && <span className="v-sub-badge">Only you</span>}
+                      </span>
+                      <span className="v-sub-item-use">{current ? <><CheckIcon size={16} />On</> : "Use"}</span>
+                    </button>
+                    {libraryId(t.id) && (
+                      <div className="v-sub-item-actions">
+                        {t.language === "en" && <button type="button" className="v-sub-link" onClick={() => onTranslate(t)}>Translate to Sinhala</button>}
+                        {t.canShare && t.visibility === "private" && <button type="button" className="v-sub-link" onClick={() => void invite(t.id)}>Share with a friend</button>}
+                        <button type="button" className="v-sub-link" onClick={() => void feedback(t.id, "good")}>Works well</button>
+                        <details className="v-sub-report">
+                          <summary className="v-sub-link">Report a problem</summary>
+                          <div className="v-sub-chips">{REPORTS.map(([reason, label]) => <button key={reason} type="button" className="v-sub-chip" onClick={() => void feedback(t.id, "report", reason)}>{label}</button>)}</div>
+                        </details>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="v-sub-empty">
+              <p>No subtitles for this title yet.</p>
+              {target && <button type="button" className="v-btn v-btn-primary v-btn-sm" onClick={() => switchTo("search")}>Find subtitles</button>}
+            </div>
+          ))}
+
+          {mode === "search" && !busy && (candidates.length ? (
+            <ul className="v-sub-list">
+              {candidates.map((c) => (
+                <li key={c.ref} className="v-sub-item">
+                  <button type="button" className="v-sub-item-main" aria-label={`Use ${c.release || c.fileName}`} onClick={() => void accept(() => fetchWithRefresh("/api/subtitles/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: c.ref }) }))}>
+                    <span className="v-sub-item-title">{c.release || c.fileName}</span>
+                    <span className="v-sub-item-meta">{c.downloads.toLocaleString()} downloads{c.rating !== null ? ` · rated ${c.rating}/10` : ""}</span>
+                    <span className="v-sub-item-use">Use</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : !error && (
+            <div className="v-sub-empty">
+              <p>Nothing found in this language. Try another language, or upload your own file.</p>
+              <button type="button" className="v-btn v-btn-sm" onClick={() => switchTo("upload")}>Upload a file</button>
+            </div>
+          ))}
+
+          {mode === "upload" && (
+            <label className="v-sub-drop" data-busy={busy || undefined}>
+              <UploadIcon size={22} />
+              <strong>Choose a subtitle file</strong>
+              <span>SRT or VTT, up to 2 MB. Only you can see it until others try it.</span>
+              <input aria-label="Upload subtitle file" type="file" accept=".srt,.vtt" disabled={busy} onChange={(e) => upload(e.target.files?.[0])} />
+            </label>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Shown instead of opening the picker by itself when no English subtitle could be found automatically: a small side
+ * alert the viewer can act on or ignore, like the quality suggestion.
+ */
+export function SubtitleSuggestion({ onFind, onClose }: { onFind: () => void; onClose: () => void }) {
+  return (
+    <PlayerBanner
+      place="side"
+      title="No subtitles found automatically"
+      text="Want subtitles? We can search more sources for you. It only takes a few seconds."
+      action="Find subtitles"
+      onAction={onFind}
+      onClose={onClose}
+    />
   );
 }
 

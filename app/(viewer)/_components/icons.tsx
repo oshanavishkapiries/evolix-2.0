@@ -53,6 +53,15 @@ export const EpisodesIcon = ({ size = 20, className }: P) => (
 export const SourcesIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><path d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" /></svg>
 );
+export const CheckIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+);
+export const UploadIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>
+);
+export const CaptionsIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3" /></svg>
+);
 export const CloseIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><path d="M6 6l12 12M18 6 6 18" /></svg>
 );
