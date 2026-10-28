@@ -262,6 +262,15 @@ class SubtitleService:
     def delete_vtt(self, sub_id: str) -> None:
         (self.cache_dir / f"{sub_id}.vtt").unlink(missing_ok=True)
 
+    def purge_translations(self) -> int:
+        """Forgets every cached Sinhala translation (`si_*.vtt`), so the next request translates again from the English
+        file. Fetched and uploaded tracks are left alone. Returns how many files were removed."""
+        n = 0
+        for f in self.cache_dir.glob("si_*.vtt"):
+            f.unlink(missing_ok=True)
+            n += 1
+        return n
+
     def save_vtt(self, sub_id: str, vtt: str) -> None:
         """Stores a generated track (e.g. a translation) so get_vtt() serves it like a fetched one."""
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=self.cache_dir, delete=False) as f:

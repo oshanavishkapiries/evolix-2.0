@@ -30,3 +30,24 @@ Admin -> OpenRouter -> Translation model. One choice, applied to every engine th
 Engines reject anything not shaped like `vendor/model`.
 
 A model change can change cost and quality: watch the warnings on a few titles after switching.
+
+## Starting over with the Sinhala subtitles
+
+Three places keep a translation, and all three must be emptied or the old (wrong) file comes back:
+
+1. **The engine's own cache**: `si_*.vtt` files. A request finds one and uploads it again without translating.
+   Admin -> Evo -> engine -> **Clear Sinhala cache** (per engine).
+2. **The CDN (Pixeldrain)**: the uploaded files.
+3. **The catalog**: `subtitles` rows with `language = 'si'`.
+
+Admin -> Evo -> engine -> **Restart engine** restarts one engine (`POST /api/v1/media/restart`). It needs a Docker
+restart policy to come back (`restart: unless-stopped` in `evo-engine/compose.yaml`; Coolify sets one). It is
+refused while jobs run unless forced, because running jobs are lost.
+
+## Model cost (measured on 99 real cues)
+
+| model | price in / out per 1M | cost | answers refused first time |
+|---|---|---|---|
+| google/gemini-3.1-flash-lite | $0.25 / $1.50 | $0.0045 | 0-1 |
+| google/gemini-2.5-flash-lite | $0.10 / $0.40 | $0.0015-0.0038 | 19-24, one cue left in English |
+| google/gemini-2.5-flash | $0.30 / $2.50 | $0.0079 | 2 |

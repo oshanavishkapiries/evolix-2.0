@@ -16,6 +16,7 @@ const scoped = (engine?: string) => (engine ? `?engine=${encodeURIComponent(engi
 /** Queue status with pause/resume, and the editable settings of one engine (the primary when `engine` is not given). */
 export function EvoControls({ engine }: { engine?: string }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const q = scoped(engine);
   const [queue, setQueue] = useState<Queue | null>(null);
   const [settings, setSettings] = useState<Setting[] | null>(null);
@@ -51,6 +52,56 @@ export function EvoControls({ engine }: { engine?: string }) {
     if (!res.ok) return toast.error(errorText(res));
     setQueue(res.data);
     toast.success(pause ? "Queue paused: running jobs finish, no new ones start" : "Queue resumed");
+  };
+
+  const restart = async () => {
+    const busyNow = queue ? queue.waiting_extraction + queue.extracting + queue.caching : 0;
+    const ok = await confirm({
+      title: "Restart this engine?",
+      body: (
+        <>
+          <p>The engine process stops and Docker starts it again, usually within a minute. Viewers who need it in that time see the &ldquo;busy&rdquo; message and retry by themselves.</p>
+          {busyNow > 0 && <p><strong>{busyNow} job(s) are running or waiting and will be lost.</strong></p>}
+          <p>It only comes back by itself if the container has a restart policy (compose.yaml has one; Coolify sets one by default).</p>
+        </>
+      ),
+      confirmLabel: "Restart",
+    });
+    if (!ok) return;
+    setBusy(true);
+    const res = await adminApi("POST", `/api/admin/evo/restart${q ? `${q}&` : "?"}force=1`);
+    if (!res.ok) {
+      setBusy(false);
+      return toast.error(errorText(res));
+    }
+    toast.success("Restarting…");
+    // Wait until it answers again (it first has to stop answering).
+    await new Promise((r) => setTimeout(r, 4000));
+    for (let i = 0; i < 30; i++) {
+      const up = await adminApi<{ data: Queue }>("GET", `/api/admin/evo/queue${q}`);
+      if (up.ok) {
+        setQueue(up.data);
+        setBusy(false);
+        return toast.success("The engine is back");
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    setBusy(false);
+    toast.error("The engine has not come back after 90 seconds. Check the container: it may have no restart policy.");
+  };
+
+  const clearSinhala = async () => {
+    const ok = await confirm({
+      title: "Clear this engine's Sinhala cache?",
+      body: "Every Sinhala subtitle it translated before is forgotten, so the next request translates again (with the model set under OpenRouter). Subtitles already saved on the CDN or in the catalog are not touched: remove those separately.",
+      confirmLabel: "Clear cache",
+    });
+    if (!ok) return;
+    setBusy(true);
+    const res = await adminApi<{ data: { removed: number } }>("DELETE", `/api/admin/evo/sinhala-cache${q}`);
+    setBusy(false);
+    if (!res.ok) return toast.error(errorText(res));
+    toast.success(`${res.data.removed} cached translation(s) removed`);
   };
 
   const save = async () => {
@@ -93,6 +144,12 @@ export function EvoControls({ engine }: { engine?: string }) {
           </span>
           <button type="button" className={btn} disabled={busy} onClick={() => setPaused(!queue.paused)}>
             {queue.paused ? "Resume" : "Pause"}
+          </button>
+          <button type="button" className={btn} disabled={busy} onClick={restart}>
+            Restart engine
+          </button>
+          <button type="button" className={btn} disabled={busy} onClick={clearSinhala}>
+            Clear Sinhala cache
           </button>
         </div>
       ) : (

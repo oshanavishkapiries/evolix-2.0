@@ -5,6 +5,7 @@ import base64
 import shutil
 import tempfile
 from pathlib import Path
+import os
 import threading
 from app.api.schemas import IngestRequest, IngestResponse, SinhalaSubtitleRequest, TaskStatusResponse, TaskSummary
 from app.domain.models import IngestStatus, MediaType
@@ -514,6 +515,34 @@ def queue_action(action: str):
 
 
 _IN_FLIGHT = (IngestStatus.PENDING, IngestStatus.EXTRACTING, IngestStatus.DOWNLOADING, IngestStatus.UPLOADING)
+
+
+def _exit_process() -> None:
+    """Ends the process with a non-zero code, so Docker's restart policy (always / unless-stopped / on-failure) brings it back."""
+    os._exit(3)
+
+
+RESTART_DELAY_S = 1.0
+
+
+@router.post("/restart", dependencies=_AUTH)
+def restart_engine(force: bool = Query(False)):
+    """Restarts the engine process; the container's restart policy starts it again (`restart: unless-stopped` in
+    compose.yaml, and the default in Coolify). Jobs still running are lost, so it is refused while any are unless
+    `force=true`. The answer is sent first; the process ends a moment later."""
+    running = sum(1 for t in _repository.list_all(500) if t.status in _IN_FLIGHT)
+    if running and not force:
+        raise HTTPException(status_code=409, detail=f"{running} job(s) are still running. Restarting now would lose them.")
+    timer = threading.Timer(RESTART_DELAY_S, _exit_process)
+    timer.daemon = True
+    timer.start()
+    return {"restarting": True, "running": running}
+
+
+@router.delete("/subtitles/si-cache", dependencies=_AUTH)
+def purge_sinhala_cache():
+    """Drops the engine's cached Sinhala translations, so every Sinhala request translates again."""
+    return {"removed": _subtitle_service.purge_translations()}
 
 
 @router.post("/tasks/{task_id}/cancel", dependencies=_AUTH)
