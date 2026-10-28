@@ -1,6 +1,7 @@
 import type { EngineTask } from "@/lib/cms/evo";
 import type { Summary } from "./flow";
 import { engineGet, engines, type EngineRef } from "./client";
+import type { EngineCard, ProviderState, QueueState } from "./admin-view";
 import { mergeJourneys, summarize, type EngineJourney, type JourneyReport } from "./journeys";
 import { engineRows } from "./scheduler";
 
@@ -46,6 +47,19 @@ export async function enginesOverview(): Promise<EngineOverview[]> {
         failures: tasks ? tasks.filter(FAILED).length : null,
         safeToRemove: r.healthy && r.draining && r.activeJobs === 0 && r.queueDepth === 0,
       };
+    }),
+  );
+}
+
+/** The overview plus each reachable engine's queue and provider health, as plain JSON for the admin cards. */
+export async function engineCards(): Promise<EngineCard[]> {
+  const list = await enginesOverview();
+  const refs = new Map(engines().map((e) => [e.id, e]));
+  return Promise.all(
+    list.map(async (e) => {
+      const ref = refs.get(e.id);
+      const [queue, providers] = e.available && ref ? await Promise.all([engineGet<QueueState>("/queue", 4000, ref), engineGet<ProviderState[]>("/providers", 4000, ref)]) : [null, null];
+      return { ...e, lastOkAt: e.lastOkAt?.toISOString() ?? null, queue, providers };
     }),
   );
 }

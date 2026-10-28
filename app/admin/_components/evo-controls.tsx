@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
+import { groupSettings } from "@/lib/evo/admin-view";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";
 
@@ -10,40 +11,51 @@ type Setting = { key: string; label: string; description: string; kind: "int" | 
 type Queue = { paused: boolean; waiting_extraction: number; extracting: number; caching: number; queue_limit: number };
 
 const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
+const small = "btn-secondary rounded-md border px-2 py-1 text-xs";
 
 const scoped = (engine?: string) => (engine ? `?engine=${encodeURIComponent(engine)}` : "");
 
-/** Queue status with pause/resume, and the editable settings of one engine (the primary when `engine` is not given). */
-export function EvoControls({ engine }: { engine?: string }) {
+/** Polls one engine's queue (pause state and counts); null while unknown or unreachable. */
+function useQueue(q: string, everyMs = 5000) {
+  const [queue, setQueue] = useState<Queue | null>(null);
+  const load = useCallback(async () => {
+    const res = await adminApi<{ data: Queue }>("GET", `/api/admin/evo/queue${q}`);
+    setQueue(res.ok ? res.data : null);
+    return res.ok;
+  }, [q]);
+  useEffect(() => {
+    const first = setTimeout(load, 0);
+    const t = setInterval(() => document.visibilityState === "visible" && load(), everyMs);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
+  }, [load, everyMs]);
+  return [queue, setQueue, load] as const;
+}
+
+/** The engine page's header actions: pause/resume the queue, and a "More" menu with the actions that interrupt viewers. */
+export function EngineActions({ engine, children }: { engine?: string; children?: React.ReactNode }) {
   const toast = useToast();
   const confirm = useConfirm();
   const q = scoped(engine);
-  const [queue, setQueue] = useState<Queue | null>(null);
-  const [settings, setSettings] = useState<Setting[] | null>(null);
-  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [queue, setQueue, loadQueue] = useQueue(q);
   const [busy, setBusy] = useState(false);
-
-  const loadQueue = useCallback(async () => {
-    const res = await adminApi<{ data: Queue }>("GET", `/api/admin/evo/queue${q}`);
-    if (res.ok) setQueue(res.data);
-  }, [q]);
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      const res = await adminApi<{ data: Setting[] }>("GET", `/api/admin/evo/config${q}`);
-      if (!alive) return;
-      if (!res.ok) return toast.error(errorText(res));
-      setSettings(res.data);
-    })();
-    const poll = () => alive && loadQueue();
-    poll();
-    const t = setInterval(poll, 3000);
-    return () => {
-      alive = false;
-      clearInterval(t);
+    if (!menu) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menuRef.current?.contains(e.target as Node)) setMenu(false);
     };
-  }, [loadQueue, q, toast]);
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [menu]);
 
   const setPaused = async (pause: boolean) => {
     setBusy(true);
@@ -55,6 +67,7 @@ export function EvoControls({ engine }: { engine?: string }) {
   };
 
   const restart = async () => {
+    setMenu(false);
     const busyNow = queue ? queue.waiting_extraction + queue.extracting + queue.caching : 0;
     const ok = await confirm({
       title: "Restart this engine?",
@@ -78,9 +91,7 @@ export function EvoControls({ engine }: { engine?: string }) {
     // Wait until it answers again (it first has to stop answering).
     await new Promise((r) => setTimeout(r, 4000));
     for (let i = 0; i < 30; i++) {
-      const up = await adminApi<{ data: Queue }>("GET", `/api/admin/evo/queue${q}`);
-      if (up.ok) {
-        setQueue(up.data);
+      if (await loadQueue()) {
         setBusy(false);
         return toast.success("The engine is back");
       }
@@ -91,6 +102,7 @@ export function EvoControls({ engine }: { engine?: string }) {
   };
 
   const clearSinhala = async () => {
+    setMenu(false);
     const ok = await confirm({
       title: "Clear this engine's Sinhala cache?",
       body: "Every Sinhala subtitle it translated before is forgotten, so the next request translates again (with the model set under OpenRouter). Subtitles already saved on the CDN or in the catalog are not touched: remove those separately.",
@@ -104,19 +116,94 @@ export function EvoControls({ engine }: { engine?: string }) {
     toast.success(`${res.data.removed} cached translation(s) removed`);
   };
 
+  return (
+    <>
+      {queue && (
+        <button type="button" className={btn} disabled={busy} onClick={() => setPaused(!queue.paused)} title={queue.paused ? "Start taking new jobs again" : "Running jobs finish, no new ones start"}>
+          {queue.paused ? "Resume queue" : "Pause queue"}
+        </button>
+      )}
+      {children}
+      <div className="menu" ref={menuRef}>
+        <button type="button" className={btn} aria-haspopup="menu" aria-expanded={menu} disabled={busy} onClick={() => setMenu(!menu)}>
+          More <span aria-hidden="true">▾</span>
+        </button>
+        {menu && (
+          <div className="menu-pop" role="menu" aria-label="More engine actions">
+            <p className="menu-label">Interrupts viewers</p>
+            <button type="button" role="menuitem" onClick={restart}>
+              Restart engine
+              <small>Stops running jobs, back in about a minute</small>
+            </button>
+            <button type="button" role="menuitem" onClick={clearSinhala}>
+              Clear Sinhala cache
+              <small>Next Sinhala request translates again</small>
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** Live queue numbers of one engine, for its status tab. */
+export function QueueStats({ engine }: { engine?: string }) {
+  const [queue] = useQueue(scoped(engine), 3000);
+  if (!queue) return <div className="skeleton h-16" aria-busy="true" />;
+  const cells: [string, React.ReactNode][] = [
+    ["Queue", queue.paused ? <span className="warn-text">Paused</span> : "Running"],
+    ["Waiting", queue.waiting_extraction],
+    ["Extracting", queue.extracting],
+    ["Caching to CDN", queue.caching],
+    ["Queue limit", queue.queue_limit],
+  ];
+  return (
+    <dl className="stat-row" aria-label="Queue">
+      {cells.map(([k, v]) => (
+        <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+      ))}
+    </dl>
+  );
+}
+
+/** The editable settings of one engine, in groups, with one save bar for every change. */
+export function EngineSettings({ engine }: { engine?: string }) {
+  const toast = useToast();
+  const q = scoped(engine);
+  const [settings, setSettings] = useState<Setting[] | null>(null);
+  const [error, setError] = useState("");
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    adminApi<{ data: Setting[] }>("GET", `/api/admin/evo/config${q}`).then((res) => {
+      if (!alive) return;
+      if (res.ok) setSettings(res.data);
+      else setError(errorText(res));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [q]);
+
+  const visible = (settings ?? []).filter((s) => s.kind !== "text");
+  // Only real changes count: typing a value back to what it is now is not a change.
+  const changes = Object.entries(draft).filter(([k, v]) => String(visible.find((s) => s.key === k)?.value) !== v);
+
   const save = async () => {
-    const changes: Record<string, number | string> = {};
-    for (const [k, v] of Object.entries(draft)) {
-      if (settings?.find((s) => s.key === k)?.kind === "choice") {
-        changes[k] = v;
+    const body: Record<string, number | string> = {};
+    for (const [k, v] of changes) {
+      if (visible.find((s) => s.key === k)?.kind === "choice") {
+        body[k] = v;
         continue;
       }
       const n = Number(v);
-      if (v.trim() === "" || Number.isNaN(n)) return toast.error(`${k}: enter a number`);
-      changes[k] = n;
+      if (v.trim() === "" || Number.isNaN(n)) return toast.error(`${visible.find((s) => s.key === k)?.label ?? k}: enter a number`);
+      body[k] = n;
     }
     setBusy(true);
-    const res = await adminApi<{ data: Setting[] }>("PUT", `/api/admin/evo/config${q}`, changes);
+    const res = await adminApi<{ data: Setting[] }>("PUT", `/api/admin/evo/config${q}`, body);
     setBusy(false);
     if (!res.ok) return toast.error(errorText(res));
     setSettings(res.data);
@@ -134,92 +221,64 @@ export function EvoControls({ engine }: { engine?: string }) {
     toast.success("Back to the .env value");
   };
 
-  return (
-    <>
-      <h2 className="mt-6">Queue</h2>
-      {queue ? (
-        <div className="toolbar mt-2">
-          <span className="text-sm">
-            {queue.paused ? <strong>Paused</strong> : "Running"} · {queue.waiting_extraction} waiting · {queue.extracting} extracting · {queue.caching} caching to CDN · limit {queue.queue_limit}
-          </span>
-          <button type="button" className={btn} disabled={busy} onClick={() => setPaused(!queue.paused)}>
-            {queue.paused ? "Resume" : "Pause"}
-          </button>
-          <button type="button" className={btn} disabled={busy} onClick={restart}>
-            Restart engine
-          </button>
-          <button type="button" className={btn} disabled={busy} onClick={clearSinhala}>
-            Clear Sinhala cache
-          </button>
-        </div>
-      ) : (
-        <p className="mt-2 text-sm">Engine unreachable.</p>
-      )}
+  if (error) return <p className="evo-empty">{error}</p>;
+  if (!settings) return <div className="skeleton h-32" aria-busy="true" />;
+  const shown = (s: Setting) => (s.kind === "choice" ? (s.choices.find((c) => c.value === String(s.default))?.label ?? s.default) : s.default);
 
-      <h2 className="mt-6">Engine settings</h2>
-      {!settings ? (
-        <div className="skeleton mt-2 h-32" aria-busy="true" />
-      ) : (
-        <>
-          <div className="table-wrap mt-2">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Setting</th>
-                  <th>Value</th>
-                  <th>.env default</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {settings.filter((s) => s.kind !== "text").map((s) => (
-                  <tr key={s.key}>
-                    <td>
-                      <label htmlFor={s.key}>{s.label}</label>
-                      <div className="text-xs">{s.description}</div>
-                    </td>
-                    <td>
-                      {s.kind === "choice" ? (
-                        <select id={s.key} value={draft[s.key] ?? String(s.value)} onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}>
-                          {s.choices.map((c) => (
-                            <option key={c.value} value={c.value}>{c.label}</option>
-                          ))}
-                        </select>
+  return (
+    <div className="evo-stack">
+      {groupSettings(visible).map((g) => (
+        <section key={g.title} className="evo-section set-group" aria-labelledby={`set-${g.title}`}>
+          <div className="evo-section-head">
+            <div>
+              <h2 id={`set-${g.title}`}>{g.title}</h2>
+              {g.hint && <p className="evo-sub">{g.hint}</p>}
+            </div>
+          </div>
+          <ul className="set-list">
+            {g.items.map((s) => {
+              const value = draft[s.key] ?? String(s.value);
+              const dirty = changes.some(([k]) => k === s.key);
+              return (
+                <li key={s.key} data-dirty={dirty}>
+                  <div className="set-text">
+                    <label htmlFor={s.key}>{s.label}</label>
+                    <p>{s.description}</p>
+                    <code>{s.key}</code>
+                  </div>
+                  <div className="set-control">
+                    {s.kind === "choice" ? (
+                      <select id={s.key} value={value} onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}>
+                        {s.choices.map((c) => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input id={s.key} type="number" inputMode="decimal" min={s.min} max={s.max} step={s.kind === "int" ? 1 : "any"} value={value} onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))} />
+                    )}
+                    <span className="set-default">
+                      {s.overridden ? (
+                        <>
+                          <span className="tag" data-status="EXTRACTING">changed</span> .env: {shown(s)}{" "}
+                          <button type="button" className="btn-link-plain" disabled={busy} onClick={() => reset(s.key)} aria-label={`Reset ${s.label} to the .env value`}>Reset</button>
+                        </>
                       ) : (
-                      <input
-                        id={s.key}
-                        type="number"
-                        inputMode="decimal"
-                        min={s.min}
-                        max={s.max}
-                        step={s.kind === "int" ? 1 : "any"}
-                        value={draft[s.key] ?? String(s.value)}
-                        onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
-                        style={{ width: "8rem" }}
-                      />
+                        <>.env default</>
                       )}
-                    </td>
-                    <td>{s.kind === "choice" ? (s.choices.find((c) => c.value === s.default)?.label ?? s.default) : s.default}</td>
-                    <td>
-                      {s.overridden && (
-                        <button type="button" className={btn} disabled={busy} onClick={() => reset(s.key)}>
-                          Reset
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="toolbar mt-3">
-            <button type="button" disabled={busy || !Object.keys(draft).length} onClick={save}>
-              Apply changes
-            </button>
-          </div>
-        </>
-      )}
-    </>
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+      <div className="save-bar" data-show={changes.length > 0} role="region" aria-label="Unsaved changes">
+        <span>{changes.length ? `${changes.length} unsaved change(s)` : "No changes"}</span>
+        <button type="button" className={btn} disabled={busy || !changes.length} onClick={() => setDraft({})}>Discard</button>
+        <button type="button" disabled={busy || !changes.length} onClick={save}>Apply changes</button>
+      </div>
+    </div>
   );
 }
 
@@ -243,14 +302,14 @@ export function TaskActions({ id, status, cacheFailed, canMove = false }: { id: 
   return (
     <div className="toolbar">
       {running && (
-        <button type="button" className={btn} disabled={busy} onClick={() => run("POST", `/api/admin/evo/tasks/${id}/cancel`, "Task cancelled")}>
+        <button type="button" className={small} disabled={busy} onClick={() => run("POST", `/api/admin/evo/tasks/${id}/cancel`, "Task cancelled")}>
           Cancel
         </button>
       )}
       {canMove && (status === "FAILED" || cacheFailed || running) && (
         <button
           type="button"
-          className={btn}
+          className={small}
           disabled={busy}
           onClick={async () => {
             if (await confirm({ title: "Retry on another engine?", body: "A new job starts on a different healthy engine and extracts the title again. This task stays with its engine, and anyone watching it may be interrupted.", confirmLabel: "Retry elsewhere", danger: false })) {
@@ -262,14 +321,14 @@ export function TaskActions({ id, status, cacheFailed, canMove = false }: { id: 
         </button>
       )}
       {!running && (status === "FAILED" || cacheFailed) && (
-        <button type="button" className={btn} disabled={busy} onClick={() => run("POST", `/api/admin/evo/tasks/${id}/retry`, "Task queued again")}>
+        <button type="button" className={small} disabled={busy} onClick={() => run("POST", `/api/admin/evo/tasks/${id}/retry`, "Task queued again")}>
           Retry
         </button>
       )}
       {!running && (
         <button
           type="button"
-          className="btn-danger rounded-md border px-3 py-1.5 text-sm"
+          className="btn-danger rounded-md border px-2 py-1 text-xs"
           disabled={busy}
           onClick={async () => {
             if (await confirm({ title: "Remove this task?", body: "Its history is deleted from the engine. Cached files and sources are not touched.", confirmLabel: "Remove" })) {
@@ -293,7 +352,7 @@ export function SourceDeleteButton({ sourceId, label, engine }: { sourceId: stri
   return (
     <button
       type="button"
-      className="btn-danger rounded-md border px-3 py-1.5 text-sm"
+      className="btn-danger rounded-md border px-2 py-1 text-xs"
       disabled={busy}
       onClick={async () => {
         if (!(await confirm({ title: `Delete the CDN file for ${label}?`, body: "The file is removed from the CDN and the source is deleted. The next play falls back to another quality or caches it again.", confirmLabel: "Delete file" }))) return;

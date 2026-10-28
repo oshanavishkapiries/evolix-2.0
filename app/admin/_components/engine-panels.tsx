@@ -62,29 +62,24 @@ export function ProvidersPanel({ engine }: { engine: string }) {
     toast.success(`${name.replace(/StreamExtractor$/, "")} is back in rotation`);
   };
 
-  if (error) return <p className="mt-2 text-sm">{error}</p>;
-  if (!providers) return <div className="skeleton mt-2 h-16" aria-busy="true" />;
+  if (error) return <p className="evo-empty">{error}</p>;
+  if (!providers) return <div className="skeleton h-16" aria-busy="true" />;
   return (
-    <div className="table-wrap mt-2">
-      <table className="data-table">
-        <thead>
-          <tr><th>Provider</th><th>State</th><th /></tr>
-        </thead>
-        <tbody>
-          {providers.map((p) => (
-            <tr key={p.name}>
-              <td>{p.name.replace(/StreamExtractor$/, "")}</td>
-              <td>
-                {p.state === "healthy" && `Healthy${p.recent_failures ? ` · ${p.recent_failures} recent failure(s)` : ""}`}
-                {p.state === "cooling" && `Cooling down until ${new Date((p.cooling_until ?? 0) * 1000).toLocaleTimeString("en-GB")}`}
-                {p.state === "trial" && "Cool-down over: the next job is a trial"}
-              </td>
-              <td>{p.state !== "healthy" && <button type="button" className={btn} onClick={() => reset(p.name)}>Reset</button>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ul className="prov-cards">
+      {providers.map((p) => (
+        <li key={p.name} data-state={p.state}>
+          <div>
+            <strong><i aria-hidden="true" />{p.name.replace(/StreamExtractor$/, "")}</strong>
+            <span>
+              {p.state === "healthy" && (p.recent_failures ? `Healthy · ${p.recent_failures} recent failure(s)` : "Healthy")}
+              {p.state === "cooling" && `Cooling down until ${new Date((p.cooling_until ?? 0) * 1000).toLocaleTimeString("en-GB")}`}
+              {p.state === "trial" && "Cool-down over: the next job is a trial"}
+            </span>
+          </div>
+          {p.state !== "healthy" && <button type="button" className={btn} onClick={() => reset(p.name)}>Reset</button>}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -107,13 +102,13 @@ export function MetricsPanel({ engine }: { engine: string }) {
       alive = false;
     };
   }, [engine]);
-  if (error) return <p className="mt-2 text-sm">{error}</p>;
-  if (!data) return <div className="skeleton mt-2 h-16" aria-busy="true" />;
+  if (error) return <p className="evo-empty">{error}</p>;
+  if (!data) return <div className="skeleton h-16" aria-busy="true" />;
   const rows = Object.entries(data.providers);
-  if (!rows.length) return <p className="mt-2 text-sm">No extractions in the last {data.window_hours} hours.</p>;
+  if (!rows.length) return <p className="evo-empty">No extractions in the last {data.window_hours} hours.</p>;
   return (
-    <div className="table-wrap mt-2">
-      <table className="data-table">
+    <div className="table-wrap">
+      <table className="data-table evo-table">
         <thead>
           <tr><th>Provider</th><th>Attempts</th><th>Time (median / p95)</th><th>Peak RAM (median / p95)</th><th>CPU (median / p95)</th><th>New browsers</th></tr>
         </thead>

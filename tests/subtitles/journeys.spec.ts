@@ -87,6 +87,20 @@ test('switching to 7 days asks for that window and updates the numbers', async (
   await expect(page.getByRole('button', { name: 'Last 24 hours' })).toHaveAttribute('aria-pressed', 'false');
 });
 
+test('search narrows the titles, and the steps can be shown as a graph', async ({ page }) => {
+  await open(page);
+  await page.getByRole('searchbox', { name: 'Search titles' }).fill('prison');
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expect(page.locator('tbody tr').first()).toContainText('Prison Break');
+  await page.getByRole('searchbox', { name: 'Search titles' }).fill('nothing like this');
+  await expect(page.getByText('No title matches')).toBeVisible();
+
+  await expect(page.locator('.flow-svg')).toHaveCount(0); // a list of steps first
+  await page.getByRole('button', { name: 'Show as graph' }).click();
+  await expect(page.locator('.flow-svg')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Verify:/ })).toHaveAttribute('data-state', 'recovered');
+});
+
 test('screenshot for humans (SHOT=/path/to/file.png)', async ({ page }) => {
   test.skip(!process.env.SHOT, 'only runs when asked for a picture');
   await page.setViewportSize({ width: 1400, height: 1500 });

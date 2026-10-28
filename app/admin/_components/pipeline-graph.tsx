@@ -69,6 +69,25 @@ function Canvas({ views, edges, selected, onSelect }: { views: Record<StepId, No
   );
 }
 
+/** The same steps as the graph, as one wrapping row of chips: easier to scan, and it fits a phone. */
+function Strip({ views, selected, onSelect }: { views: Record<StepId, NodeView>; selected: StepId | null; onSelect: (id: StepId) => void }) {
+  return (
+    <ol className="step-strip" aria-label="Evo engine pipeline">
+      {NODES.map((n) => {
+        const v = views[n.id];
+        return (
+          <li key={n.id}>
+            <button type="button" className="step-chip" data-state={v.state} aria-pressed={selected === n.id} aria-label={`${n.label}: ${v.state}`} title={n.hint} onClick={() => onSelect(n.id)}>
+              <span className="step-name"><i aria-hidden="true" />{n.label}</span>
+              <span className="step-sub">{v.sub}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 const Legend = ({ byJourney }: { byJourney: boolean }) => (
   <ul className="flow-legend" aria-label="Legend">
     {([...["pending", "running", "ok", "skipped"], ...(byJourney ? ["recovered"] : []), "failed"] as NodeState[]).map((s) => (
@@ -193,6 +212,7 @@ export function SummaryFlow({ initial, engine, byJourney = false }: { initial: S
   const [polled, setSummary] = useState(initial);
   const summary = byJourney ? initial : polled;
   const [selected, setSelected] = useState<StepId | null>(null);
+  const [graph, setGraph] = useState(false);
 
   useEffect(() => {
     if (byJourney) return; // the journey panel refreshes its own report
@@ -216,7 +236,7 @@ export function SummaryFlow({ initial, engine, byJourney = false }: { initial: S
       const state: NodeState = byJourney
         ? c.failed > 0 ? "failed" : c.running > 0 ? "running" : recovered > 0 ? "recovered" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending"
         : c.running > 0 ? "running" : c.failed > 0 ? "failed" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending";
-      const sub = byJourney ? `✓ ${c.ok}  ↻ ${recovered}  ✗ ${c.failed}${c.running ? `  ⟳ ${c.running}` : ""}` : `✓ ${c.ok}  ✗ ${c.failed}  ⟳ ${c.running}  ↷ ${c.skipped}`;
+      const sub = byJourney ? `✓ ${c.ok}  ↻ ${recovered}  ✗ ${c.failed}${c.running ? `  ⟳ ${c.running}` : ""}` : `✓ ${c.ok}  ✗ ${c.failed}  ⟳ ${c.running}${c.skipped ? `  ↷ ${c.skipped}` : ""}`;
       return [id, { state, sub }];
     }),
   ) as Record<StepId, NodeView>;
@@ -225,12 +245,15 @@ export function SummaryFlow({ initial, engine, byJourney = false }: { initial: S
 
   return (
     <>
-      <Canvas views={views} edges={edges} selected={selected} onSelect={setSelected} />
-      <Legend byJourney={byJourney} />
-      <p className="flow-status" role="status">
-        Last {summary?.window_hours ?? 24}h · {summary?.tasks_in_flight ?? 0} {byJourney ? "title(s) still being tried" : "task(s) in flight"}
-        {!summary && " · engine offline"}
-      </p>
+      {graph ? <Canvas views={views} edges={edges} selected={selected} onSelect={setSelected} /> : <Strip views={views} selected={selected} onSelect={setSelected} />}
+      <div className="step-foot">
+        <Legend byJourney={byJourney} />
+        <span className="step-meta">
+          Last {summary?.window_hours ?? 24}h · {summary?.tasks_in_flight ?? 0} {byJourney ? "still being tried" : "in flight"}
+          {!summary && " · engine offline"}
+          <button type="button" className="btn-link rounded-md border px-2 py-0.5 text-xs" aria-pressed={graph} onClick={() => setGraph(!graph)}>{graph ? "Show as list" : "Show as graph"}</button>
+        </span>
+      </div>
       {selected ? (
         <div className="flow-log">
           <h3>{nodeById[selected].label}</h3>
@@ -240,12 +263,10 @@ export function SummaryFlow({ initial, engine, byJourney = false }: { initial: S
               : byJourney
                 ? `${c.ok} title(s) got through this step, ${c.recovered ?? 0} failed here on an earlier try and still got through, ${c.failed} got stuck here, ${c.running} running now.`
                 : `${c.ok} succeeded, ${c.failed} failed, ${c.running} running, ${c.skipped} skipped.`}{" "}
-            Open a task below for its own journey.
+            Open a title below for its own journey.
           </p>
         </div>
-      ) : (
-        <p className="flow-hint">Click a node for its numbers.</p>
-      )}
+      ) : null}
     </>
   );
 }

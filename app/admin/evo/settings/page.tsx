@@ -1,11 +1,7 @@
-import { EvoControls } from "../../_components/evo-controls";
-import { PageHeader } from "../../_components/page-header";
+import { redirect } from "next/navigation";
+import { defaultEngine } from "@/lib/evo/client";
 
+/** Settings live on each engine's page now; the old "Pipeline control" link opens the primary engine's settings. */
 export default function EvoSettingsPage() {
-  return (
-    <>
-      <PageHeader title="Pipeline control" />
-      <EvoControls />
-    </>
-  );
+  redirect(`/admin/evo/engines/${encodeURIComponent(defaultEngine().id)}?tab=settings`);
 }
