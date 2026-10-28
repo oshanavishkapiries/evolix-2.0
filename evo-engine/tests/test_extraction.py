@@ -10,7 +10,7 @@ from app.core import metrics, notes
 from app.core.browser_pool import BrowserCrashed, BrowserPool
 from app.core.config import settings
 from app.domain.models import StreamSource
-from app.interfaces.contracts import IStreamExtractor
+from app.interfaces.contracts import IStreamExtractor, TitleNotFound
 from app.services.composite_extractor import CompositeStreamExtractor
 from app.services.decryptor_cache import DecryptorCache, version_from_page
 from app.services.extraction_cache import CachingExtractor
@@ -506,6 +506,113 @@ class ExtractorOrderSetting(unittest.TestCase):
             self.assertEqual(name(routes._by_admin_order(both)), ["CineSrcStreamExtractor", "YtHdStreamExtractor"])
         with patch(EXTRACTOR_ORDER="garbage"):  # a bad stored value must not take the pipeline down
             self.assertEqual(len(routes._by_admin_order(both)), 2)
+
+
+class TitleNotFoundTests(unittest.TestCase):
+    """A title no provider has must not put the providers on cool-down for everyone else."""
+
+    def setUp(self):
+        self.clock = Clock()
+        p = patch(PROVIDER_FAIL_THRESHOLD=2, PROVIDER_FAIL_WINDOW_S=100, PROVIDER_COOLDOWN_S=60, PROVIDER_MISS_THRESHOLD=4)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def composite(self, *providers):
+        return CompositeStreamExtractor(list(providers), health=ProviderHealth(self.clock))
+
+    def test_a_missing_title_does_not_block_the_next_viewer(self):
+        a, b = Alpha(TitleNotFound("no copy")), Beta(TitleNotFound("no copy"))
+        c = self.composite(a, b)
+        for _ in range(3):  # more than PROVIDER_FAIL_THRESHOLD, fewer than PROVIDER_MISS_THRESHOLD
+            with self.assertRaisesRegex(RuntimeError, "All stream extractors failed"):
+                c.extract_streams(1)
+        a.outcomes, b.outcomes = [STREAMS], [STREAMS]
+        self.assertEqual(c.extract_streams(2), STREAMS)  # someone else's title still works
+
+    def test_real_failures_still_cool_down(self):
+        a = Alpha(RuntimeError("timeout"))
+        c = self.composite(a)
+        for _ in range(2):
+            with self.assertRaises(RuntimeError):
+                c.extract_streams(1)
+        with self.assertRaisesRegex(RuntimeError, "No provider is available"):
+            c.extract_streams(2)
+
+    def test_a_provider_that_finds_nothing_for_too_long_is_cooled_down(self):
+        a = Alpha(TitleNotFound("no copy"))
+        c = self.composite(a)
+        for _ in range(4):
+            with self.assertRaises(RuntimeError):
+                c.extract_streams(1)
+        with self.assertRaisesRegex(RuntimeError, "No provider is available"):
+            c.extract_streams(2)
+
+    def test_one_success_clears_the_run_of_misses(self):
+        a = Alpha(TitleNotFound("no copy"))
+        c = self.composite(a)
+        for _ in range(3):
+            with self.assertRaises(RuntimeError):
+                c.extract_streams(1)
+        a.outcomes = [STREAMS]
+        c.extract_streams(2)
+        a.outcomes = [TitleNotFound("no copy")]
+        for _ in range(3):  # would be the 6th miss without the reset
+            with self.assertRaisesRegex(RuntimeError, "All stream extractors failed"):
+                c.extract_streams(3)
+
+    def test_a_miss_is_still_reported_as_a_failed_attempt(self):
+        c = self.composite(Alpha(TitleNotFound("no copy")))
+        with notes.collect() as n:
+            with self.assertRaises(RuntimeError):
+                c.extract_streams(1)
+        self.assertIn("Alpha", "\n".join(n))
+
+
+class ProviderNotFoundSignals(unittest.TestCase):
+    """Which provider answers mean "no such title" and which mean "the provider is broken"."""
+
+    def response(self, status, body=None):
+        r = mock.Mock(status_code=status, text="")
+        r.json.return_value = body if body is not None else {}
+        return r
+
+    def ythd(self, *responses):
+        from app.services.ythd_extractor import YtHdStreamExtractor
+        session = mock.Mock()
+        session.get.side_effect = list(responses)
+        patcher = mock.patch("app.services.ythd_extractor.requests.Session", return_value=session)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return YtHdStreamExtractor(decryptors=mock.Mock())
+
+    def test_ythd_without_a_source_is_not_found(self):
+        for r in (self.response(404), self.response(200, {"error": "none"})):
+            with self.assertRaises(TitleNotFound):
+                self.ythd(r).extract_streams(1)
+
+    def test_ythd_server_error_is_a_real_failure(self):
+        with self.assertRaises(RuntimeError) as cm:
+            self.ythd(self.response(503)).extract_streams(1)
+        self.assertNotIsInstance(cm.exception, TitleNotFound)
+
+    def cinesrc(self, navigation_fails):
+        from app.services.cinesrc_extractor import CineSrcStreamExtractor
+        page = mock.Mock()
+        if navigation_fails:
+            page.goto.side_effect = RuntimeError("net::ERR_CONNECTION_REFUSED")
+        sb = mock.Mock(page=page)
+        return CineSrcStreamExtractor(timeout_seconds=0), mock.patch("app.services.cinesrc_extractor.run_in_browser", side_effect=lambda work: work(sb))
+
+    def test_cinesrc_page_opened_but_no_playlist_is_not_found(self):
+        extractor, run = self.cinesrc(navigation_fails=False)
+        with run, self.assertRaises(TitleNotFound):
+            extractor.extract_streams(1)
+
+    def test_cinesrc_page_that_never_opened_is_a_real_failure(self):
+        extractor, run = self.cinesrc(navigation_fails=True)
+        with run, self.assertRaises(RuntimeError) as cm:
+            extractor.extract_streams(1)
+        self.assertNotIsInstance(cm.exception, TitleNotFound)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,11 @@ from typing import List, Callable, Optional
 from app.domain.models import StreamSource, UploadResult
 
 
+class TitleNotFound(RuntimeError):
+    """The provider answered normally but has no copy of this title. That is the title's problem, not the provider's:
+    it must not push the provider towards a cool-down the way a timeout or a server error does."""
+
+
 class IStreamExtractor(ABC):
     """Interface for extracting and decrypting streams from external media providers."""
 

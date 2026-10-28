@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     PROVIDER_FAIL_THRESHOLD: int = 3
     PROVIDER_FAIL_WINDOW_S: int = 600
     PROVIDER_COOLDOWN_S: int = 300
+    # "Title not found" answers do not count as failures, unless a provider gives this many in a row without ever
+    # finding a title (then it is probably broken, not the titles). 0 = never cool down for them.
+    PROVIDER_MISS_THRESHOLD: int = 10
 
     # Which stream provider is tried first: "cinesrc,ythd" or "ythd,cinesrc". The others are the fallback.
     EXTRACTOR_ORDER: str = "cinesrc,ythd"

@@ -16,6 +16,7 @@ from app.core.config import settings
 @dataclass
 class _State:
     failures: List[float] = field(default_factory=list)
+    misses: List[float] = field(default_factory=list)
     cooling_until: Optional[float] = None
     trial: bool = False
 
@@ -61,6 +62,21 @@ class ProviderHealth:
             if threshold > 0 and len(st.failures) >= threshold:
                 st.cooling_until = now + settings.PROVIDER_COOLDOWN_S
                 st.failures = []
+
+    def miss(self, name: str) -> None:
+        """The provider answered "title not found". Normally harmless; only a long unbroken run of them looks like a broken provider."""
+        with self._lock:
+            trial = self._get(name).trial
+        if trial:
+            return self.failure(name)  # a trial that finds nothing proves nothing: stay cautious
+        now = self._clock()
+        with self._lock:
+            st = self._get(name)
+            st.misses = [t for t in st.misses if now - t <= settings.PROVIDER_FAIL_WINDOW_S] + [now]
+            threshold = settings.PROVIDER_MISS_THRESHOLD
+            if threshold > 0 and len(st.misses) >= threshold:
+                st.cooling_until = now + settings.PROVIDER_COOLDOWN_S
+                st.misses = []
 
     def reset(self, name: str) -> None:
         with self._lock:

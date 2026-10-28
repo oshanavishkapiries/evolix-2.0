@@ -3,7 +3,7 @@ import time
 from typing import Callable, List, Optional
 from app.core import metrics
 from app.core.notes import note
-from app.interfaces.contracts import IStreamExtractor
+from app.interfaces.contracts import IStreamExtractor, TitleNotFound
 from app.domain.models import StreamSource
 from app.services.provider_health import ProviderHealth
 
@@ -69,6 +69,7 @@ class CompositeStreamExtractor(IStreamExtractor):
 
             streams: Optional[List[StreamSource]] = None
             failure: Optional[str] = None
+            missing = False  # the provider is fine, it just does not have this title
             attempt = None
             try:
                 with metrics.measure(name) as attempt:
@@ -82,6 +83,8 @@ class CompositeStreamExtractor(IStreamExtractor):
                         except Exception as e:
                             attempt.outcome, failure = "invalid", f"streams not playable ({e})"
                             unvalidated = unvalidated or streams
+            except TitleNotFound as e:
+                failure, missing = str(e), True
             except Exception as e:
                 failure = str(e)
             if attempt:
@@ -90,7 +93,7 @@ class CompositeStreamExtractor(IStreamExtractor):
             if failure is not None:
                 logger.warning(f"{name} failed: {failure}")
                 errors.append(f"{name}: {failure}")
-                self.health.failure(name)
+                (self.health.miss if missing else self.health.failure)(name)
                 continue
             self.health.success(name)
             logger.info(f"{name} successfully extracted {len(streams)} stream(s)")

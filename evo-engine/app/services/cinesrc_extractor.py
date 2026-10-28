@@ -3,7 +3,7 @@ import re
 import urllib.parse
 from typing import Dict, List, Optional, Tuple
 
-from app.interfaces.contracts import IStreamExtractor
+from app.interfaces.contracts import IStreamExtractor, TitleNotFound
 from app.domain.models import StreamSource
 from app.core.browser_pool import run_in_browser
 from app.core.stealth import StealthBrowser
@@ -51,6 +51,8 @@ class CineSrcStreamExtractor(IStreamExtractor):
             embed_url = f"{self.base_url}/embed/movie/{tmdb_id}?controls=false&autoplay=true&da=true"
         logger.info(f"Navigating to CineSrc embed: {embed_url}")
 
+        page_loaded = [False]  # did the embed page open? If not, CineSrc itself is the problem, not the title
+
         def capture(sb: StealthBrowser) -> List[Tuple[str, str]]:
             master: List[Tuple[str, str]] = []  # at most one (url, body); a list so the handler can fill it
             page = sb.page
@@ -71,6 +73,7 @@ class CineSrcStreamExtractor(IStreamExtractor):
             try:
                 # The player streams forever, so "networkidle" never settles: return as soon as the page is up and poll for the playlist.
                 page.goto(embed_url, wait_until="domcontentloaded", timeout=self.timeout_seconds * 1000)
+                page_loaded[0] = True
             except Exception as nav_err:
                 logger.warning(f"Navigation did not finish cleanly: {nav_err}")
             for _ in range(int(self.timeout_seconds * 1000 / POLL_MS)):
@@ -83,7 +86,8 @@ class CineSrcStreamExtractor(IStreamExtractor):
         master = run_in_browser(capture)
 
         if not master:
-            raise RuntimeError(f"CineSrc failed to resolve stream for {media_type} TMDB {tmdb_id}")
+            message = f"CineSrc failed to resolve stream for {media_type} TMDB {tmdb_id}"
+            raise (TitleNotFound if page_loaded[0] else RuntimeError)(message)
 
         master_url, body = master[0]
         variants = self._parse_variants(body, master_url)

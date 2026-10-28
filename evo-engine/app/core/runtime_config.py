@@ -36,6 +36,7 @@ SPECS = [
     Spec("PROVIDER_FAIL_THRESHOLD", "Provider failures before cool-down", "Consecutive failures within the window that put a provider on cool-down. 0 = never skip providers.", "int", 0, 50),
     Spec("PROVIDER_FAIL_WINDOW_S", "Provider failure window (s)", "Failures older than this no longer count towards a cool-down.", "int", 10, 86400),
     Spec("PROVIDER_COOLDOWN_S", "Provider cool-down (s)", "How long a failing provider is skipped before one trial request.", "int", 10, 86400),
+    Spec("PROVIDER_MISS_THRESHOLD", "\"Not found\" answers before cool-down", "A provider that says \"title not found\" this many times in a row, without finding any title in between, is treated as broken. 0 = never.", "int", 0, 500),
     Spec("EXTRACTOR_ORDER", "Provider order", "Which stream provider is tried first. The other one is the fallback when it fails or is cooling down.", "choice", 0, 0, choices=EXTRACTOR_ORDERS),
     Spec("YTHD_DECRYPTOR_CACHE", "Cache YtHD decryptor", "1 = keep the decryptor script on disk by version instead of downloading it every attempt.", "int", 0, 1),
     Spec("TRANSLATE_DAILY_BUDGET_USD", "Daily translation budget (USD)", "0 = unlimited. Spend is always ledgered.", "float", 0, 100000),

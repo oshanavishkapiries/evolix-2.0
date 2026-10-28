@@ -5,7 +5,7 @@ import urllib.parse
 from typing import List, Optional
 
 from curl_cffi import requests
-from app.interfaces.contracts import IStreamExtractor
+from app.interfaces.contracts import IStreamExtractor, TitleNotFound
 from app.domain.models import StreamSource
 from app.core.browser_pool import run_in_browser
 from app.core.config import BASE_DIR, settings
@@ -44,10 +44,15 @@ class YtHdStreamExtractor(IStreamExtractor):
             embed_url = f"{self.base_url}/embed/{tmdb_id}"
 
         r_src = session.get(vs_src_url, headers={"Referer": embed_url})
-        if r_src.status_code != 200 or "src" not in r_src.json():
+        if r_src.status_code == 404:
+            raise TitleNotFound(f"YtHD has no copy of TMDB {tmdb_id}")
+        if r_src.status_code != 200:
             raise RuntimeError(f"Failed to fetch vs_src: {r_src.status_code}")
+        src_json = r_src.json()
+        if "src" not in src_json:
+            raise TitleNotFound(f"YtHD has no copy of TMDB {tmdb_id}")
 
-        movie_url = r_src.json()["src"]
+        movie_url = src_json["src"]
 
         # 2. Extract player page URL
         r_landing = session.get(movie_url, headers={"Referer": self.base_url})
@@ -81,6 +86,8 @@ class YtHdStreamExtractor(IStreamExtractor):
                 "Accept": "application/json",
             },
         )
+        if r_stream.status_code == 404:
+            raise TitleNotFound(f"YtHD has no streams for TMDB {tmdb_id}")
         if r_stream.status_code != 200:
             raise RuntimeError(f"Stream API returned {r_stream.status_code}")
         stream_json = r_stream.json()
@@ -109,7 +116,8 @@ class YtHdStreamExtractor(IStreamExtractor):
                 };
                 const res = await window.vsFetchJSON('dummy');
                 window.fetch = origFetch;
-                return res.data.stream_urls;
+                // No `data` means the provider answered "nothing here" (or the decryptor is out of date).
+                return res && res.data ? res.data.stream_urls : null;
             }""",
                 stream_json,
             )
@@ -124,8 +132,14 @@ class YtHdStreamExtractor(IStreamExtractor):
             script = self._decryptors.refresh(vsdec_url, version, fetch)
             decrypted_urls = run_in_browser(lambda sb: decrypt(sb, script))
 
+        if not decrypted_urls and cached:
+            # An out-of-date decryptor looks the same as "nothing here": try a fresh copy once before calling it.
+            logger.warning("No streams came out with the cached decryptor; refreshing it once")
+            script = self._decryptors.refresh(vsdec_url, version, fetch)
+            decrypted_urls = run_in_browser(lambda sb: decrypt(sb, script))
+
         if not decrypted_urls:
-            raise RuntimeError("No stream URLs decrypted")
+            raise TitleNotFound(f"YtHD returned no streams for TMDB {tmdb_id}")
 
         # 7. Generate stream tokens and parse variant qualities
         results: List[StreamSource] = []
