@@ -8,7 +8,6 @@ import { ApprovalNotice } from "../_components/approval-notice";
 import { continueWatching, listBookmarks } from "@/lib/viewer/library";
 import { ContinueRow } from "../_components/continue-row";
 import { HubRow } from "../_components/hub-row";
-import { PageHeader } from "../_components/page-header";
 import { LibrarySkeleton } from "../_components/skeletons";
 import { PageMotion, Reveal, SkeletonOut } from "../_components/motion";
 
@@ -18,7 +17,7 @@ export default function HomePage() {
   return (
     <PageMotion>
     <div className="v-page v-page-rows">
-      <PageHeader title="Home" />
+      <h1 className="v-sr">Home</h1>
       <Suspense fallback={<SkeletonOut><LibrarySkeleton /></SkeletonOut>}>
         <Reveal><HomeContent /></Reveal>
       </Suspense>
