@@ -45,3 +45,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Cloudflare Worker local state and secrets
+tools/stream-worker/.wrangler/
+tools/stream-worker/.dev.vars
