@@ -42,7 +42,7 @@ app = FastAPI(
     lifespan=lifespan,
     title=APP_NAME,
     description="Encapsulated clean architecture media ingestion and CDN sync microservice.",
-    version="1.0.0",
+    version="1.7.0",
 )
 
 app.include_router(media_router)
