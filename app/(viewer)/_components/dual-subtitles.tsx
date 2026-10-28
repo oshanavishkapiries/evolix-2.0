@@ -100,11 +100,20 @@ export function DualSubtitles({ selection, styles, mediaKey }: { selection: Subt
   const tracks = useMediaState("textTracks");
   useEffect(() => {
     if (!player) return;
+    // setMode fires mode-change synchronously, and iOS Safari's native tracks answer with their own setMode, so
+    // without a guard this handler calls itself until the stack overflows.
+    let syncing = false;
     const sync = () => {
-      for (const track of player.textTracks) {
-        if (track.kind !== "subtitles" && track.kind !== "captions") continue;
-        const mode = selection.includes(track.id) ? "hidden" : "disabled";
-        if (track.mode !== mode) track.setMode(mode);
+      if (syncing) return;
+      syncing = true;
+      try {
+        for (const track of player.textTracks) {
+          if (track.kind !== "subtitles" && track.kind !== "captions") continue;
+          const mode = selection.includes(track.id) ? "hidden" : "disabled";
+          if (track.mode !== mode) track.setMode(mode);
+        }
+      } finally {
+        syncing = false;
       }
     };
     sync();

@@ -20,7 +20,11 @@ export function addBreadcrumb(type: Crumb["type"], message: string, level: Crumb
 }
 
 // Noise from browsers and extensions, not from our code.
-const IGNORE = [/ResizeObserver loop/, /^Script error\.?$/, /Non-Error promise rejection captured/, /AbortError/, /The operation was aborted/, /Load failed$/, /chrome-extension:|moz-extension:|safari-extension:/];
+const IGNORE = [/ResizeObserver loop/, /^Script error\.?$/, /Non-Error promise rejection captured/, /AbortError/, /The operation was aborted/, /Load failed$/, /chrome-extension:|moz-extension:|safari-extension:/,
+  // Android in-app browsers inject iabjs:// scripts that throw once their Java host is closed.
+  /Java object is gone/, /iabjs:\/\//,
+  // The View Transition API aborts when the viewport changes or the page is hidden; nothing breaks.
+  /Transition was aborted because of invalid state/];
 
 export function reportError(error: unknown, extra: { mechanism: string; componentStack?: string; level?: "error" | "warning" | "fatal" }) {
   try {
