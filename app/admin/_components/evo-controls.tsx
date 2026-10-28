@@ -6,7 +6,7 @@ import { adminApi, errorText } from "@/lib/client/admin";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";
 
-type Setting = { key: string; label: string; description: string; kind: "int" | "float"; min: number; max: number; value: number; default: number; overridden: boolean };
+type Setting = { key: string; label: string; description: string; kind: "int" | "float" | "choice"; min: number; max: number; choices: { value: string; label: string }[]; value: number | string; default: number | string; overridden: boolean };
 type Queue = { paused: boolean; waiting_extraction: number; extracting: number; caching: number; queue_limit: number };
 
 const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
@@ -54,8 +54,12 @@ export function EvoControls({ engine }: { engine?: string }) {
   };
 
   const save = async () => {
-    const changes: Record<string, number> = {};
+    const changes: Record<string, number | string> = {};
     for (const [k, v] of Object.entries(draft)) {
+      if (settings?.find((s) => s.key === k)?.kind === "choice") {
+        changes[k] = v;
+        continue;
+      }
       const n = Number(v);
       if (v.trim() === "" || Number.isNaN(n)) return toast.error(`${k}: enter a number`);
       changes[k] = n;
@@ -118,6 +122,13 @@ export function EvoControls({ engine }: { engine?: string }) {
                       <div className="text-xs">{s.description}</div>
                     </td>
                     <td>
+                      {s.kind === "choice" ? (
+                        <select id={s.key} value={draft[s.key] ?? String(s.value)} onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}>
+                          {s.choices.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                          ))}
+                        </select>
+                      ) : (
                       <input
                         id={s.key}
                         type="number"
@@ -129,8 +140,9 @@ export function EvoControls({ engine }: { engine?: string }) {
                         onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
                         style={{ width: "8rem" }}
                       />
+                      )}
                     </td>
-                    <td>{s.default}</td>
+                    <td>{s.kind === "choice" ? (s.choices.find((c) => c.value === s.default)?.label ?? s.default) : s.default}</td>
                     <td>
                       {s.overridden && (
                         <button type="button" className={btn} disabled={busy} onClick={() => reset(s.key)}>

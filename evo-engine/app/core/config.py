@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     PROVIDER_FAIL_WINDOW_S: int = 600
     PROVIDER_COOLDOWN_S: int = 300
 
+    # Which stream provider is tried first: "cinesrc,ythd" or "ythd,cinesrc". The others are the fallback.
+    EXTRACTOR_ORDER: str = "cinesrc,ythd"
+
     # Keep the YtHD decryptor script on disk by version (1 = on).
     YTHD_DECRYPTOR_CACHE: int = 1
 

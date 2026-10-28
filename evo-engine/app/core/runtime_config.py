@@ -10,11 +10,18 @@ class Spec:
     key: str
     label: str
     description: str
-    kind: str  # "int" | "float"
+    kind: str  # "int" | "float" | "choice"
     min: float
     max: float
     live: bool = True
+    choices: tuple = ()  # for "choice": (value, label) pairs
 
+
+# Every order the providers can be tried in. The keys name the providers in app.api.routes.
+EXTRACTOR_ORDERS = (
+    ("cinesrc,ythd", "CineSrc first, then YtHD"),
+    ("ythd,cinesrc", "YtHD first, then CineSrc"),
+)
 
 SPECS = [
     Spec("MAX_CONCURRENT_EXTRACTIONS", "Parallel extractions", "Headless-browser extractions running at once.", "int", 1, 8),
@@ -29,6 +36,7 @@ SPECS = [
     Spec("PROVIDER_FAIL_THRESHOLD", "Provider failures before cool-down", "Consecutive failures within the window that put a provider on cool-down. 0 = never skip providers.", "int", 0, 50),
     Spec("PROVIDER_FAIL_WINDOW_S", "Provider failure window (s)", "Failures older than this no longer count towards a cool-down.", "int", 10, 86400),
     Spec("PROVIDER_COOLDOWN_S", "Provider cool-down (s)", "How long a failing provider is skipped before one trial request.", "int", 10, 86400),
+    Spec("EXTRACTOR_ORDER", "Provider order", "Which stream provider is tried first. The other one is the fallback when it fails or is cooling down.", "choice", 0, 0, choices=EXTRACTOR_ORDERS),
     Spec("YTHD_DECRYPTOR_CACHE", "Cache YtHD decryptor", "1 = keep the decryptor script on disk by version instead of downloading it every attempt.", "int", 0, 1),
     Spec("TRANSLATE_DAILY_BUDGET_USD", "Daily translation budget (USD)", "0 = unlimited. Spend is always ledgered.", "float", 0, 100000),
 ]
@@ -40,6 +48,10 @@ def coerce(key: str, value: Any):
     spec = BY_KEY.get(key)
     if spec is None:
         raise ValueError(f"Unknown setting {key}")
+    if spec.kind == "choice":
+        if value not in [c[0] for c in spec.choices]:
+            raise ValueError(f"{key} must be one of: " + ", ".join(c[0] for c in spec.choices))
+        return value
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{key} must be a number")
     v = int(value) if spec.kind == "int" else float(value)
@@ -59,6 +71,7 @@ def snapshot(overrides: dict) -> list[dict]:
     return [
         {
             "key": s.key, "label": s.label, "description": s.description, "kind": s.kind, "min": s.min, "max": s.max,
+            "choices": [{"value": v, "label": l} for v, l in s.choices],
             "value": getattr(settings, s.key), "default": DEFAULTS[s.key], "overridden": s.key in overrides,
         }
         for s in SPECS

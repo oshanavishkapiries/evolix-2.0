@@ -25,16 +25,22 @@ class CompositeStreamExtractor(IStreamExtractor):
         extractors: List[IStreamExtractor],
         validator: Optional[Callable[[List[StreamSource]], None]] = None,
         health: Optional[ProviderHealth] = None,
+        order: Optional[Callable[[List[IStreamExtractor]], List[IStreamExtractor]]] = None,
     ):
         if not extractors:
             raise ValueError("CompositeStreamExtractor requires at least one extractor")
         self.extractors = extractors
         self.validator = validator
         self.health = health or ProviderHealth()
+        # Re-ranks the providers on every job, so an admin changing the order applies to the next job without a restart.
+        self.order = order
+
+    def ranked(self) -> List[IStreamExtractor]:
+        return self.order(self.extractors) if self.order else self.extractors
 
     @property
     def provider_names(self) -> List[str]:
-        return [e.__class__.__name__ for e in self.extractors]
+        return [e.__class__.__name__ for e in self.ranked()]
 
     def extract_streams(
         self,
@@ -47,7 +53,7 @@ class CompositeStreamExtractor(IStreamExtractor):
         skipped: List[str] = []
         unvalidated: Optional[List[StreamSource]] = None
 
-        for extractor in self.extractors:
+        for extractor in self.ranked():
             name = extractor.__class__.__name__
             decision = self.health.before(name)
             if decision == "skip":

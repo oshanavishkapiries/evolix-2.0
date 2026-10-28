@@ -190,6 +190,17 @@ class CompositeTests(unittest.TestCase):
         self.assertEqual(a.calls, 2)  # skipped from the third job on
         self.assertEqual(b.calls, 4)
 
+    def test_admin_order_decides_who_goes_first_and_applies_to_the_next_job(self):
+        a, b = Alpha(STREAMS), Beta(STREAMS)
+        order = ["Alpha", "Beta"]
+        c = self.composite(a, b, order=lambda xs: sorted(xs, key=lambda e: order.index(e.__class__.__name__)))
+        c.extract_streams(1)
+        self.assertEqual((a.calls, b.calls), (1, 0))
+        order.reverse()  # the admin flips the setting; no restart
+        c.extract_streams(1)
+        self.assertEqual((a.calls, b.calls), (1, 1))
+        self.assertEqual(c.provider_names, ["Beta", "Alpha"])
+
     def test_events_show_skip_and_metrics(self):
         a, b = Alpha(RuntimeError("down")), Beta(STREAMS)
         c = self.composite(a, b)
@@ -475,6 +486,26 @@ class PoolTests(unittest.TestCase):
         browser = self.pool._idle[0].handle
         self.pool.shutdown()
         self.assertTrue(browser.stopped)
+
+
+class ExtractorOrderSetting(unittest.TestCase):
+    def test_only_known_orders_are_accepted(self):
+        from app.core import runtime_config
+        self.assertEqual(runtime_config.coerce("EXTRACTOR_ORDER", "ythd,cinesrc"), "ythd,cinesrc")
+        for bad in ("ythd", "", "cinesrc,ythd,x", 1, None):
+            with self.assertRaises(ValueError):
+                runtime_config.coerce("EXTRACTOR_ORDER", bad)
+
+    def test_routes_rank_the_real_providers_by_the_setting(self):
+        from app.api import routes
+        name = lambda xs: [x.__class__.__name__ for x in xs]
+        both = [routes._cinesrc_extractor, routes._ythd_extractor]
+        with patch(EXTRACTOR_ORDER="ythd,cinesrc"):
+            self.assertEqual(name(routes._by_admin_order(both)), ["YtHdStreamExtractor", "CineSrcStreamExtractor"])
+        with patch(EXTRACTOR_ORDER="cinesrc,ythd"):
+            self.assertEqual(name(routes._by_admin_order(both)), ["CineSrcStreamExtractor", "YtHdStreamExtractor"])
+        with patch(EXTRACTOR_ORDER="garbage"):  # a bad stored value must not take the pipeline down
+            self.assertEqual(len(routes._by_admin_order(both)), 2)
 
 
 if __name__ == "__main__":

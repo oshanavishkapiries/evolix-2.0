@@ -37,7 +37,17 @@ _subtitle_service = SubtitleService()
 _hls_proxy = HlsProxyService()
 _cinesrc_extractor = CineSrcStreamExtractor()
 _ythd_extractor = YtHdStreamExtractor()
-_composite = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor], validator=validate_streams)
+_PROVIDER_KEYS = {id(_cinesrc_extractor): "cinesrc", id(_ythd_extractor): "ythd"}
+
+
+def _by_admin_order(extractors):
+    """The providers in the order the admin chose (setting EXTRACTOR_ORDER); one the setting forgot goes last."""
+    wanted = [k.strip() for k in str(settings.EXTRACTOR_ORDER).split(",")]
+    rank = lambda e: wanted.index(_PROVIDER_KEYS[id(e)]) if _PROVIDER_KEYS[id(e)] in wanted else len(wanted)
+    return sorted(extractors, key=rank)
+
+
+_composite = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor], validator=validate_streams, order=_by_admin_order)
 # Other qualities of a title reuse a recent extraction instead of launching the providers again.
 _extractor = CachingExtractor(_composite, validator=validate_streams)
 metrics.set_sink(_repository.add_metric)
