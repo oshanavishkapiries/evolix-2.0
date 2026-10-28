@@ -53,6 +53,15 @@ class Subtitles:
     def get_vtt(self, sub_id):
         return self.saved.get(sub_id, VTT)
 
+    def resolved_ref(self, sub_id):
+        return sub_id
+
+    def origin_ref(self, sub_id):
+        return sub_id.rsplit("_", 1)[-1]
+
+    def get_last_error(self, sub_id):
+        return "No usable subtitle data was returned"
+
     def has_vtt(self, sub_id):
         return sub_id in self.saved
 

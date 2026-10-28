@@ -38,35 +38,51 @@ export function selectSubtitle(current: SubtitleSelection, slot: SubtitleSlot, i
   return next;
 }
 
-export function useDualSubtitleSelection({ mediaKey, subtitles, defaultId, generatedTrack, requestSinhala }: {
+export function useDualSubtitleSelection({ mediaKey, subtitles, defaultId, generatedTrack, requestSinhala, ready = true }: {
   mediaKey: string;
   subtitles: WatchSubtitle[];
   defaultId?: string;
   generatedTrack: WatchSubtitle | null;
   requestSinhala: () => void;
+  ready?: boolean;
 }) {
+  const [explicit, setExplicit] = useState(() => {
+    try { return localStorage.getItem(`v-sub-explicit:${mediaKey}`) === "1"; } catch { return false; }
+  });
   const [selected, setSelected] = useState<SubtitleSelection>(() => {
-    const saved = remembered.get(mediaKey);
-    return saved ? saved.map((id) => subtitles.some((s) => s.id === id) ? id : null) as SubtitleSelection : [defaultId ?? null, null];
+    let saved = explicit ? remembered.get(mediaKey) : undefined;
+    try {
+      const stored = JSON.parse(localStorage.getItem(`v-sub-choice:${mediaKey}`) ?? "null");
+      if (explicit && Array.isArray(stored) && stored.length === 2 && stored.every((id) => id === null || typeof id === "string")) saved = stored as SubtitleSelection;
+    } catch {}
+    return saved ?? [defaultId ?? null, null];
   });
   const [pendingSlot, setPendingSlot] = useState<SubtitleSlot | null>(null);
   // Resolve a requested translation only in its original slot. Changing that slot cancels auto-selection.
-  const selection = useMemo(() => pendingSlot !== null && generatedTrack
-    ? selectSubtitle(selected, pendingSlot, generatedTrack.id)
-    : selected, [selected, pendingSlot, generatedTrack]);
+  const selection = useMemo(() => {
+    const base: SubtitleSelection = explicit ? selected : [defaultId ?? null, null];
+    const visible = base.map((id, slot) => ready && id && !subtitles.some((s) => s.id === id)
+      ? slot === 0 && defaultId && base[1] !== defaultId ? defaultId : null : id) as SubtitleSelection;
+    return pendingSlot !== null && generatedTrack ? selectSubtitle(visible, pendingSlot, generatedTrack.id) : visible;
+  }, [selected, pendingSlot, generatedTrack, ready, subtitles, defaultId, explicit]);
   const choices: SubtitleSelection = [...selection];
   if (pendingSlot !== null && !generatedTrack) choices[pendingSlot] = PENDING_ID;
 
   useEffect(() => {
     remembered.set(mediaKey, selection);
+    try { localStorage.setItem(`v-sub-choice:${mediaKey}`, JSON.stringify(selection)); } catch {}
     if (remembered.size > 100) remembered.delete(remembered.keys().next().value!);
   }, [mediaKey, selection]);
 
   const select = (slot: SubtitleSlot, id: string | null) => {
+    setExplicit(true);
+    try { localStorage.setItem(`v-sub-explicit:${mediaKey}`, "1"); } catch {}
     const other = slot === 0 ? 1 : 0;
     if (id && (choices[other] === id || selection[other] === id)) return;
-    if (id && !subtitles.some((s) => s.id === id)) return;
+    // A newly downloaded library track can be selected in the same event that adds it to the list.
+    if (id && !subtitles.some((s) => s.id === id) && !/^[0-9a-f-]{36}$/i.test(id)) return;
     if (id === PENDING_ID) {
+      setSelected(selection);
       setPendingSlot(slot);
       requestSinhala();
     } else {
@@ -79,7 +95,7 @@ export function useDualSubtitleSelection({ mediaKey, subtitles, defaultId, gener
 }
 
 /** Vidstack permits one showing track. Hidden tracks still load and update cues, so render both ourselves. */
-export function DualSubtitles({ selection, styles }: { selection: SubtitleSelection; styles: SubtitleStyles }) {
+export function DualSubtitles({ selection, styles, mediaKey }: { selection: SubtitleSelection; styles: SubtitleStyles; mediaKey: string }) {
   const player = useMediaPlayer();
   const tracks = useMediaState("textTracks");
   useEffect(() => {
@@ -100,21 +116,21 @@ export function DualSubtitles({ selection, styles }: { selection: SubtitleSelect
     <div className="v-dual-captions" aria-label="Dual Subtitles">
       {selection.map((id, slot) => {
         const track = tracks.find((t) => t.id === id);
-        return track ? <SubtitleLine key={`${slot}-${id}`} track={track} slot={slot as SubtitleSlot} style={styles[slot]} /> : null;
+        return track ? <SubtitleLine key={`${slot}-${id}`} track={track} slot={slot as SubtitleSlot} style={styles[slot]} timingKey={`${mediaKey}:${track.id}`} /> : null;
       })}
     </div>
   );
 }
 
-function SubtitleLine({ track, slot, style }: { track: TextTrack; slot: SubtitleSlot; style: SubStyle }) {
+function SubtitleLine({ track, slot, style, timingKey }: { track: TextTrack; slot: SubtitleSlot; style: SubStyle; timingKey: string }) {
   const player = useMediaPlayer();
   const cues = useActiveTextCues(track);
   useEffect(() => {
-    const apply = () => applyTiming(track, loadTiming(track.id), player?.state.currentTime ?? 0);
+    const apply = () => applyTiming(track, loadTiming(timingKey), player?.state.currentTime ?? 0);
     if (track.readyState === 2) apply();
     track.addEventListener("load", apply);
     return () => track.removeEventListener("load", apply);
-  }, [track, player]);
+  }, [track, player, timingKey]);
 
   return (
     <div className="v-dual-track" data-slot={slot} data-track-id={track.id} aria-label={track.label} style={styleVars(style)}>

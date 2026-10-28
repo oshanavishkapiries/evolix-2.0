@@ -71,6 +71,8 @@ export function SubtitleTools({
   onStyle,
   note,
   notice,
+  onMore,
+  mediaKey,
 }: {
   open: boolean;
   tab: SubTab;
@@ -87,6 +89,8 @@ export function SubtitleTools({
   /** Explains a missing option (e.g. why there is no Sinhala subtitle). */
   note?: string | null;
   notice?: React.ReactNode;
+  onMore: (slot: SubtitleSlot) => void;
+  mediaKey: string;
 }) {
   const player = useMediaPlayer();
   const tracks = useMediaState("textTracks");
@@ -104,14 +108,14 @@ export function SubtitleTools({
   useEffect(() => {
     if (!track) return;
     const load = () => {
-      const t = loadTiming(track.id);
+      const t = loadTiming(`${mediaKey}:${track.id}`);
       applyTiming(track, t, player?.state.currentTime ?? 0);
       setTiming(t);
     };
     if (track.readyState === 2) load();
     else track.addEventListener("load", load);
     return () => track.removeEventListener("load", load);
-  }, [track, player]);
+  }, [track, player, mediaKey]);
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -123,7 +127,7 @@ export function SubtitleTools({
   const update = (next: SubTiming, msg?: string) => {
     if (!track) return;
     applyTiming(track, next, now());
-    saveTiming(track.id, next);
+    saveTiming(`${mediaKey}:${track.id}`, next);
     setTiming(next);
     if (msg) flash(msg);
   };
@@ -195,7 +199,7 @@ export function SubtitleTools({
         </header>
         <div className="v-sub-body">
           {tab === "tracks" ? (
-            <TrackPicker subtitles={subtitles} selection={selection} choices={choices} onSelect={onSelect} tracks={tracks} note={note} />
+            <TrackPicker subtitles={subtitles} selection={selection} choices={choices} onSelect={onSelect} tracks={tracks} note={note} onMore={onMore} />
           ) : (
             <div className="v-sub-field">
               <span className="v-sub-label">Editing track</span>
@@ -226,15 +230,18 @@ export function SubtitleTools({
   );
 }
 
-function TrackPicker({ subtitles, selection, choices, onSelect, tracks, note }: {
+function TrackPicker({ subtitles, selection, choices, onSelect, tracks, note, onMore }: {
   subtitles: WatchSubtitle[];
   selection: SubtitleSelection;
   choices: SubtitleSelection;
   onSelect: (slot: SubtitleSlot, id: string | null) => void;
   tracks: TextTrack[];
   note?: string | null;
+  onMore: (slot: SubtitleSlot) => void;
 }) {
   const count = choices.filter(Boolean).length;
+  const bestSi = subtitles.find((s) => s.language === "si");
+  const bestEn = subtitles.find((s) => s.language === "en");
   return (
     <section className="v-sub-tracks" aria-label="Subtitle tracks">
       <div className="v-sub-track-heading">
@@ -252,8 +259,9 @@ function TrackPicker({ subtitles, selection, choices, onSelect, tracks, note }: 
             <TrackSelect
               labelledBy={`v-sub-pick-${slot}`}
               value={id}
-              options={[{ id: null, label: "Off" }, ...subtitles.map((t) => ({ id: t.id, label: t.label, disabled: choices[other] === t.id || selection[other] === t.id }))]}
-              onChange={(next) => onSelect(slot, next)}
+              valueLabel={subtitles.find((t) => t.id === id)?.label}
+              options={[{ id: null, label: "Off" }, ...[bestSi, bestEn].filter((t): t is WatchSubtitle => Boolean(t)).map((t) => ({ id: t.id, label: `${t.language === "si" ? "Sinhala" : "English"} (best)`, disabled: choices[other] === t.id || selection[other] === t.id })), { id: "__more__", label: "More options ›" }]}
+              onChange={(next) => next === "__more__" ? onMore(slot) : onSelect(slot, next)}
             />
             {id && <button type="button" className="v-sub-remove" aria-label={`Remove ${slot === 0 ? "first" : "second"} subtitle`} onClick={() => onSelect(slot, null)}><CloseIcon size={16} /></button>}
             {id === PENDING_ID && <small className="v-sub-note" role="status">Preparing Sinhala (AI)… Your current subtitles stay on.</small>}
@@ -273,7 +281,7 @@ type TrackOption = { id: string | null; label: string; disabled?: boolean };
  * Listbox that replaces the native <select> so the menu matches the player. The list opens inline (inside the
  * panel's scroll area) so it can never spill outside the panel or player, fullscreen included.
  */
-function TrackSelect({ labelledBy, value, options, onChange }: { labelledBy: string; value: string | null; options: TrackOption[]; onChange: (id: string | null) => void }) {
+function TrackSelect({ labelledBy, value, valueLabel, options, onChange }: { labelledBy: string; value: string | null; valueLabel?: string; options: TrackOption[]; onChange: (id: string | null) => void }) {
   const listId = useId();
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -356,7 +364,7 @@ function TrackSelect({ labelledBy, value, options, onChange }: { labelledBy: str
         aria-labelledby={labelledBy}
         onClick={() => toggle(!open)}
       >
-        <span>{options[selected]?.label}</span>
+        <span>{options.some((o) => o.id === value) ? options[selected]?.label : valueLabel ?? "Off"}</span>
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
       </button>
       {open && (
@@ -583,6 +591,7 @@ function SyncTab({ track, timing, onChange }: { track: TextTrack; timing: SubTim
           <button type="button" className="v-btn v-btn-sm" onClick={() => onChange(nudge(timing, STEP_S))}>+0.1s</button>
           <button type="button" className="v-btn v-btn-sm" onClick={() => onChange(nudge(timing, 1))}>+1s</button>
         </div>
+        <input type="range" aria-label="Subtitle timing in seconds" min={Math.min(-30, timing.offset)} max={Math.max(30, timing.offset)} step={0.1} value={timing.offset} onChange={(e) => onChange(nudge(timing, Number(e.target.value) - timing.offset))} />
         <small className="v-sub-hint">− shows lines earlier, + later. Keys: G / H.</small>
       </div>
 

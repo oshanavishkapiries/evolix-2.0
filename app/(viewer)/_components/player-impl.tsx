@@ -6,7 +6,7 @@ import { MediaPlayer, MediaProvider, Menu, Track, useMediaState, type MediaPlaye
 import { defaultLayoutIcons, DefaultMenuButton, DefaultMenuRadioGroup, DefaultVideoLayout } from "@vidstack/react/player/layouts/default";
 import { isHLSProvider } from "vidstack";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
 import { CenterPlayButton, CenterSkipButton } from "./center-controls";
 import { imageUrl } from "@/lib/images";
@@ -24,6 +24,8 @@ import { useSinhalaSubtitles, type SinhalaTarget } from "./sinhala-subtitles";
 import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 import { DualSubtitles, useDualSubtitleSelection, type SubtitleSlot, type SubtitleStyles } from "./dual-subtitles";
 import { usePlayerFeedback } from "./player-feedback";
+import { libraryId, rankTracks, SubtitleLibraryBanner, SubtitleLibraryPicker, useSubtitleLibrary, useSubtitlePlays } from "./subtitle-library";
+import { PENDING_ID } from "./sinhala-subtitles";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
 /** Shown over the video while paused, Netflix-style. */
@@ -71,11 +73,36 @@ export default function PlayerImpl({
   sinhala?: SinhalaTarget;
 }) {
   const player = useRef<MediaPlayerInstance>(null);
-  const si = useSinhalaSubtitles({ target: sinhala, subtitles: subtitles ?? [] });
-  const allSubtitles = si.tracks;
-  const defaultSub = (allSubtitles.find((s) => s.url && isSinhala(s.language)) ?? allSubtitles.find((s) => isEnglish(s.language)))?.id;
   const mediaKey = track ? `${track.kind}:${track.id}` : sinhala ? `${sinhala.mediaType}:${sinhala.tmdbId}:${sinhala.season ?? 0}:${sinhala.episode ?? 0}` : title;
-  const dual = useDualSubtitleSelection({ mediaKey, subtitles: allSubtitles, defaultId: defaultSub, generatedTrack: si.generatedTrack, requestSinhala: si.request });
+  const [rememberedChoices] = useState<string[]>(() => {
+    try {
+      if (localStorage.getItem(`v-sub-explicit:${mediaKey}`) !== "1") return [];
+      const value = JSON.parse(localStorage.getItem(`v-sub-choice:${mediaKey}`) ?? "[]");
+      return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+    } catch { return []; }
+  });
+  const library = useSubtitleLibrary({ target: sinhala, initial: subtitles ?? [] });
+  const [sourceTrackId, setSourceTrackId] = useState<string | undefined>();
+  const englishSource = library.tracks.find((s) => s.id === sourceTrackId && s.language === "en") ?? library.tracks.find((s) => s.language === "en" && rememberedChoices.includes(s.id)) ?? library.tracks.find((s) => s.language === "en" && libraryId(s.id));
+  const translationTarget = useMemo(() => sinhala ? { ...sinhala, sourceTrackId: englishSource?.id } : undefined, [sinhala, englishSource?.id]);
+  const si = useSinhalaSubtitles({ target: translationTarget, subtitles: library.tracks, onReady: library.add });
+  const allSubtitles = rankTracks(si.tracks);
+  const defaultSub = (allSubtitles.find((s) => s.url && isSinhala(s.language)) ?? allSubtitles.find((s) => isEnglish(s.language)))?.id;
+  const dual = useDualSubtitleSelection({ mediaKey, subtitles: allSubtitles, defaultId: defaultSub, generatedTrack: si.generatedTrack, requestSinhala: si.request, ready: !library.busy });
+  const countSubtitlePlay = useSubtitlePlays();
+  const [manualPicker, setPicker] = useState<{ slot: SubtitleSlot; mode: "library" | "search" } | null>(null);
+  const picker = manualPicker ?? (library.needsChoice ? { slot: 0 as const, mode: "search" as const } : null);
+  const [pendingTranslate, setPendingTranslate] = useState<{ slot: SubtitleSlot; id: string } | null>(null);
+  const translatedRequest = useRef<typeof pendingTranslate>(null);
+  const dismissLibraryChoice = library.dismiss;
+  const closePicker = useCallback(() => { setPicker(null); dismissLibraryChoice(); }, [dismissLibraryChoice]);
+  useEffect(() => {
+    if (pendingTranslate && pendingTranslate !== translatedRequest.current && englishSource?.id === pendingTranslate.id) {
+      const existing = allSubtitles.find((s) => s.language === "si" && s.originTrackId === pendingTranslate.id);
+      if (existing) { dual.select(pendingTranslate.slot, existing.id); translatedRequest.current = pendingTranslate; }
+      else if (allSubtitles.some((s) => s.id === PENDING_ID)) { dual.select(pendingTranslate.slot, PENDING_ID); translatedRequest.current = pendingTranslate; }
+    }
+  }, [pendingTranslate, englishSource?.id, allSubtitles, dual]);
   const lastSave = useRef(0);
   const seekTo = useRef(startAt);
 
@@ -304,6 +331,7 @@ export default function PlayerImpl({
         noteTimer.current = setTimeout(() => setStartNote(false), START_NOTE_MS);
       }}
       onWaiting={() => {
+        countSubtitlePlay([], false);
         const st = player.current?.state;
         if (started && st && !st.seeking && !st.paused) {
           advisor.noteStall();
@@ -325,13 +353,17 @@ export default function PlayerImpl({
         if (Date.now() - lastSave.current >= SAVE_EVERY_MS) save();
         const st = player.current?.state;
         feedback.onTime(Boolean(st?.playing && !st.waiting && !st.seeking));
+        const readyIds = dual.selection.filter((id): id is string => Boolean(id && [...(player.current?.textTracks ?? [])].some((t) => t.id === id && t.readyState === 2)));
+        countSubtitlePlay(readyIds, Boolean(st?.playing && !st.waiting && !st.seeking));
       }}
       onPlay={() => {
+        countSubtitlePlay([], false);
         resumed();
         feedback.onPlay();
       }}
-      onSeeking={resumed}
+      onSeeking={() => { countSubtitlePlay([], false); resumed(); }}
       onPause={() => {
+        countSubtitlePlay([], false);
         save();
         const s = player.current?.state;
         if (s?.ended || s?.seeking) return;
@@ -362,7 +394,8 @@ export default function PlayerImpl({
           />
         ))}
       </MediaProvider>
-      <DualSubtitles selection={dual.selection} styles={subStyles} />
+      <DualSubtitles selection={dual.selection} styles={subStyles} mediaKey={mediaKey} />
+      {!subOpen && !picker && <SubtitleLibraryBanner busy={library.busy} />}
       {info && paused && !subOpen && <PauseOverlay info={info} />}
       {!subOpen && si.banner}
       {!subOpen && startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
@@ -389,7 +422,7 @@ export default function PlayerImpl({
           centerControlsGroupCenter: <CenterPlayButton />,
           centerControlsGroupEnd: <CenterSkipButton forward />,
           smallLayout: { centerControlsGroupCenter: null, playButton: <CenterPlayButton /> },
-          ...(allSubtitles.length > 0 ? { afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} /> } : {}),
+          afterCaptionButton: <SubtitleButton open={subOpen} onToggle={() => setSubOpen((o) => !o)} />,
           ...(qualityMenu
             ? {
                 settingsMenuItemsStart: (
@@ -408,7 +441,7 @@ export default function PlayerImpl({
             : {}),
         }}
       />
-      {allSubtitles.length > 0 && (
+      {(
         <SubtitleTools
           open={subOpen}
           tab={subTab}
@@ -417,7 +450,12 @@ export default function PlayerImpl({
           subtitles={allSubtitles}
           selection={dual.selection}
           choices={dual.choices}
-          onSelect={dual.select}
+          onSelect={(slot, id) => {
+            if (id && allSubtitles.some((s) => s.id === id && s.language === "en" && libraryId(s.id))) setSourceTrackId(id);
+            dual.select(slot, id);
+          }}
+          mediaKey={mediaKey}
+          onMore={(slot) => { setSubOpen(false); setPicker({ slot, mode: "library" }); }}
           slot={subSlot}
           onSlot={setSubSlot}
           style={subStyles[subSlot]}
@@ -426,6 +464,9 @@ export default function PlayerImpl({
           notice={si.banner}
         />
       )}
+      {picker && <SubtitleLibraryPicker target={sinhala} tracks={allSubtitles} initialMode={picker.mode} message={library.needsChoice ? library.message : undefined} onClose={closePicker}
+        onAdd={library.add} onPick={(s) => { if (s.language === "en" && libraryId(s.id)) setSourceTrackId(s.id); dual.select(picker.slot, s.id); closePicker(); }}
+        onTranslate={(s) => { setSourceTrackId(s.id); setPendingTranslate({ slot: picker.slot, id: s.id }); closePicker(); }} />}
     </MediaPlayer>
   );
 }

@@ -1,10 +1,12 @@
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { sources, subtitles } from "@/db/schema";
 import { pixeldrainId } from "@/lib/viewer/providers";
 import { CATALOG_TAG } from "@/lib/viewer/cache";
 import { ensureEpisode, ensureMovie } from "./ensure";
+import { inParent, saveTrack } from "@/lib/subtitles/store";
 
 export const QUALITIES = ["1080p", "720p", "480p", "360p"] as const;
 /** Lower plays first: 720p is the default pick, then the others by descending quality. */
@@ -22,7 +24,10 @@ export const promotionInput = z.object({
   quality: z.string().regex(/^\d{3,4}p$/).optional(),
   resultUrl: pixeldrainUrl.optional(),
   subtitles: z
-    .array(z.object({ language: z.string().min(2).max(10), label: z.string().min(1).max(100), url: pixeldrainUrl }))
+    .array(z.object({ language: z.string().min(2).max(10), label: z.string().min(1).max(100), url: pixeldrainUrl,
+      source: z.enum(["auto", "opensubtitles", "translation"]).default("auto"),
+      originRef: z.string().max(200).nullish(), originTrackId: z.uuid().nullish(),
+    }))
     .max(30)
     .default([]),
   /** The engine task that produced this (sent by the engine; it tells the app which engine to credit). */
@@ -36,7 +41,8 @@ export type PromotionInput = z.infer<typeof promotionInput>;
  * Registers a cached file as a playable source (one per quality) plus its subtitle tracks, creating the
  * catalog rows if needed. Idempotent: re-sending the same completion just refreshes the URLs.
  */
-export async function promote(input: PromotionInput, engineId?: string | null) {
+export async function promote(raw: z.input<typeof promotionInput>, engineId?: string | null) {
+  const input = promotionInput.parse(raw);
   const isMovie = input.mediaType === "movie";
   let parent: { movieId: string } | { episodeId: string };
   if (isMovie) {
@@ -69,13 +75,17 @@ export async function promote(input: PromotionInput, engineId?: string | null) {
   }
 
   for (const [i, sub] of input.subtitles.entries()) {
-    await db
-      .insert(subtitles)
-      .values({ ...parent, label: sub.label, language: sub.language, url: sub.url, format: "vtt", sortOrder: i, engineId: engineId ?? null })
-      .onConflictDoUpdate({
-        target: "movieId" in parent ? [subtitles.movieId, subtitles.language] : [subtitles.episodeId, subtitles.language],
-        set: { url: sub.url, label: sub.label, format: "vtt", ...(engineId ? { engineId } : {}) },
-      });
+    let sourceTrack;
+    if (sub.originTrackId) {
+      [sourceTrack] = await db.select().from(subtitles).where(eq(subtitles.id, sub.originTrackId)).limit(1);
+      if (!sourceTrack || ("movieId" in parent ? sourceTrack.movieId !== parent.movieId : sourceTrack.episodeId !== parent.episodeId)) throw new Error("Translation source does not belong to this title");
+    } else if (sub.source === "translation" && sub.originRef) {
+      [sourceTrack] = await db.select().from(subtitles).where(and(inParent(parent), eq(subtitles.language, "en"), eq(subtitles.originRef, sub.originRef))).limit(1);
+    }
+    await saveTrack(parent, { label: sub.label, language: sub.language, url: sub.url, format: "vtt", sortOrder: i,
+      engineId: engineId ?? null, source: sub.source ?? "auto", originRef: sourceTrack?.id ?? sub.originRef ?? null,
+      originTrackId: sourceTrack?.id ?? null, visibility: sourceTrack?.visibility ?? "shared", uploadedBy: sourceTrack?.uploadedBy ?? null,
+    });
   }
 
   // Watch pages are cached; expire them so the new source shows up immediately.

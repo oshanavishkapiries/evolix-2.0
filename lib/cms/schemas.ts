@@ -200,7 +200,7 @@ const subtitleFields = {
   sortOrder: z.number().int().min(-100000).max(100000).default(0),
 };
 export const subtitleCreate = z.object({ ...parent, ...subtitleFields }).refine(exactlyOne, PARENT_MSG);
-export const subtitlePatch = z.object(subtitleFields).partial().strict();
+export const subtitlePatch = z.object({ ...subtitleFields, hidden: z.boolean() }).partial().strict();
 
 export const parentQuery = z
   .object({ movieId: z.uuid().optional(), episodeId: z.uuid().optional() })

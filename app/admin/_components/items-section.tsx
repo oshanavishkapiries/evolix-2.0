@@ -31,6 +31,7 @@ const SUBTITLE_DEFS: FieldDef[] = [
   { key: "url", label: "URL", kind: "text" },
   { key: "format", label: "Format", kind: "select", options: ["vtt", "srt"], def: "vtt" },
   { key: "sortOrder", label: "Order", kind: "int", def: "0" },
+  { key: "hidden", label: "Hidden (uncheck to restore)", kind: "bool", def: false },
 ];
 
 function Section({
@@ -183,7 +184,7 @@ export function SubtitlesSection({ parent }: { parent: Parent }) {
       listKey="subtitles"
       defs={SUBTITLE_DEFS}
       parent={parent}
-      summary={(i) => `[${i.sortOrder}] ${i.label} (${i.language}, ${i.format}) ${i.url}`}
+      summary={(i) => `[${i.source ?? "auto"}] ${i.label} (${i.language}) · score ${i.score ?? 0} · ${i.reports ?? 0} reports${i.hidden ? " · Hidden" : ""} · ${i.visibility ?? "shared"}`}
     />
   );
 }

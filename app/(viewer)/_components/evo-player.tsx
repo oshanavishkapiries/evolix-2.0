@@ -29,7 +29,7 @@ type PlayerStage = "INGESTING" | "READY";
 
 function formatSubtitles(rawSubs: unknown[]): WatchSubtitle[] {
   if (!Array.isArray(rawSubs)) return [];
-  return rawSubs.map((s) => {
+  return rawSubs.filter((s) => s && typeof s === "object").map((s) => {
     const item = s as Record<string, string>;
     const rawUrl = item.url || "";
     const cleanUrl = rawUrl.replace(/^\/api\/v1\/media\/subtitles/, "/api/evo/subtitles");
@@ -39,8 +39,9 @@ function formatSubtitles(rawSubs: unknown[]): WatchSubtitle[] {
       language: item.language || "en",
       format: (item.format === "srt" ? "srt" : "vtt") as "vtt" | "srt",
       url: cleanUrl,
+      source: "auto" as const,
     };
-  });
+  }).filter((s) => !s.url.startsWith("/api/evo/subtitles/") || /^sub_\d+_[a-z]{2,3}_\d+$/.test(s.id));
 }
 
 export function EvoPlayer({

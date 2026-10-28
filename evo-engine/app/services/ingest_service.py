@@ -4,6 +4,7 @@ import shutil
 import time
 import threading
 import uuid
+import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -89,6 +90,8 @@ class IngestService:
         self._tr_locks_guard = threading.Lock()
         # Create-or-join must be atomic or two viewers asking for the same quality start two jobs.
         self._create_lock = threading.Lock()
+        self._sinhala_attempts: dict[tuple, float] = {}
+        self._sinhala_latest: dict[tuple, tuple[float, str]] = {}
         # Extraction launches a headless browser and caching moves whole films: each stage has its own worker
         # pool, so waiting jobs sit in a queue (not on request threads) and a long download never blocks an extraction.
         # The pools are sized for the largest allowed concurrency; the limiters hold the live (admin-editable) limit.
@@ -285,7 +288,11 @@ class IngestService:
                     return None
                 path.write_text(vtt, encoding="utf-8")
                 res = self.storage.upload_file(path)
-                return {"language": sub["language"], "label": sub["label"], "url": res.direct_url}
+                origin_ref = sub.get("originTrackId") or sub.get("originRef") if sub.get("source") == "translation" else self.subtitle_service.origin_ref(sub["id"])
+                return {"language": sub["language"], "label": sub["label"], "url": res.direct_url,
+                        "originTrackId": sub.get("originTrackId"),
+                        "source": sub.get("source", "auto"),
+                        "originRef": origin_ref}
             except Exception as e:
                 logger.warning(f"[{task.task_id}] subtitle upload failed ({sub.get('language')}): {e}")
                 return None
@@ -311,8 +318,8 @@ class IngestService:
         en = next((s for s in task.subtitles if s.get("language") == "en"), None)
         if not en or not self.translator:
             return None
-        si_id = en["id"].replace("_en_", "_si_", 1)
-        track = {"id": si_id, "label": "Sinhala (AI)", "language": "si", "format": "vtt", "url": f"/api/v1/media/subtitles/{si_id}.vtt"}
+        si_id = "si_" + hashlib.sha256(en["id"].encode()).hexdigest()
+        track = {"id": si_id, "label": "Sinhala (AI)", "language": "si", "format": "vtt", "url": f"/api/v1/media/subtitles/{si_id}.vtt", "source": "translation", "originTrackId": en.get("originTrackId")}
         with self._tr_lock(si_id):
             if force:
                 self.subtitle_service.delete_vtt(si_id)
@@ -321,7 +328,9 @@ class IngestService:
             else:
                 vtt = self.subtitle_service.get_vtt(en["id"])
                 if not vtt:
-                    raise RuntimeError("English subtitle could not be read")
+                    reason = self.subtitle_service.get_last_error(en["id"]) or "no usable subtitle data was returned"
+                    raise RuntimeError(f"English subtitle could not be read: {reason}")
+                track["originRef"] = en.get("originTrackId") or self.subtitle_service.origin_ref(en["id"])
                 self._event(task, "translate", "running", "Translating to Sinhala")
                 res = self.translator.translate_vtt(
                     vtt,
@@ -334,6 +343,7 @@ class IngestService:
                 self.subtitle_service.save_vtt(si_id, res.vtt)
                 note = f" · {'; '.join(res.warnings)}" if res.warnings else ""
                 self._event(task, "translate", "ok", f"{res.translated}/{res.cues} cues · ${res.cost_usd:.3f} · {res.seconds:.0f}s{note}")
+            track.setdefault("originRef", en.get("originTrackId") or self.subtitle_service.origin_ref(en["id"]))
         task.subtitles = [s for s in task.subtitles if s.get("language") != "si"] + [track]
         self.repository.save(task)
         return track
@@ -364,8 +374,9 @@ class IngestService:
         except Exception:
             return True
 
-    def find_sinhala_job(self, tmdb_id: int, media_type: MediaType, season: Optional[int], episode: Optional[int]) -> Optional[IngestTask]:
-        return self.repository.get_by_tmdb_id(tmdb_id, media_type.value, SUBTITLE_JOB, season=season, episode=episode)
+    def find_sinhala_job(self, tmdb_id: int, media_type: MediaType, season: Optional[int], episode: Optional[int], source_track_id: Optional[str] = None) -> Optional[IngestTask]:
+        quality = f"{SUBTITLE_JOB}:{source_track_id}" if source_track_id else SUBTITLE_JOB
+        return self.repository.get_by_tmdb_id(tmdb_id, media_type.value, quality, season=season, episode=episode)
 
     def request_sinhala(
         self,
@@ -377,6 +388,8 @@ class IngestService:
         imdb_id: Optional[str] = None,
         synopsis: Optional[str] = None,
         characters: Optional[List[str]] = None,
+        source_track_id: Optional[str] = None,
+        source_url: Optional[str] = None,
     ) -> dict:
         """Starts (or joins) the Sinhala translation of one title/episode; returns its status (see sinhala_status).
 
@@ -384,20 +397,33 @@ class IngestService:
         finished one is returned as is (unless its CDN file vanished), a failed one is retried.
         """
         if not (self.translator and self.translator.enabled):
-            return {"state": "unavailable", "message": "Sinhala subtitles are not available right now"}
+            return {"state": "unavailable", "message": "Sinhala subtitles are not available right now", "created": False}
         with self._create_lock:
-            job = self.find_sinhala_job(tmdb_id, media_type, season, episode)
+            job = self.find_sinhala_job(tmdb_id, media_type, season, episode, source_track_id)
             if job and job.status in (IngestStatus.PENDING, IngestStatus.UPLOADING):
-                return self.sinhala_status(job)
+                return {**self.sinhala_status(job), "created": False}
             if job and job.status == IngestStatus.COMPLETED and job.cdn_subtitles and self._cdn_alive(job.cdn_subtitles[0]["url"]):
-                return self.sinhala_status(job)
+                return {**self.sinhala_status(job), "created": False}
+            key = (tmdb_id, media_type.value, season, episode, source_track_id) if source_track_id else (tmdb_id, media_type.value, season, episode)
+            title_key = (tmdb_id, media_type.value, season, episode)
+            latest = self._sinhala_latest.get(title_key)
+            if latest and (not job or job.task_id != latest[1]) and time.monotonic() - latest[0] < 30:
+                last = self.repository.get_by_id(latest[1])
+                if last and last.status == IngestStatus.FAILED:
+                    return {"state": "failed", "message": "A subtitle job for this title failed recently. Try again in 30 seconds.", "created": False}
+            attempted_at = self._sinhala_attempts.get(key)
+            if job and job.status == IngestStatus.FAILED:
+                now = time.monotonic()
+                if attempted_at is None or now - attempted_at < 30:
+                    self._sinhala_attempts[key] = now if attempted_at is None else attempted_at
+                    return {**self.sinhala_status(job), "created": False}
             if not self.sinhala_budget_left():
-                return {"state": "unavailable", "message": "Sinhala subtitles are unavailable right now, try again tomorrow"}
+                return {"state": "unavailable", "message": "Sinhala subtitles are unavailable right now, try again tomorrow", "created": False}
             job = IngestTask(
                 task_id=str(uuid.uuid4()),
                 media_type=media_type,
                 tmdb_id=tmdb_id,
-                requested_quality=SUBTITLE_JOB,
+                requested_quality=f"{SUBTITLE_JOB}:{source_track_id}" if source_track_id else SUBTITLE_JOB,
                 season=season,
                 episode=episode,
                 title=title,
@@ -406,12 +432,19 @@ class IngestService:
                 characters=characters or [],
                 message="Queued",
             )
+            if source_track_id:
+                sub_id = f"track_{source_track_id}_en"
+                self.subtitle_service._meta_cache[sub_id] = {"dl_link": source_url, "episode": episode is not None}
+                self.subtitle_service._save_meta()
+                job.subtitles = [{"id": sub_id, "language": "en", "label": "English", "format": "vtt", "originTrackId": source_track_id}]
             self.repository.save(job)
+            self._sinhala_attempts[key] = time.monotonic()
+            self._sinhala_latest[title_key] = (self._sinhala_attempts[key], job.task_id)
             self._event(job, "request", "ok", f"Sinhala subtitles · {media_type.value} tmdb {tmdb_id}" + (f" S{season}E{episode}" if season is not None else ""))
             for step in ("extract", "resolve", "stream", "cdn_check", "download", "verify", "upload"):
                 self._event(job, step, "skipped", "Not needed: subtitles only")
             self._tr_pool.submit(self.process_sinhala_job, job.task_id)
-        return self.sinhala_status(job)
+        return {**self.sinhala_status(job), "created": True}
 
     def sinhala_status(self, job: Optional[IngestTask]) -> dict:
         if job is None:
@@ -419,7 +452,7 @@ class IngestService:
         out: dict = {"job_id": job.task_id, "message": job.message}
         if job.status == IngestStatus.COMPLETED and job.cdn_subtitles:
             sub = next((s for s in job.cdn_subtitles if s.get("language") == "si"), job.cdn_subtitles[0])
-            return {**out, "state": "done", "subtitle": {"language": "si", "label": sub.get("label", "Sinhala (AI)"), "url": sub["url"]}}
+            return {**out, "state": "done", "subtitle": sub}
         if job.status == IngestStatus.FAILED:
             return {**out, "state": "unavailable" if job.message.startswith("Daily translation budget") else "failed"}
         progress = None
@@ -438,7 +471,7 @@ class IngestService:
         try:
             self._set(job, IngestStatus.UPLOADING, "Finding the English subtitle")
             self._event(job, "subtitles", "running", "Searching 10 languages")
-            tracks = self.subtitle_service.fetch_subtitles(job.imdb_id, season=job.season, episode=job.episode)
+            tracks = job.subtitles or self.subtitle_service.fetch_subtitles(job.imdb_id, season=job.season, episode=job.episode)
             job.subtitles = tracks
             if not any(t.get("language") in ("en", "si") for t in tracks):
                 raise RuntimeError("This title has no English subtitle to translate from")

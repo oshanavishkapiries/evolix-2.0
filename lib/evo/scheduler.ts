@@ -204,8 +204,8 @@ export const ingestKey = (mediaType: string, tmdbId: number, season: number | un
   `ingest:${mediaType}:${tmdbId}:${season ?? 0}:${episode ?? 0}:${quality}`;
 export const ingestAffinity = (mediaType: string, tmdbId: number, season: number | undefined, episode: number | undefined) =>
   `ingest:${mediaType}:${tmdbId}:${season ?? 0}:${episode ?? 0}:`;
-export const sinhalaKey = (mediaType: string, tmdbId: number, season: number | undefined, episode: number | undefined) =>
-  `sinhala:${mediaType}:${tmdbId}:${season ?? 0}:${episode ?? 0}`;
+export const sinhalaKey = (mediaType: string, tmdbId: number, season: number | undefined, episode: number | undefined, sourceTrackId?: string) =>
+  `sinhala:${mediaType}:${tmdbId}:${season ?? 0}:${episode ?? 0}${sourceTrackId ? `:${sourceTrackId}` : ""}`;
 
 /** Remembers which engine owns a task (and which task fulfils a claim). Ownership never changes afterwards. */
 export async function recordTask(taskId: string, engine: EngineRef, kind: "ingest" | "sinhala", claimKey?: string) {

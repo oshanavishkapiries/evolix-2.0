@@ -130,13 +130,18 @@ class OnDemandSinhala(unittest.TestCase):
         self.assertIn("English subtitle", out["message"])
         self.assertEqual(translator.calls, 0)
 
-    def test_failed_job_is_retried_by_the_next_request(self):
+    def test_failed_job_is_joined_during_the_flood_guard_window(self):
         svc, _, translator = make_service(error=RuntimeError("model down"))
         ask(svc)
         failed = settled(svc)
         self.assertEqual(failed["state"], "failed")
         translator.error = None
         retry = ask(svc)
+        self.assertEqual(retry["job_id"], failed["job_id"])
+        self.assertEqual(retry["state"], "failed")
+        attempted_at = svc._sinhala_attempts[(42, "movie", None, None)]
+        with mock.patch("app.services.ingest_service.time.monotonic", return_value=attempted_at + 31):
+            retry = ask(svc)
         self.assertEqual(retry["state"], "running")
         self.assertNotEqual(retry["job_id"], failed["job_id"])
         self.assertEqual(settled(svc)["state"], "done")

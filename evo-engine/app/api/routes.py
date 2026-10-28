@@ -1,6 +1,11 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header, Response, Query
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+import base64
+import shutil
+import tempfile
+from pathlib import Path
+import threading
 from app.api.schemas import IngestRequest, IngestResponse, SinhalaSubtitleRequest, TaskStatusResponse, TaskSummary
 from app.domain.models import IngestStatus, MediaType
 from app.services.ingest_service import IngestService
@@ -189,6 +194,8 @@ def request_sinhala_subtitles(request: SinhalaSubtitleRequest):
         imdb_id=request.imdb_id,
         synopsis=request.synopsis,
         characters=request.characters,
+        source_track_id=request.source_track_id,
+        source_url=request.source_url,
     )
 
 
@@ -198,9 +205,82 @@ def get_sinhala_subtitles_status(
     media_type: MediaType = Query(MediaType.MOVIE),
     season: Optional[int] = Query(None, ge=0, le=10000),
     episode: Optional[int] = Query(None, ge=0, le=100000),
+    source_track_id: Optional[str] = Query(None, pattern=r"^[0-9a-f-]{36}$"),
 ):
     """Progress of the Sinhala translation for a title (state "none" when nobody asked for it yet)."""
-    return _service_instance.sinhala_status(_service_instance.find_sinhala_job(tmdb_id, media_type, season, episode))
+    return _service_instance.sinhala_status(_service_instance.find_sinhala_job(tmdb_id, media_type, season, episode, source_track_id))
+
+
+@router.get("/subtitles/search", dependencies=[Depends(verify_secret_token)])
+def search_subtitles(
+    imdb_id: str = Query(..., pattern=r"^tt\d{5,10}$"),
+    lang: str = Query("en", pattern=r"^(en|es|fr|de|pt|it|ar|ru|si|hi)$"),
+    season: Optional[int] = Query(None, ge=0, le=10000),
+    episode: Optional[int] = Query(None, ge=0, le=100000),
+):
+    return _subtitle_service.search_candidates(imdb_id, lang, season, episode)
+
+
+class SubtitleSelectRequest(BaseModel):
+    ref: str = Field(pattern=r"^sub_\d+_[a-z]{2}_\d+$")
+
+
+class SubtitleUploadRequest(BaseModel):
+    file_name: str = Field(max_length=200)
+    content_base64: str = Field(max_length=2796204)
+    episode: bool = False
+    runtime_minutes: Optional[int] = Field(None, ge=1, le=1000)
+
+
+_publish_locks: dict[str, threading.Lock] = {}
+_publish_guard = threading.Lock()
+
+
+def _publish_subtitle(sub_id: str) -> dict:
+    with _publish_guard:
+        lock = _publish_locks.setdefault(sub_id, threading.Lock())
+    with lock:
+        return _publish_subtitle_once(sub_id)
+
+
+def _publish_subtitle_once(sub_id: str) -> dict:
+    entry = _subtitle_service._meta_cache.get(sub_id, {})
+    if isinstance(entry, dict) and entry.get("cdn_url"):
+        return {"id": sub_id, "url": entry["cdn_url"], "originRef": _subtitle_service.origin_ref(sub_id), "release": entry.get("resolved_release")}
+    folder = Path(tempfile.mkdtemp(dir=settings.TEMP_DIR))
+    try:
+        path = folder / f"{sub_id}.vtt"
+        vtt = _subtitle_service.get_vtt(sub_id)
+        if not vtt:
+            raise HTTPException(422, _subtitle_service.get_last_error(sub_id) or "Subtitle download failed")
+        path.write_text(vtt, encoding="utf-8")
+        uploaded = _storage.upload_file(path)
+        entry = _subtitle_service._meta_cache.get(sub_id, {})
+        if not isinstance(entry, dict):
+            entry = {"dl_link": entry}
+        entry["cdn_url"] = uploaded.direct_url
+        _subtitle_service._meta_cache[sub_id] = entry
+        _subtitle_service._save_meta()
+        return {"id": sub_id, "url": uploaded.direct_url, "originRef": _subtitle_service.origin_ref(sub_id), "release": entry.get("resolved_release")}
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+@router.post("/subtitles/select", dependencies=[Depends(verify_secret_token)])
+def select_subtitle(request: SubtitleSelectRequest):
+    return _publish_subtitle(request.ref)
+
+
+@router.post("/subtitles/upload", dependencies=[Depends(verify_secret_token)])
+def upload_subtitle(request: SubtitleUploadRequest):
+    if Path(request.file_name).suffix.lower() not in (".srt", ".vtt"):
+        raise HTTPException(422, "Choose an .srt or .vtt subtitle")
+    try:
+        raw = base64.b64decode(request.content_base64, validate=True)
+        sub_id = _subtitle_service.store_upload(raw, request.episode, request.runtime_minutes)
+    except (ValueError, base64.binascii.Error) as e:
+        raise HTTPException(422, str(e))
+    return _publish_subtitle(sub_id)
 
 
 @router.get("/tasks/{task_id}/events", dependencies=[Depends(verify_secret_token)])
@@ -432,7 +512,7 @@ def retry_task(task_id: str):
     old = _service_instance.get_task(task_id)
     if not old:
         raise HTTPException(status_code=404, detail="Ingest task not found")
-    if old.requested_quality == "sub:si":
+    if old.requested_quality.startswith("sub:si"):
         raise HTTPException(status_code=409, detail="Use the translate action for subtitle jobs")
     if old.status in _IN_FLIGHT:
         raise HTTPException(status_code=409, detail="Task is still running")
@@ -481,6 +561,7 @@ def delete_cdn_file(body: CdnUrl):
         _storage.delete_file(file_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+    _subtitle_service.forget_publication(body.url.strip())
     return {"deleted": True, "tasks_reset": _repository.clear_cdn_url(body.url.strip())}
 
 
@@ -524,6 +605,7 @@ def delete_cdn_files(body: CdnUrls):
     for url in body.urls[:200]:
         try:
             _storage.delete_file(_pixeldrain_id(url))
+            _subtitle_service.forget_publication(url.strip())
             reset += _repository.clear_cdn_url(url.strip())
             done.append(url)
         except Exception as e:

@@ -15,6 +15,7 @@ import {
   unique,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 export const otpPurpose = pgEnum("otp_purpose", [
@@ -83,6 +84,8 @@ export const videoType = pgEnum("video_type", [
   "other",
 ]);
 export const subtitleFormat = pgEnum("subtitle_format", ["vtt", "srt"]);
+export const subtitleSource = pgEnum("subtitle_source", ["auto", "opensubtitles", "upload", "translation"]);
+export const subtitleVisibility = pgEnum("subtitle_visibility", ["private", "shared"]);
 /** Legacy: the Kids section was removed and nothing reads this column; kept so no data migration is needed. */
 export const audience = pgEnum("audience", ["general", "kids", "both"]);
 
@@ -232,20 +235,63 @@ export const subtitles = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     /** Evo engine that produced this track (null for manual tracks or before multi-engine). */
     engineId: text("engine_id"),
+    source: subtitleSource("source").notNull().default("auto"),
+    originRef: text("origin_ref"),
+    originKey: text("origin_key").generatedAlwaysAs(sql`coalesce(origin_ref, '')`),
+    originTrackId: uuid("origin_track_id").references((): AnyPgColumn => subtitles.id, { onDelete: "cascade" }),
+    uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+    visibility: subtitleVisibility("visibility").notNull().default("shared"),
+    score: integer("score").notNull().default(0),
+    playsOk: integer("plays_ok").notNull().default(0),
+    reports: integer("reports").notNull().default(0),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    hidden: boolean("hidden").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("subtitles_movie_id_idx").on(t.movieId),
     index("subtitles_episode_id_idx").on(t.episodeId),
-    // One track per language: Evo subtitle sync upserts on these.
-    unique("subtitles_movie_language_uq").on(t.movieId, t.language),
-    unique("subtitles_episode_language_uq").on(t.episodeId, t.language),
+    uniqueIndex("subtitles_movie_origin_uq").on(t.movieId, t.language, t.source, t.originKey).where(sql`${t.movieId} is not null`),
+    uniqueIndex("subtitles_episode_origin_uq").on(t.episodeId, t.language, t.source, t.originKey).where(sql`${t.episodeId} is not null`),
     check(
       "subtitles_one_parent_chk",
       sql`(${t.movieId} is null) <> (${t.episodeId} is null)`,
     ),
   ],
 );
+
+/** Distinct successful viewers for upload promotion, plus one vote and report per viewer/track. */
+export const subtitleActivity = pgTable("subtitle_activity", {
+  trackId: uuid("track_id").notNull().references(() => subtitles.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  playedAt: timestamp("played_at", { withTimezone: true }),
+  good: boolean("good").notNull().default(false),
+  problem: text("problem"),
+}, (t) => [primaryKey({ columns: [t.trackId, t.userId] })]);
+
+/** Completed viewing sessions score once each; activity keeps distinct viewer history for promotion. */
+export const subtitlePlays = pgTable("subtitle_plays", {
+  id: uuid("id").primaryKey(),
+  trackId: uuid("track_id").notNull().references(() => subtitles.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (t) => [index("subtitle_plays_track_user_idx").on(t.trackId, t.userId)]);
+
+/** Atomic daily reservations for uploads and new translations. */
+export const subtitleQuota = pgTable("subtitle_quota", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  mediaKey: text("media_key").notNull(),
+  kind: text("kind").notNull(),
+  day: date("day").notNull().default(sql`current_date`),
+  used: integer("used").notNull().default(1),
+}, (t) => [primaryKey({ columns: [t.userId, t.mediaKey, t.kind, t.day] })]);
+
+export const subtitleGrants = pgTable("subtitle_grants", {
+  trackId: uuid("track_id").notNull().references(() => subtitles.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.trackId, t.userId] })]);
 
 export const videos = pgTable(
   "videos",

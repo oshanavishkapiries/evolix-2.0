@@ -27,6 +27,14 @@ class SinhalaSubtitleRequest(BaseModel):
     imdb_id: Optional[str] = Field(default=None, pattern=r"^tt\d{5,10}$", description="IMDb id; needed to find the English subtitle")
     synopsis: Optional[str] = Field(default=None, max_length=1500)
     characters: List[str] = Field(default_factory=list, max_length=20)
+    source_track_id: Optional[str] = Field(default=None, pattern=r"^[0-9a-f-]{36}$")
+    source_url: Optional[str] = Field(default=None, pattern=r"^https://pixeldrain\.com/api/file/[A-Za-z0-9_-]+$")
+
+    @model_validator(mode="after")
+    def _source_pair(self):
+        if bool(self.source_track_id) != bool(self.source_url):
+            raise ValueError("source_track_id and source_url are required together")
+        return self
 
     @model_validator(mode="after")
     def _tv_needs_episode(self):

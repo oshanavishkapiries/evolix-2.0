@@ -14,7 +14,10 @@
     "evo:stop": "pm2 stop evo-engine",
     "evo:restart": "pm2 restart evo-engine",
     "evo:status": "pm2 status evo-engine",
-    "evo:logs": "pm2 logs evo-engine"
+    "evo:logs": "pm2 logs evo-engine",
+    "test:subtitles": "vitest run --config tests/subtitles/vitest.config.ts",
+    "test:subtitles:engine": "evo-engine/test/.venv/bin/python tests/subtitles/run_engine.py",
+    "test:subtitles:e2e": "playwright test --config tests/subtitles/playwright.config.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
@@ -32,6 +35,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
@@ -43,7 +48,9 @@
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "packageManager": "pnpm@12.10.1"
 }

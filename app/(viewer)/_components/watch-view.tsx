@@ -136,6 +136,7 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
             track={track}
             startAt={startAt}
             info={info}
+            sinhala={tmdbId ? { tmdbId, mediaType: mediaType ?? "movie", season, episode } : undefined}
           />
         </SafePlayerBoundary>
       )}

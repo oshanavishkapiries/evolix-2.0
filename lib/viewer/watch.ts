@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/db";
 import { catalogCache } from "./cache";
@@ -24,6 +24,12 @@ export type WatchSubtitle = {
   language: string;
   format: "vtt" | "srt";
   url: string;
+  source?: "auto" | "opensubtitles" | "upload" | "translation";
+  originTrackId?: string | null;
+  visibility?: "private" | "shared";
+  score?: number;
+  lastUsedAt?: string | Date | null;
+  canShare?: boolean;
 };
 
 const activeSources = async (where: ReturnType<typeof eq>): Promise<WatchSource[]> =>
@@ -33,7 +39,7 @@ const activeSources = async (where: ReturnType<typeof eq>): Promise<WatchSource[
     .where(and(where, eq(sources.isActive, true)))
     .orderBy(asc(sources.sortOrder), asc(sources.createdAt))).map(normalizeSource);
 
-const subtitleRows = (where: ReturnType<typeof eq>) =>
+const subtitleRows = (where: ReturnType<typeof eq>): Promise<WatchSubtitle[]> =>
   db
     .select({
       id: subtitles.id,
@@ -41,10 +47,13 @@ const subtitleRows = (where: ReturnType<typeof eq>) =>
       language: subtitles.language,
       format: subtitles.format,
       url: subtitles.url,
+      source: subtitles.source,
+      originTrackId: subtitles.originTrackId,
+      score: subtitles.score,
     })
     .from(subtitles)
-    .where(where)
-    .orderBy(asc(subtitles.sortOrder), asc(subtitles.createdAt));
+    .where(and(where, eq(subtitles.visibility, "shared"), eq(subtitles.hidden, false)))
+    .orderBy(desc(subtitles.score), sql`${subtitles.lastUsedAt} desc nulls last`, asc(subtitles.id));
 
 async function getDbMovieWatch(id: string) {
   const [[movie], srcs, subs] = await Promise.all([
