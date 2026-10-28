@@ -1,0 +1,13 @@
+name = "evolix-stream"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+# Same value as the app's EVO_ENGINES. Cloudflare cannot fetch a bare IP address: use a hostname for each engine
+# (e.g. http://169-58-244-90.sslip.io:8000). The app and this Worker must list the SAME addresses.
+# Set the real value in the Cloudflare dashboard (Worker -> Settings -> Variables) or here.
+[vars]
+EVO_ENGINES = '["http://engine-1.example:8000"]'
+# Sites allowed to play from this Worker in a browser, comma-separated, no trailing slash.
+ALLOWED_ORIGINS = "https://evolix-mu.vercel.app"
+
+# Secret (never put it in this file):  npx wrangler secret put EVO_SECRET_TOKEN

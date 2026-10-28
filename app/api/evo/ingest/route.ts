@@ -6,6 +6,7 @@ import { startIngest } from "@/lib/evo/ingest";
 import { allow, release, viewerId } from "@/lib/evo/guard";
 import { newRef, PROBLEMS } from "@/lib/evo/problems";
 import { QUALITIES } from "@/lib/evo/promote";
+import { viewerStreamUrl } from "@/lib/evo/stream-url";
 import { TmdbError } from "@/lib/tmdb";
 import { canWatch } from "@/lib/viewer/access";
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       }
       return json(out.status, body);
     }
-    return json(200, out.data);
+    return json(200, { ...out.data, stream_url: viewerStreamUrl(out.data.stream_url, out.engineId) });
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
     throw e;

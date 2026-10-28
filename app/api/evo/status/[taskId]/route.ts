@@ -5,6 +5,7 @@ import { engineFetch, EngineUnavailableError } from "@/lib/evo/client";
 import { engineForTask, EngineGoneError, recordSubtitleOwners } from "@/lib/evo/scheduler";
 import { viewerId } from "@/lib/evo/guard";
 import { promote, promotionFromTask } from "@/lib/evo/promote";
+import { viewerStreamUrl } from "@/lib/evo/stream-url";
 import { classifyFailure, newRef, problemBody } from "@/lib/evo/problems";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
       const friendly = problemBody(code);
       return json(200, { ...data, code, title: friendly.title, message: friendly.message, error: friendly.message });
     }
-    return json(200, data);
+    return json(200, { ...data, stream_url: viewerStreamUrl(data.stream_url, engine.id) });
   } catch (e) {
     if (e instanceof EngineUnavailableError) return json(503, problemBody("ENGINE_UNAVAILABLE"));
     if (e instanceof EngineGoneError) return json(503, problemBody("ENGINE_UNAVAILABLE"));
