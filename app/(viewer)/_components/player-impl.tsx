@@ -237,11 +237,19 @@ export default function PlayerImpl({
     // real selection instead of "Auto") but after Vidstack has finished handling the levels event: changing the list
     // from inside that event can break the menu's render.
     const height = heights[index];
+    // It applies from the next fragment ("load"), never as an immediate switch: that aborts the fragments already on
+    // their way, and on fMP4 streams (an init segment) hls.js 1.7 then aborts its own retry and never loads another
+    // fragment, so the video sits at 0:00.
     setTimeout(() => {
       try {
-        const item = [...(player.current?.qualities ?? [])].find((q) => q.height === height);
-        if (item) item.selected = true;
-        else hls.currentLevel = index;
+        const list = player.current?.qualities;
+        const item = [...(list ?? [])].find((q) => q.height === height);
+        if (list && item) {
+          const mode = list.switch;
+          list.switch = "load";
+          item.selected = true;
+          list.switch = mode;
+        } else (hls as unknown as { loadLevel: number }).loadLevel = index;
       } catch {
         // player was torn down in between
       }
