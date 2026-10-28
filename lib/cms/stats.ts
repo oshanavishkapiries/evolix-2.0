@@ -1,6 +1,6 @@
 import { count, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { movies, shows, users, watchProgress } from "@/db/schema";
+import { movies, reports, shows, users, watchProgress } from "@/db/schema";
 import { listMovies } from "./movies";
 import { listShows } from "./shows";
 import { tzDay } from "@/lib/tz";
@@ -8,15 +8,21 @@ import { tzDay } from "@/lib/tz";
 const published = (col: typeof movies.isPublished | typeof shows.isPublished) =>
   sql<number>`count(*) filter (where ${col})`.mapWith(Number);
 
-/** Dashboard numbers: totals, published counts and the five newest titles of each kind. */
+/** Dashboard numbers: totals, published counts, open viewer reports and the five newest titles of each kind. */
 export async function adminOverview() {
-  const [[m], [s], recentMovies, recentShows] = await Promise.all([
+  const [[m], [s], [r], recentMovies, recentShows] = await Promise.all([
     db.select({ total: count(), published: published(movies.isPublished) }).from(movies),
     db.select({ total: count(), published: published(shows.isPublished) }).from(shows),
+    db
+      .select({
+        open: sql<number>`count(*) filter (where ${reports.status} = 'open')`.mapWith(Number),
+        new24: sql<number>`count(*) filter (where ${reports.status} = 'open' and ${reports.createdAt} > now() - interval '24 hours')`.mapWith(Number),
+      })
+      .from(reports),
     listMovies({ page: 1, pageSize: 5 }),
     listShows({ page: 1, pageSize: 5 }),
   ]);
-  return { movies: m, shows: s, recentMovies: recentMovies.rows, recentShows: recentShows.rows };
+  return { movies: m, shows: s, reports: r, recentMovies: recentMovies.rows, recentShows: recentShows.rows };
 }
 
 /** Rough streaming volume: no per-request traffic is stored, so it is derived from watched seconds. */

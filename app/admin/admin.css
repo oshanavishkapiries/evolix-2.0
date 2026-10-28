@@ -478,3 +478,37 @@ body:has(.adm) { background: #1f1f1f; }
   .adm .evo-table .hide-sm { display: none; }
   .adm .evo-search { width: 100%; }
 }
+
+/* Admin overview */
+.adm .ov { display: grid; gap: 1.75rem; margin-top: 1rem; }
+.adm .ov-h { font-size: 1.05rem; margin-bottom: .75rem; }
+.adm .ov-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.adm .ov-more { font-size: .82rem; text-decoration: none; }
+.adm .ov-foot { margin-top: .6rem; font-size: .75rem; color: #9a9a9a; }
+.adm .ov-status-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+.adm .ov-status { display: grid; gap: .2rem; padding: 1rem 1.1rem; border: 1px solid #3a3a3a; border-top: 3px solid var(--tone); border-radius: 10px; background: #262626; color: #f5f5f5 !important; text-decoration: none; transition: background-color .15s, border-color .15s, translate .2s var(--a-ease); }
+.adm .ov-status:hover { background: #2c2c2c; border-color: #555; border-top-color: var(--tone); translate: 0 -2px; }
+.adm .ov-status-head { display: flex; align-items: center; justify-content: space-between; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #9a9a9a; }
+.adm .ov-status-head i { width: .55rem; height: .55rem; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 22%, transparent); }
+.adm .ov-status strong { font-size: 2rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.adm .ov-status strong small { margin-left: .2rem; font-size: .9rem; font-weight: 500; color: #9a9a9a; }
+.adm .ov-status-detail { font-size: .8rem; color: #b3b3b3; }
+.adm .ov-status-cta { margin-top: .4rem; font-size: .78rem; font-weight: 600; color: var(--a-gold); }
+.adm .ov-trend-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+.adm .ov-trend { display: grid; gap: .15rem; padding: .9rem 1rem .6rem; border: 1px solid #3a3a3a; border-radius: 10px; background: #262626; min-width: 0; }
+.adm .ov-trend-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #9a9a9a; }
+.adm .ov-trend-label sup { color: #7d7d7d; }
+.adm .ov-trend strong { font-size: 1.6rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.adm .ov-trend strong small { font-size: .85rem; font-weight: 500; color: #9a9a9a; }
+.adm .ov-spark { display: block; width: 100%; height: 32px; margin-top: .35rem; }
+.adm .ov-chart-grid { display: grid; gap: 1rem; }
+@media (min-width: 900px) { .adm .ov-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.adm .ov-recent { display: grid; gap: 1.75rem; }
+@media (min-width: 1000px) { .adm .ov-recent { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 40rem) {
+  .adm .ov-status-grid, .adm .ov-trend-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+  .adm .ov-status, .adm .ov-trend { padding: .75rem; }
+  .adm .ov-status strong { font-size: 1.5rem; }
+  .adm .ov-trend strong { font-size: 1.25rem; }
+  .adm .ov-status-detail, .adm .ov-trend .an-delta { font-size: .7rem; }
+}
