@@ -10,6 +10,7 @@ import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { normalizeSource } from "@/lib/viewer/providers";
 import { networkProblem, problemFromBody, problemOf, readProblem, type ViewerProblem } from "@/lib/client/problem";
 import { busyDelay, MAX_BUSY_RETRIES } from "@/lib/evo/problems";
+import { markBusyWaited } from "./feedback-moments";
 
 type Props = {
   tmdbId: number;
@@ -141,6 +142,8 @@ export function EvoPlayer({
           return;
         }
 
+        // The player asks "Was the wait OK?" (if that question is on) once this viewer got through a busy wait.
+        if (busyTries.current > 0) markBusyWaited();
         busyTries.current = 0;
         const data = await res.json();
 

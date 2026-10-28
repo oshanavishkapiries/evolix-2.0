@@ -225,3 +225,16 @@ export const videoParentQuery = z
   .refine((v) => (v.movieId === undefined) !== (v.showId === undefined), "Provide exactly one of movieId or showId");
 export const videoImport = videoParentQuery;
 export type VideoNested = z.infer<typeof videoNested>;
+
+/** What an admin may change on a player question (the moment and the kind are fixed by code and by the answers). */
+export const feedbackQuestionPatch = z
+  .object({
+    prompt: z.string().trim().min(3).max(120),
+    reasons: z.array(z.string().trim().min(1).max(60)).max(8),
+    sampleRate: z.number().int().min(0).max(100),
+    target: z.number().int().min(1).max(100_000).nullable(),
+    priority: z.number().int().min(-100).max(100),
+    active: z.boolean(),
+  })
+  .partial()
+  .strict();

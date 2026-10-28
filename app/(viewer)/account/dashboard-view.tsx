@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchWithRefresh, postJson, postJsonWithRefresh, navigate } from "@/lib/client/api";
+import { setOptOut } from "../_components/feedback-moments";
 
 type User = { id: string; email: string; emailVerifiedAt: string | null };
 
@@ -58,11 +59,45 @@ export function DashboardView() {
       ) : (
         !error && <div className="v-panel v-skel" style={{ height: "9rem" }} aria-busy="true" aria-label="Loading profile" />
       )}
+      {user && <QuestionsPref />}
       <div className="v-actions">
         {isAdmin && <a href="/admin" className="v-btn">Admin</a>}
         <button type="button" className="v-btn" onClick={logout}>Log out</button>
         <button type="button" className="v-btn v-btn-danger" onClick={logoutAll}>Log out of all devices</button>
       </div>
     </div>
+  );
+}
+
+/** "Don't ask me" from the player's quick questions, and the way back. */
+function QuestionsPref() {
+  const [optedOut, setOptedOut] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchWithRefresh("/api/me/feedback-prefs")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { optedOut?: boolean } | null) => !cancelled && setOptedOut(b?.optedOut ?? false))
+      .catch(() => !cancelled && setOptedOut(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (optedOut === null) return null;
+  return (
+    <label className="v-panel v-pref">
+      <input
+        type="checkbox"
+        checked={!optedOut}
+        onChange={async (e) => {
+          const next = !e.target.checked;
+          setOptedOut(next);
+          await setOptOut(next);
+        }}
+      />
+      <span>
+        <strong>Quick questions while watching</strong>
+        <small>Now and then the player asks a one-tap question, like “Is this subtitle in sync?”, to help us improve. At most twice a week.</small>
+      </span>
+    </label>
   );
 }

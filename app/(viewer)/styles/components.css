@@ -376,6 +376,22 @@
 .v-notice h2 { font-size: 1.1rem; }
 
 /* Player feedback survey */
+/* Quick question: the smallest possible ask, one line and one tap, bottom-right like the other alerts */
+.v-ask { position: absolute; z-index: 33; right: var(--v-gutter); bottom: 6.5rem; width: min(22rem, calc(100% - 2 * var(--v-gutter))); display: grid; gap: .5rem; padding: .6rem .6rem .55rem .9rem; background: rgb(22 22 22 / .96); border: 1px solid var(--v-border); border-radius: var(--v-radius); box-shadow: 0 10px 28px rgb(0 0 0 / .55); color: var(--v-fg); animation: v-banner-in var(--v-dur-3) var(--v-ease); }
+.v-ask-head { display: flex; align-items: center; gap: .35rem; }
+.v-ask-title { flex: 1; font-size: .9rem; font-weight: 700; line-height: 1.3; }
+.v-ask-thumbs, .v-ask-faces { display: flex; gap: .15rem; }
+.v-ask-faces { justify-content: space-between; padding-right: .3rem; }
+.v-ask-btn { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: background var(--v-dur-1) var(--v-ease); }
+.v-ask-btn span { font-size: 1.35rem; line-height: 1; filter: grayscale(.3); transition: filter var(--v-dur-1) var(--v-ease), transform var(--v-dur-2) var(--v-ease); }
+.v-ask-btn:hover, .v-ask-btn:focus-visible { background: rgb(255 255 255 / .1); }
+.v-ask-btn:hover span, .v-ask-btn:focus-visible span { filter: none; transform: scale(1.15); }
+.v-ask-btn:focus-visible, .v-ask-stop:focus-visible { outline: 2px solid var(--v-primary); outline-offset: 1px; }
+.v-ask-stop { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--v-fg-faint); font-size: .72rem; cursor: pointer; text-decoration: underline transparent; text-underline-offset: 3px; transition: color var(--v-dur-1) var(--v-ease), text-decoration-color var(--v-dur-1) var(--v-ease); }
+.v-ask-stop:hover { color: var(--v-fg-dim); text-decoration-color: currentColor; }
+.v-ask .v-banner-x { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .v-ask { animation: none; } }
+@media (max-width: 560px) { .v-ask { bottom: 4.5rem; } }
 .v-fb { position: absolute; z-index: 33; right: var(--v-gutter); bottom: 6.5rem; width: min(23rem, calc(100% - 2 * var(--v-gutter))); display: grid; gap: .55rem; padding: .95rem 1rem 1rem; background: rgb(22 22 22 / .97); border: 1px solid var(--v-border); border-radius: var(--v-radius); box-shadow: 0 14px 34px rgb(0 0 0 / .6); color: var(--v-fg); animation: v-banner-in var(--v-dur-3) var(--v-ease); }
 .v-fb-x { position: absolute; top: .55rem; right: .6rem; margin: 0; }
 .v-fb-title { display: flex; align-items: center; gap: .45rem; padding-right: 1.6rem; font-size: .95rem; font-weight: 700; line-height: 1.3; }

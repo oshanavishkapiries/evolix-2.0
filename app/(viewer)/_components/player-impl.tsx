@@ -20,6 +20,7 @@ import {
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { loadStyle, saveStyle, styleVars, type SubStyle } from "./subtitle-style";
 import { PlayerBanner, useQualityAdvisor } from "./player-banner";
+import { takeBusyWaited, useFeedbackMoments } from "./feedback-moments";
 import { useSinhalaSubtitles, type SinhalaTarget } from "./sinhala-subtitles";
 import { SubtitleButton, SubtitleTools, type SubTab } from "./subtitle-tools";
 import { DualSubtitles, useDualSubtitleSelection, type SubtitleSlot, type SubtitleStyles } from "./dual-subtitles";
@@ -283,12 +284,27 @@ export default function PlayerImpl({
   const noteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(noteTimer.current), []);
   const advisor = useQualityAdvisor({ active: started, current: nowQuality, offered: offeredQualities, readMbps, onSwitch: switchTo });
+  // One question per viewing, whichever asks first: the experience survey or a small question about a feature.
+  const viewing = useRef({ asked: false });
   const feedback = usePlayerFeedback({
     mediaKey,
     title,
     track,
+    viewing,
     context: () => ({ position: player.current?.state.currentTime ?? 0, duration: player.current?.state.duration ?? 0, quality: nowQuality() }),
   });
+  const moments = useFeedbackMoments({
+    mediaKey,
+    title,
+    viewing,
+    // Only when nothing else is on screen: no panel, picker, suggestion or survey.
+    calm: () => !overlay && !advisor.advice && !library.needsChoice && !feedback.survey,
+    context: () => ({ quality: nowQuality(), position: Math.round(player.current?.state.currentTime ?? 0) }),
+  });
+  const fireMoment = moments.moment;
+  useEffect(() => {
+    if (takeBusyWaited()) fireMoment("busy_waited", { afterPlayMs: 30_000 });
+  }, [fireMoment]);
 
   if (failed && healable && !healChecked) {
     return (
@@ -355,6 +371,7 @@ export default function PlayerImpl({
         if (Date.now() - lastSave.current >= SAVE_EVERY_MS) save();
         const st = player.current?.state;
         feedback.onTime(Boolean(st?.playing && !st.waiting && !st.seeking));
+        moments.onTime(Boolean(st?.playing && !st.waiting && !st.seeking));
         const readyIds = dual.selection.filter((id): id is string => Boolean(id && [...(player.current?.textTracks ?? [])].some((t) => t.id === id && t.readyState === 2)));
         countSubtitlePlay(readyIds, Boolean(st?.playing && !st.waiting && !st.seeking));
       }}
@@ -363,7 +380,7 @@ export default function PlayerImpl({
         resumed();
         feedback.onPlay();
       }}
-      onSeeking={() => { countSubtitlePlay([], false); resumed(); }}
+      onSeeking={() => { countSubtitlePlay([], false); resumed(); moments.onSeek(); }}
       onPause={() => {
         countSubtitlePlay([], false);
         save();
@@ -402,19 +419,23 @@ export default function PlayerImpl({
       {!overlay && si.banner}
       {!overlay && startNote && !advisor.advice && <StartBanner fixed={qualityMenu?.current} onClose={() => setStartNote(false)} />}
       {!overlay && feedback.survey}
-      {!overlay && !feedback.survey && !advisor.advice && library.needsChoice && (
+      {!overlay && !feedback.survey && moments.card}
+      {!overlay && !feedback.survey && !moments.card && !advisor.advice && library.needsChoice && (
         <SubtitleSuggestion
           onFind={() => setPicker({ slot: 0, mode: "search", intro: "We couldn’t find subtitles for this automatically. Pick one below, or upload your own." })}
           onClose={dismissLibraryChoice}
         />
       )}
-      {!overlay && !feedback.survey && advisor.advice && (
+      {!overlay && !feedback.survey && !moments.card && advisor.advice && (
         <PlayerBanner
           place="side"
           title={advisor.advice.dir === "up" ? "Fast connection detected" : "Playback is struggling"}
           text={advisor.advice.dir === "up" ? `Switch to ${advisor.advice.to} for a sharper picture?` : `Switch to ${advisor.advice.to} for smoother playback?`}
           action="OK"
-          onAction={advisor.accept}
+          onAction={() => {
+            moments.moment("quality_switched", { afterPlayMs: 2 * 60_000, context: { to: advisor.advice?.to ?? null } });
+            advisor.accept();
+          }}
           onClose={advisor.dismiss}
         />
       )}
@@ -473,8 +494,18 @@ export default function PlayerImpl({
         />
       )}
       {picker && <SubtitleLibraryPicker target={sinhala} tracks={allSubtitles} currentId={dual.selection[picker.slot] ?? undefined} initialMode={picker.mode} intro={picker.intro} onClose={closePicker}
-        onAdd={library.add} onPick={(s) => { if (s.language === "en" && libraryId(s.id)) setSourceTrackId(s.id); dual.select(picker.slot, s.id); closePicker(); }}
-        onTranslate={(s) => { setSourceTrackId(s.id); setPendingTranslate({ slot: picker.slot, id: s.id }); closePicker(); }} />}
+        onAdd={library.add} onPick={(s) => {
+          if (s.language === "en" && libraryId(s.id)) setSourceTrackId(s.id);
+          dual.select(picker.slot, s.id);
+          closePicker();
+          moments.moment(isSinhala(s.language) ? "sinhala_watched" : "subtitle_picked", { afterPlayMs: 5 * 60_000, context: { subtitle: s.id, source: s.source ?? "auto", language: s.language } });
+        }}
+        onTranslate={(s) => {
+          setSourceTrackId(s.id);
+          setPendingTranslate({ slot: picker.slot, id: s.id });
+          closePicker();
+          moments.moment("sinhala_watched", { afterPlayMs: 5 * 60_000, context: { source: s.id } });
+        }} />}
     </MediaPlayer>
   );
 }

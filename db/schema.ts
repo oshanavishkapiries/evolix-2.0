@@ -624,3 +624,77 @@ export const playerFeedback = pgTable(
     index("player_feedback_media_idx").on(t.mediaKey),
   ],
 );
+
+/**
+ * Small questions the player may ask after a "moment" (a viewer picked a subtitle, finished a film...). Code fires
+ * moments; which question goes with a moment, its wording, sample and target are edited in the admin.
+ */
+export const feedbackQuestions = pgTable(
+  "feedback_questions",
+  {
+    key: text("key").primaryKey(),
+    /** Which moment in the player asks it ("experience", "subtitle_picked", ...). */
+    moment: text("moment").notNull(),
+    /** "thumbs" (👍/👎) or "faces" (1-5). */
+    kind: text("kind").notNull(),
+    prompt: text("prompt").notNull(),
+    /** Chips offered after a negative answer. */
+    reasons: text("reasons").array().notNull().default(sql`'{}'::text[]`),
+    /** Percent of eligible viewers who get asked. */
+    sampleRate: integer("sample_rate").notNull().default(100),
+    /** Stop asking after this many answers (null = keep asking). */
+    target: integer("target"),
+    /** Higher wins when several questions share a moment. */
+    priority: integer("priority").notNull().default(0),
+    /** "user": ask each viewer once; "title": once per viewer and title. */
+    once: text("once").notNull().default("user"),
+    active: boolean("active").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("feedback_questions_kind_chk", sql`${t.kind} in ('thumbs', 'faces')`),
+    check("feedback_questions_once_chk", sql`${t.once} in ('user', 'title')`),
+    check("feedback_questions_sample_chk", sql`${t.sampleRate} between 0 and 100`),
+  ],
+);
+
+/** Every time a question was shown, and the answer if one came. The shared attention budget is counted from here. */
+export const feedbackAsks = pgTable(
+  "feedback_asks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    questionKey: text("question_key")
+      .notNull()
+      .references(() => feedbackQuestions.key, { onDelete: "cascade", onUpdate: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mediaKey: text("media_key").notNull(),
+    title: text("title").notNull().default(""),
+    /** "shown" until the viewer answers or lets it go. */
+    outcome: text("outcome").notNull().default("shown"),
+    /** Thumbs: 1 = 👍, 0 = 👎. Faces: 1-5. The "experience" answer itself lives in player_feedback. */
+    value: integer("value"),
+    reasons: text("reasons").array().notNull().default(sql`'{}'::text[]`),
+    comment: text("comment").notNull().default(""),
+    /** What the player knew when asking: quality, stalls, position, subtitle source... */
+    context: jsonb("context").$type<Record<string, string | number | boolean | null>>().notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("feedback_asks_outcome_chk", sql`${t.outcome} in ('shown', 'answered', 'ignored')`),
+    index("feedback_asks_user_created_idx").on(t.userId, t.createdAt),
+    index("feedback_asks_question_idx").on(t.questionKey, t.outcome),
+  ],
+);
+
+/** A viewer who said "don't ask me". */
+export const feedbackPrefs = pgTable("feedback_prefs", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  optedOut: boolean("opted_out").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

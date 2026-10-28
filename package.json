@@ -19,7 +19,8 @@
     "test:subtitles:engine": "evo-engine/test/.venv/bin/python tests/subtitles/run_engine.py",
     "test:subtitles:e2e": "playwright test --config tests/subtitles/playwright.config.ts",
     "test:problems": "vitest run --config tests/problems/vitest.config.ts",
-    "test:journeys": "vitest run --config tests/journeys/vitest.config.ts"
+    "test:journeys": "vitest run --config tests/journeys/vitest.config.ts",
+    "test:feedback": "vitest run --config tests/feedback/vitest.config.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
-import { COMMENT_MAX, FEEDBACK_COOLDOWN_DAYS, ISSUE_TAGS, PRAISE_TAGS, RATINGS, type FeedbackTag } from "@/lib/feedback";
+import { COMMENT_MAX, ISSUE_TAGS, PRAISE_TAGS, RATINGS, type FeedbackTag } from "@/lib/feedback";
+import { reportAsk, requestAsk, testMode, useIgnoredOnLeave, type Viewing } from "./feedback-moments";
 
-/** Share of eligible viewings that get asked; decided once per player mount. */
-const SAMPLE_RATE = 0.35;
+// Who gets asked (sample, once per title) and how often (the shared budget) is decided by the server: this is the
+// "experience" question in Admin -> Feedback -> Questions.
 /** Minimum time actually played (this session) before asking. */
 const MIN_WATCHED_MS = 8 * 60_000;
 /** A pause must last this long before the survey appears (skips quick pauses and seeks). */
@@ -14,42 +15,17 @@ const PAUSE_SETTLE_MS = 2000;
 const LONG_PLAY_MS = 25 * 60_000;
 /** The mid-play card hides itself if ignored. */
 const PLAYING_AUTOHIDE_MS = 20_000;
-const LAST_KEY = "v-fb-last";
-/** Set localStorage "v-fb-test" to "1" to see the survey on the next pause (skips sampling and the watch-time minimum, not the server's limits). */
-const TEST_KEY = "v-fb-test";
-const testMode = () => {
-  try {
-    return localStorage.getItem(TEST_KEY) === "1";
-  } catch {
-    return false;
-  }
-};
-
 type Trigger = "pause" | "ended" | "playing";
 type Track = { kind: "movie" | "episode"; id: string };
 type Context = { position: number; duration: number; quality: string | null };
 
-const recentlyAsked = () => {
-  try {
-    return Date.now() - Number(localStorage.getItem(LAST_KEY) ?? 0) < FEEDBACK_COOLDOWN_DAYS * 86_400_000;
-  } catch {
-    return false;
-  }
-};
-const markAsked = () => {
-  try {
-    localStorage.setItem(LAST_KEY, String(Date.now()));
-  } catch {}
-};
-
 /**
- * Decides when to show the emoji survey: a random sample of viewings, after real watching, at a natural moment
- * (pause, end, or after a long uninterrupted stretch), at most once per player and within the server's cooldown.
+ * Decides when to offer the emoji survey: after real watching, at a natural moment (pause, end, or after a long
+ * uninterrupted stretch). The server then decides whether this viewer is asked at all.
  */
-export function usePlayerFeedback({ mediaKey, title, track, context }: { mediaKey: string; title: string; track?: Track; context: () => Context }) {
-  const [open, setOpen] = useState<Trigger | null>(null);
-  const sampled = useRef<boolean | null>(null);
-  const asked = useRef(false);
+export function usePlayerFeedback({ mediaKey, title, track, viewing, context }: { mediaKey: string; title: string; track?: Track; viewing: Viewing; context: () => Context }) {
+  const [open, setOpen] = useState<{ trigger: Trigger; askId: string } | null>(null);
+  const tried = useRef(false);
   const watched = useRef(0);
   const runStart = useRef<number | null>(null);
   const lastTick = useRef<number | null>(null);
@@ -59,18 +35,14 @@ export function usePlayerFeedback({ mediaKey, title, track, context }: { mediaKe
 
   const tryOpen = useCallback(
     async (trigger: Trigger) => {
-      const test = testMode();
-      sampled.current ??= Math.random() < SAMPLE_RATE;
-      if (asked.current) return;
-      if (!test && (!sampled.current || watched.current < MIN_WATCHED_MS || recentlyAsked())) return;
-      asked.current = true;
-      try {
-        const res = await fetchWithRefresh(`/api/me/feedback?key=${encodeURIComponent(mediaKey)}`);
-        const data = res.ok ? ((await res.json()) as { eligible?: boolean }) : null;
-        if (data?.eligible) setOpen(trigger);
-      } catch {}
+      if (tried.current || viewing.current.asked) return;
+      if (!testMode() && watched.current < MIN_WATCHED_MS) return;
+      tried.current = true;
+      const c = context();
+      const ask = await requestAsk(viewing, "experience", { key: mediaKey, title }, { trigger, quality: c.quality, position: Math.round(c.position), stalls: stalls.current });
+      if (ask) setOpen({ trigger, askId: ask.id });
     },
-    [mediaKey],
+    [mediaKey, title, viewing, context],
   );
 
   /** Call on every time update: counts real playing time (seeks and stalls do not count). */
@@ -95,7 +67,7 @@ export function usePlayerFeedback({ mediaKey, title, track, context }: { mediaKe
   const onPlay = useCallback(() => {
     clearTimeout(pauseTimer.current);
     // A pause survey the viewer ignored makes way for the film.
-    setOpen((o) => (o === "pause" ? null : o));
+    setOpen((o) => (o?.trigger === "pause" ? null : o));
   }, []);
   const onEnded = useCallback(() => {
     clearTimeout(pauseTimer.current);
@@ -105,16 +77,14 @@ export function usePlayerFeedback({ mediaKey, title, track, context }: { mediaKe
     stalls.current++;
   }, []);
 
-  const close = useCallback(() => {
-    markAsked();
-    setOpen(null);
-  }, []);
+  const close = useCallback(() => setOpen(null), []);
 
-  const survey = open ? <FeedbackCard key={open} trigger={open} title={title} mediaKey={mediaKey} track={track} context={context} stalls={() => stalls.current} onClose={close} /> : null;
+  const survey = open ? <FeedbackCard key={open.askId} askId={open.askId} trigger={open.trigger} title={title} mediaKey={mediaKey} track={track} context={context} stalls={() => stalls.current} onClose={close} /> : null;
   return { survey, onTime, onPause, onPlay, onEnded, onStall };
 }
 
 function FeedbackCard({
+  askId,
   trigger,
   title,
   mediaKey,
@@ -123,6 +93,7 @@ function FeedbackCard({
   stalls,
   onClose,
 }: {
+  askId: string;
   trigger: Trigger;
   title: string;
   mediaKey: string;
@@ -139,6 +110,7 @@ function FeedbackCard({
   const [busy, setBusy] = useState(false);
   const touched = useRef(false);
   const first = useRef<HTMLButtonElement>(null);
+  const answeredRef = useIgnoredOnLeave(askId);
 
   // Keyboard users land on the faces; the mid-play card does not steal focus from the video.
   useEffect(() => {
@@ -157,8 +129,10 @@ function FeedbackCard({
 
   const pick = async (value: number) => {
     touched.current = true;
+    answeredRef.current = true;
     setRating(value);
     setStep("more");
+    reportAsk(askId, { value });
     if (id) {
       void fetchWithRefresh(`/api/me/feedback/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rating: value }) }).catch(() => {});
       return;

@@ -7,7 +7,7 @@ const EN = { id: '11111111-1111-4111-8111-111111111111', language: 'en', label: 
 const ALT = { ...EN, id: '22222222-2222-4222-8222-222222222222', label: 'Alternate English', score: 1, lastUsedAt: '2026-01-01' };
 const SI = { ...EN, id: '33333333-3333-4333-8333-333333333333', language: 'si', label: 'Sinhala translated', source: 'translation', originTrackId: ALT.id, url: '/sinhala.vtt' };
 const UPLOAD = { ...ALT, id: '44444444-4444-4444-8444-444444444444', label: 'my.srt', source: 'upload', visibility: 'private' };
-async function setup(page: Page, autoFail = false, seed = false) {
+async function setup(page: Page, autoFail = false, seed = false, extra?: (path: string, body: Record<string, unknown> | null) => unknown) {
   const calls: { path: string; body: Record<string, unknown> | null }[] = [];
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -20,6 +20,7 @@ async function setup(page: Page, autoFail = false, seed = false) {
     if (path === '/api/subtitles/select') data = { track: EN };
     if (path === '/api/subtitles/upload') data = { track: UPLOAD };
     if (path === '/api/evo/translate') data = { state: 'done', subtitle: SI };
+    data = extra?.(path, body) ?? data;
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
   });
   await page.route('**/clip.mp4', (r) => r.fulfill({ path: clip, contentType: 'video/mp4' }));
@@ -94,6 +95,44 @@ test('uploads a private track, reports a problem, and translates the chosen sour
   await alt.getByRole('button', { name: 'Translate to Sinhala' }).click();
   await expect.poll(() => calls.find((c) => c.path === '/api/evo/translate')?.body?.sourceTrackId).toBe(ALT.id);
   await expect(page.locator(`[data-track-id="${SI.id}"]`)).toBeVisible();
+});
+
+test('picking a subtitle earns one quick question later; a thumbs-down asks why', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('v-fb-test', '1'));
+  const ASK = { id: '55555555-5555-4555-8555-555555555555', key: 'subtitle_sync', kind: 'thumbs', prompt: 'Is this subtitle in sync?', reasons: ['Out of sync', 'Wrong movie'] };
+  let asked = 0;
+  const calls = await setup(page, false, false, (path, body) => (path === '/api/me/ask' ? (body?.moment === 'subtitle_picked' && !asked++ ? { ask: ASK } : { ask: null }) : undefined));
+  await expect(page.locator(`[data-track-id="${EN.id}"]`)).toBeVisible();
+  await openMore(page);
+  await page.getByRole('button', { name: 'Use Alternate English (OpenSubtitles)' }).click();
+  const card = page.getByRole('dialog', { name: 'Is this subtitle in sync?' });
+  await expect(card).toBeVisible();
+  const askCall = calls.find((c) => c.path === '/api/me/ask' && c.body?.moment === 'subtitle_picked');
+  expect(askCall?.body).toMatchObject({ moment: 'subtitle_picked', context: { subtitle: ALT.id, source: 'opensubtitles', language: 'en' } });
+  await card.getByRole('button', { name: 'No' }).click();
+  await card.getByRole('button', { name: 'Out of sync' }).click();
+  await card.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByText('Thanks, that helps!')).toBeVisible();
+  await expect(card).toHaveCount(0);
+  const patches = calls.filter((c) => c.path === `/api/me/ask/${ASK.id}`).map((c) => c.body);
+  expect(patches).toEqual([{ value: 0 }, { reasons: ['Out of sync'], comment: '' }]);
+  expect(asked).toBe(1);
+});
+
+test('an ignored quick question fades away by itself and is reported as ignored', async ({ page }) => {
+  await page.clock.install();
+  await page.addInitScript(() => localStorage.setItem('v-fb-test', '1'));
+  const ASK = { id: '66666666-6666-4666-8666-666666666666', key: 'subtitle_sync', kind: 'thumbs', prompt: 'Is this subtitle in sync?', reasons: [] };
+  const calls = await setup(page, false, false, (path, body) => (path === '/api/me/ask' ? { ask: body?.moment === 'subtitle_picked' ? ASK : null } : undefined));
+  await expect(page.locator(`[data-track-id="${EN.id}"]`)).toBeVisible();
+  await openMore(page);
+  await page.getByRole('button', { name: 'Use Alternate English (OpenSubtitles)' }).click();
+  const card = page.getByRole('dialog', { name: 'Is this subtitle in sync?' });
+  await expect(card).toBeVisible();
+  await page.mouse.move(5, 5);
+  await page.clock.runFor(13_000);
+  await expect(card).toHaveCount(0);
+  await expect.poll(() => calls.filter((c) => c.path === `/api/me/ask/${ASK.id}`).map((c) => c.body)).toEqual([{ outcome: 'ignored' }]);
 });
 
 test('screenshots for humans (SHOT=/path/to/prefix)', async ({ page }) => {

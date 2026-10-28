@@ -25,6 +25,8 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="Feedback"
         actions={
+          <>
+          <Link href="/admin/feedback/questions">Player questions →</Link>
           <nav className="an-range" aria-label="Date range">
             {FEEDBACK_RANGES.map((r) => (
               <Link key={r} href={`?range=${r}`} aria-current={r === days ? "page" : undefined} scroll={false}>
@@ -32,6 +34,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
               </Link>
             ))}
           </nav>
+          </>
         }
       />
       <AutoRefresh seconds={60} />
