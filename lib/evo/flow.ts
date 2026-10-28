@@ -79,4 +79,5 @@ export function formatDuration(ms: number) {
   return `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
-export type Summary = { window_hours: number; steps: Partial<Record<StepId, { ok: number; failed: number; running: number; skipped: number }>>; tasks_in_flight: number };
+/** `recovered` only exists in the journey view: journeys where an earlier try failed at this step but the viewer got through. */
+export type Summary = { window_hours: number; steps: Partial<Record<StepId, { ok: number; failed: number; running: number; skipped: number; recovered?: number }>>; tasks_in_flight: number };

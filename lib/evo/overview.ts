@@ -1,6 +1,7 @@
 import type { EngineTask } from "@/lib/cms/evo";
 import type { Summary } from "./flow";
 import { engineGet, engines, type EngineRef } from "./client";
+import { mergeJourneys, summarize, type EngineJourney, type JourneyReport } from "./journeys";
 import { engineRows } from "./scheduler";
 
 export type EngineOverview = {
@@ -78,4 +79,18 @@ export async function combinedSummary(only?: EngineRef): Promise<Summary | null>
     }
   }
   return out;
+}
+
+/**
+ * What viewers went through in the last `hours` (24 or 168), per title, over every engine (or one): the journeys of an
+ * engine are merged with the others', so a try that failed on one engine and worked on another is one journey.
+ */
+export async function journeyReport(hours: number, only?: EngineRef): Promise<JourneyReport> {
+  const list = only ? [only] : engines();
+  const answers = await Promise.all(list.map(async (e) => ({ e, data: await engineGet<{ journeys: EngineJourney[]; truncated?: boolean }>(`/pipeline/journeys?hours=${hours}`, 20_000, e) })));
+  const parts = answers.filter((a) => a.data).map((a) => ({ engineId: a.e.id, engineName: a.e.name, journeys: a.data!.journeys }));
+  return summarize(mergeJourneys(parts), hours, {
+    unreachable: answers.filter((a) => !a.data).map((a) => a.e.name),
+    truncated: answers.some((a) => a.data?.truncated),
+  });
 }

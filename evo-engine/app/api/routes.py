@@ -298,6 +298,12 @@ def get_pipeline_summary(hours: int = Query(24, ge=1, le=168)):
     return _repository.step_summary(hours)
 
 
+@router.get("/pipeline/journeys", dependencies=[Depends(verify_secret_token)])
+def get_pipeline_journeys(hours: int = Query(24, ge=1, le=168)):
+    """Tasks of a window grouped per title/episode: did the viewer finally get to watch, after how many tries."""
+    return _repository.journeys(hours)
+
+
 @router.get("/metrics", dependencies=[Depends(verify_secret_token)])
 def get_extraction_metrics(hours: int = Query(24, ge=1, le=168)):
     """Median / p95 duration, peak RAM and CPU per provider over a window (the admin pipeline view)."""

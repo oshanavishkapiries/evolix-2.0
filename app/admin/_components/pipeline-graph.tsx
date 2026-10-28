@@ -5,7 +5,8 @@ import { fetchWithRefresh } from "@/lib/client/api";
 import { EDGES, NODES, NODE_H, NODE_W, STEP_IDS, VIEW_H, VIEW_W, edgeState, foldEvents, formatDuration, parseTs, type FlowEvent, type StepId, type StepState, type StepView, type Summary } from "@/lib/evo/flow";
 import { TZ } from "@/lib/tz";
 
-type NodeView = { state: StepState; sub: string };
+type NodeState = StepState | "recovered";
+type NodeView = { state: NodeState; sub: string };
 
 const clip = (t: string, n = 24) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
 const nodeById = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<StepId, (typeof NODES)[number]>;
@@ -68,9 +69,9 @@ function Canvas({ views, edges, selected, onSelect }: { views: Record<StepId, No
   );
 }
 
-const Legend = () => (
+const Legend = ({ byJourney }: { byJourney: boolean }) => (
   <ul className="flow-legend" aria-label="Legend">
-    {(["pending", "running", "ok", "skipped", "failed"] as StepState[]).map((s) => (
+    {([...["pending", "running", "ok", "skipped"], ...(byJourney ? ["recovered"] : []), "failed"] as NodeState[]).map((s) => (
       <li key={s}><span className="flow-key" data-state={s} />{s}</li>
     ))}
   </ul>
@@ -140,7 +141,7 @@ export function TaskFlow({ taskId, initial, subtitleJob = false }: { taskId: str
   return (
     <>
       <Canvas views={views} edges={edges} selected={selected} onSelect={setSelected} />
-      <Legend />
+      <Legend byJourney={false} />
       <p className="flow-status" role="status">
         <strong>{data.task.status}</strong> — {data.task.message}
         {(!done || watching) && <span className="flow-live"> · live</span>}
@@ -183,11 +184,18 @@ function StepLog({ id, view }: { id: StepId | null; view: StepView | null }) {
 
 /** Whole-pipeline view: how many tasks last ended in each state per step, refreshed every few seconds. */
 /** `engine` is an engine id, or "all" for the sum over every engine (default: the primary engine). */
-export function SummaryFlow({ initial, engine }: { initial: Summary | null; engine?: string }) {
-  const [summary, setSummary] = useState(initial);
+/**
+ * Per-step counts over a window. By default they count every attempt (and refresh themselves); with `byJourney` they come
+ * from the journey report: each title counts once by the try that decided it, a step an earlier try failed at but the
+ * viewer got through shows as "recovered", and red means viewers got stuck there for good.
+ */
+export function SummaryFlow({ initial, engine, byJourney = false }: { initial: Summary | null; engine?: string; byJourney?: boolean }) {
+  const [polled, setSummary] = useState(initial);
+  const summary = byJourney ? initial : polled;
   const [selected, setSelected] = useState<StepId | null>(null);
 
   useEffect(() => {
+    if (byJourney) return; // the journey panel refreshes its own report
     let live = true;
     const tick = setInterval(async () => {
       const res = await fetchWithRefresh(`/api/admin/evo/summary${engine ? `?engine=${encodeURIComponent(engine)}` : ""}`, { cache: "no-store" }).catch(() => null);
@@ -198,13 +206,18 @@ export function SummaryFlow({ initial, engine }: { initial: Summary | null; engi
       live = false;
       clearInterval(tick);
     };
-  }, [engine]);
+  }, [engine, byJourney]);
 
   const views = Object.fromEntries(
     STEP_IDS.map((id) => {
       const c = summary?.steps[id] ?? { ok: 0, failed: 0, running: 0, skipped: 0 };
-      const state: StepState = c.running > 0 ? "running" : c.failed > 0 ? "failed" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending";
-      return [id, { state, sub: `✓ ${c.ok}  ✗ ${c.failed}  ⟳ ${c.running}  ↷ ${c.skipped}` }];
+      const recovered = c.recovered ?? 0;
+      // By journey, a title stuck here for good outranks one that is merely still in flight, so red never hides behind "running".
+      const state: NodeState = byJourney
+        ? c.failed > 0 ? "failed" : c.running > 0 ? "running" : recovered > 0 ? "recovered" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending"
+        : c.running > 0 ? "running" : c.failed > 0 ? "failed" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending";
+      const sub = byJourney ? `✓ ${c.ok}  ↻ ${recovered}  ✗ ${c.failed}${c.running ? `  ⟳ ${c.running}` : ""}` : `✓ ${c.ok}  ✗ ${c.failed}  ⟳ ${c.running}  ↷ ${c.skipped}`;
+      return [id, { state, sub }];
     }),
   ) as Record<StepId, NodeView>;
   const edges = Object.fromEntries(EDGES.map((e) => [`${e.from}-${e.to}`, views[e.to].state === "running" ? "active" : views[e.to].state === "pending" ? "idle" : "done"]));
@@ -213,16 +226,21 @@ export function SummaryFlow({ initial, engine }: { initial: Summary | null; engi
   return (
     <>
       <Canvas views={views} edges={edges} selected={selected} onSelect={setSelected} />
-      <Legend />
+      <Legend byJourney={byJourney} />
       <p className="flow-status" role="status">
-        Last {summary?.window_hours ?? 24}h · {summary?.tasks_in_flight ?? 0} task(s) in flight
+        Last {summary?.window_hours ?? 24}h · {summary?.tasks_in_flight ?? 0} {byJourney ? "title(s) still being tried" : "task(s) in flight"}
         {!summary && " · engine offline"}
       </p>
       {selected ? (
         <div className="flow-log">
           <h3>{nodeById[selected].label}</h3>
           <p className="flow-hint">
-            {c ? `${c.ok} succeeded, ${c.failed} failed, ${c.running} running, ${c.skipped} skipped` : "No activity in this window."} Open a task below for its own journey.
+            {!c
+              ? "No activity in this window."
+              : byJourney
+                ? `${c.ok} title(s) got through this step, ${c.recovered ?? 0} failed here on an earlier try and still got through, ${c.failed} got stuck here, ${c.running} running now.`
+                : `${c.ok} succeeded, ${c.failed} failed, ${c.running} running, ${c.skipped} skipped.`}{" "}
+            Open a task below for its own journey.
           </p>
         </div>
       ) : (

@@ -2,8 +2,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { recentCachedSources } from "@/lib/cms/evo";
-import { allEngineTasks, combinedSummary, enginesOverview } from "@/lib/evo/overview";
-import { SummaryFlow } from "../_components/pipeline-graph";
+import { allEngineTasks, enginesOverview, journeyReport } from "@/lib/evo/overview";
+import { JourneysPanel } from "../_components/journeys-panel";
 import { SourceDeleteButton, TaskActions } from "../_components/evo-controls";
 import { PageHeader } from "../_components/page-header";
 import { TZ } from "@/lib/tz";
@@ -32,8 +32,7 @@ export default function EvoPage() {
 
 async function EvoOverview() {
   await connection(); // live engine calls: never at build time
-  const [engineList, { tasks, unreachable }, cached, summary] = await Promise.all([enginesOverview(), allEngineTasks(), recentCachedSources(), combinedSummary()]);
-  const failed = tasks.filter((t) => t.status === "FAILED" || t.cache_failed);
+  const [engineList, { tasks, unreachable }, cached, journeys] = await Promise.all([enginesOverview(), allEngineTasks(), recentCachedSources(), journeyReport(24)]);
   const multi = engineList.length > 1;
   const nameOf = (id: string | null) => engineList.find((e) => e.id === id)?.name ?? id ?? "—";
 
@@ -76,18 +75,15 @@ async function EvoOverview() {
         </table>
       </div>
       {unreachable.length > 0 && <p className="mt-2 text-sm">Tasks of {unreachable.join(", ")} are not shown while it is unreachable.</p>}
-      {failed.length > 0 && (
-        <p className="mt-2 text-sm">
-          {failed.length} recent task(s) failed or were not cached. Viewing the title again (or requesting the quality) retries them.
-        </p>
-      )}
 
-      <h2 className="mt-6">Pipeline</h2>
+      <h2 className="mt-6">What viewers went through</h2>
       <div className="mt-2">
-        <SummaryFlow initial={summary} engine="all" />
+        <JourneysPanel initial={journeys} multi={multi} />
       </div>
 
       <h2 className="mt-6">Engine tasks</h2>
+      <details className="mt-2">
+        <summary className="cursor-pointer text-sm">Every engine task, one row per try (no grouping)</summary>
       {!tasks.length ? (
         <p className="mt-2 text-sm">No tasks yet.</p>
       ) : (
@@ -125,6 +121,7 @@ async function EvoOverview() {
           </table>
         </div>
       )}
+      </details>
 
       <h2 className="mt-6">Cached sources</h2>
       {!cached.length ? (

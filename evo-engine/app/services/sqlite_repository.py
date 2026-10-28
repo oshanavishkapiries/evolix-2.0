@@ -389,6 +389,87 @@ class SQLiteTaskRepository(ITaskRepository):
             bucket[state] = bucket.get(state, 0) + 1
         return {"window_hours": since_hours, "steps": steps, "tasks_in_flight": running_tasks}
 
+    JOURNEY_TASK_CAP = 5000
+
+    def journeys(self, since_hours: int = 24) -> dict:
+        """Tasks that started in the window, grouped by what the viewer asked for.
+
+        A viewer who retries makes several tasks for one title; judging each task alone shows every failure on the way to
+        a success. Here they are grouped (title, episode, and video vs Sinhala subtitles) so the caller can tell whether the
+        viewer finally got to watch, after how many tries and how long. Facts only: the verdict is the caller's, because a
+        retry on another engine puts the same journey's tasks on two engines.
+        """
+        import json
+        from datetime import timedelta
+
+        since = (datetime.utcnow() - timedelta(hours=since_hours)).isoformat()
+        with self._get_connection() as conn:
+            tasks = conn.execute(
+                "SELECT task_id, tmdb_id, media_type, season, episode, title, requested_quality, resolved_quality, status, message, "
+                "stream_url, result_url, cache_failed, cdn_subtitles, created_at, updated_at FROM ingest_tasks "
+                "WHERE created_at >= ? ORDER BY created_at LIMIT ?",
+                (since, self.JOURNEY_TASK_CAP + 1),
+            ).fetchall()
+            events = conn.execute(
+                "SELECT task_id, step, state, detail, ts FROM task_events "
+                "WHERE task_id IN (SELECT task_id FROM ingest_tasks WHERE created_at >= ?) ORDER BY id",
+                (since,),
+            ).fetchall()
+        truncated = len(tasks) > self.JOURNEY_TASK_CAP
+        tasks = tasks[: self.JOURNEY_TASK_CAP]
+
+        by_task: dict = {}
+        for e in events:
+            by_task.setdefault(e["task_id"], []).append(e)
+
+        groups: dict = {}
+        for t in tasks:
+            steps: dict = {}
+            details: dict = {}
+            ready_at = None
+            cdn_at = None
+            for e in by_task.get(t["task_id"], []):
+                steps[e["step"]] = e["state"]
+                if e["state"] == "failed":
+                    details[e["step"]] = e["detail"]
+                if e["step"] == "stream" and e["state"] == "ok" and ready_at is None:
+                    ready_at = e["ts"]
+                if e["step"] == "cdn_check" and e["state"] != "running" and cdn_at is None:
+                    cdn_at = e["ts"]
+            # The step the task died at: the latest step still failed (a retried step that then worked is not a failure).
+            failed_step = next((s for s in reversed(list(steps)) if steps[s] == "failed"), None)
+            kind = "sinhala" if (t["requested_quality"] or "").startswith("sub:si") else "video"
+            if kind == "sinhala":
+                try:
+                    has_track = bool(json.loads(t["cdn_subtitles"] or "[]"))
+                except ValueError:
+                    has_track = False
+                watchable = t["status"] == "COMPLETED" and has_track
+                ready_at = t["updated_at"] if watchable else None
+            else:
+                # The viewer can watch once a stream or a CDN file exists, even if caching it for later failed.
+                watchable = t["status"] in ("STREAMING", "COMPLETED") and bool(t["stream_url"] or t["result_url"])
+                ready_at = (ready_at or cdn_at or t["created_at"]) if watchable else None
+            key = (t["tmdb_id"], t["media_type"], t["season"], t["episode"], kind)
+            group = groups.setdefault(key, {"tmdb_id": t["tmdb_id"], "media_type": t["media_type"], "season": t["season"], "episode": t["episode"], "kind": kind, "title": None, "tasks": []})
+            group["title"] = t["title"] or group["title"]
+            group["tasks"].append({
+                "task_id": t["task_id"],
+                "quality": t["requested_quality"],
+                "resolved_quality": t["resolved_quality"],
+                "status": t["status"],
+                "cache_failed": bool(t["cache_failed"]),
+                "message": t["message"],
+                "created_at": t["created_at"],
+                "updated_at": t["updated_at"],
+                "ready_at": ready_at,
+                "watchable": watchable,
+                "steps": steps,
+                "failed_step": failed_step,
+                "failed_detail": details.get(failed_step, "") if failed_step else "",
+            })
+        return {"window_hours": since_hours, "truncated": truncated, "journeys": list(groups.values())}
+
     def add_metric(self, attempt) -> None:
         with self._get_connection() as conn:
             conn.execute(
