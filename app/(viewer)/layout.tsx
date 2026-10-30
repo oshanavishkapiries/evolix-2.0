@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
-import { AnnouncementBanner, AnnouncementsProvider } from "./_components/announcements";
+import { AnnouncementBanner, AnnouncementPopup, AnnouncementsProvider } from "./_components/announcements";
 import { AppChrome } from "./_components/app-chrome";
 import { BookmarkProvider } from "./_components/bookmarks";
 import { BottomNav } from "./_components/bottom-nav";
@@ -30,6 +30,7 @@ export default function ViewerLayout({ children }: { children: React.ReactNode }
         <BookmarkProvider>
           <main id="main" className="v-main">
             <AnnouncementBanner />
+            <AnnouncementPopup />
             {children}
           </main>
         </BookmarkProvider>

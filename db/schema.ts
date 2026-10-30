@@ -407,7 +407,7 @@ export const appSettings = pgTable("app_settings", {
 // ---------------------------------------------------------------- Announcements
 
 export const announcementAudience = pgEnum("announcement_audience", ["everyone", "admins", "users"]);
-export const announcementPriority = pgEnum("announcement_priority", ["inbox", "banner"]);
+export const announcementPriority = pgEnum("announcement_priority", ["inbox", "banner", "popup"]);
 /** Only the stored lifecycle; scheduled/live/expired are derived from publishAt/expiresAt (lib/announcements.ts). */
 export const announcementStatus = pgEnum("announcement_status", ["draft", "published", "archived"]);
 

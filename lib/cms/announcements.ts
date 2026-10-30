@@ -13,6 +13,7 @@ import {
   RECIPIENTS_MAX,
   TITLE_MAX,
   type AnnouncementAudience,
+  type AnnouncementPriority,
   type AnnouncementState,
 } from "@/lib/announcements";
 
@@ -87,7 +88,7 @@ export type AnnouncementRow = {
   id: string;
   title: string;
   audience: AnnouncementAudience;
-  priority: "inbox" | "banner";
+  priority: AnnouncementPriority;
   state: AnnouncementState;
   publishAt: Date | null;
   expiresAt: Date | null;

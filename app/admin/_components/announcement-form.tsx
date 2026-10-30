@@ -164,10 +164,10 @@ export function AnnouncementForm({ initial }: { initial: AnnouncementFormData })
             <img className="ann-preview" src={v.imageUrl.trim()} alt="" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = "none")} onLoad={(e) => (e.currentTarget.style.display = "")} />
           )}
         </p>
-        {v.priority === "banner" && (
+        {v.priority !== "inbox" && (
         <p className="wide">
           <label>
-            Banner image (optional) <small>https:// picture shown in the banner; separate from the inbox image</small>
+            {v.priority === "popup" ? "Popup" : "Banner"} image (optional) <small>https:// picture shown in the {v.priority === "popup" ? "popup" : "banner"}; separate from the inbox image</small>
             <input type="url" value={v.bannerImageUrl} placeholder="https://example.com/banner-wide.jpg" onChange={(e) => set("bannerImageUrl", e.target.value)} />
           </label>
           {v.bannerImageUrl.trim().startsWith("https://") && (

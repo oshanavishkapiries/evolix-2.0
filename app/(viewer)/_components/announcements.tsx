@@ -174,3 +174,44 @@ export function AnnouncementBanner() {
     </div>
   );
 }
+
+/** Popup announcements open as a modal, one at a time, until read; closing counts as reading. */
+export function AnnouncementPopup() {
+  const { items, read } = useInbox();
+  const openLink = useOpenLink();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const next = items.find((i) => i.priority === "popup" && !i.read);
+  const id = next?.id;
+
+  useEffect(() => {
+    const d = dialog.current;
+    if (id && d && !d.open) d.showModal();
+  }, [id]);
+
+  if (!next) return null;
+  const image = next.bannerImageUrl ?? next.imageUrl;
+  return (
+    <dialog
+      ref={dialog}
+      className="v-popup"
+      aria-labelledby="v-popup-title"
+      onCancel={() => read(next.id)}
+      onClick={(e) => e.target === dialog.current && read(next.id)}
+    >
+      {image && (
+        // eslint-disable-next-line @next/next/no-img-element -- admin-supplied address, any host
+        <img className="v-popup-img" src={image} alt="" decoding="async" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.hidden = true)} />
+      )}
+      <h2 id="v-popup-title">{next.title}</h2>
+      {next.body && <p>{next.body}</p>}
+      <div className="v-popup-actions">
+        <button type="button" className="v-btn" onClick={() => read(next.id)}>{next.linkUrl ? "Not now" : "Got it"}</button>
+        {next.linkUrl && (
+          <button type="button" className="v-btn v-btn-primary" onClick={() => { read(next.id); openLink(next.linkUrl!); }}>
+            Open
+          </button>
+        )}
+      </div>
+    </dialog>
+  );
+}

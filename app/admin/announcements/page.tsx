@@ -73,7 +73,7 @@ async function List({ searchParams }: Props) {
                   <tr key={a.id}>
                     <td>
                       <Link href={`/admin/announcements/${a.id}`}>{a.title}</Link>
-                      {a.priority === "banner" && <div className="text-xs">Banner</div>}
+                      {a.priority !== "inbox" && <div className="text-xs">{a.priority === "popup" ? "Popup" : "Banner"}</div>}
                     </td>
                     <td>{label(a.state)}</td>
                     <td>{audienceLabel(a.audience)}</td>

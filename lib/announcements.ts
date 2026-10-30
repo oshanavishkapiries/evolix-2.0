@@ -12,6 +12,7 @@ export const audienceLabel = (key: string) => ANNOUNCEMENT_AUDIENCES.find((a) =>
 export const ANNOUNCEMENT_PRIORITIES = [
   { key: "inbox", label: "Inbox (bell only)" },
   { key: "banner", label: "Banner (also shown across the app until read)" },
+  { key: "popup", label: "Popup (modal over the app until read)" },
 ] as const;
 export type AnnouncementPriority = (typeof ANNOUNCEMENT_PRIORITIES)[number]["key"];
 export const PRIORITY_KEYS = ANNOUNCEMENT_PRIORITIES.map((p) => p.key) as [AnnouncementPriority, ...AnnouncementPriority[]];

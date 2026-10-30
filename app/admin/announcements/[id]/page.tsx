@@ -28,7 +28,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
       <PageHeader title={a.title} actions={<Link href="/admin/announcements">All announcements</Link>} />
       <p className="mt-1 text-sm">
         {a.state[0].toUpperCase() + a.state.slice(1)} · {audienceLabel(a.audience)}
-        {a.priority === "banner" ? " · Banner" : ""}
+        {a.priority === "banner" ? " · Banner" : a.priority === "popup" ? " · Popup" : ""}
       </p>
       {sent && (
         <dl className="mt-4 flex flex-wrap gap-6" aria-label="Read statistics">

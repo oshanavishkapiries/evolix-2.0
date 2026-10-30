@@ -1,0 +1,1 @@
+ALTER TYPE "public"."announcement_priority" ADD VALUE 'popup';
