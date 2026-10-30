@@ -11,6 +11,7 @@ import requests
 
 from app.core.config import settings
 from app.interfaces.repository import ITaskRepository
+from app.services.subtitle_cleaner import clean_text
 
 logger = logging.getLogger("evo.translate")
 
@@ -42,6 +43,8 @@ class TranslationResult:
     translated: int = 0
     kept_english: int = 0
     dropped_ads: int = 0
+    cleaned: int = 0
+    emptied: int = 0
     cost_usd: float = 0.0
     tokens: int = 0
     seconds: float = 0.0
@@ -198,7 +201,7 @@ Rules:
 - English loanwords people really say in Sinhala (OK, sorry, phone) may stay natural. Do not invent awkward Sinhala coinages; if a line is an idiom, translate the meaning, not the words.
 - Commands to a person use a polite-casual imperative (…න්න / …පන්), not a bare stem.
 - Keep it short: readable in 2-4 seconds, at most 2 lines per cue (use \\n for the break).
-- Keep <i></i> tags and speaker dashes (- ) where the source has them. Translate sound effects in [brackets]; keep music symbols untouched.
+- Keep <i></i> tags and speaker dashes (- ) where the source has them. Keep music symbols untouched. The input holds spoken dialogue only: never add sound effects, notes or [bracketed] text of your own.
 - Never merge, split, drop or reorder cues. No notes or explanations.
 
 Style examples (English -> Sinhala):
@@ -339,10 +342,19 @@ class SinhalaTranslator:
         started = time.time()
         cost0 = self.repository.usage_today() if self.repository else 0.0
         all_cues = parse_vtt(vtt)
+        # Annotations (sound effects, notes, lyrics markers) are removed before anything reaches the model.
+        cleaned = emptied = 0
+        for c in all_cues:
+            text = clean_text(c.text)
+            if text != c.text:
+                cleaned += 1
+                emptied += not text
+                c.text = text
         cues = [c for c in all_cues if c.text and not is_ad(c.text)]
         if not cues:
             raise TranslationError("No translatable cues")
-        result = TranslationResult(vtt="", cues=len(cues), dropped_ads=len(all_cues) - len(cues))
+        ads = sum(1 for c in all_cues if c.text and is_ad(c.text))
+        result = TranslationResult(vtt="", cues=len(cues), dropped_ads=ads, cleaned=cleaned, emptied=emptied)
 
         glossary = self.build_glossary(title, synopsis, characters or [], task_id)
         context = f"Title: {title}\nSynopsis: {synopsis[:600]}\n"
@@ -384,6 +396,8 @@ class SinhalaTranslator:
         if result.kept_english > len(cues) * MAX_KEPT_ENGLISH:
             # Better to fail (and be retried or switched to another model) than to show a half-English subtitle.
             raise TranslationError(f"The model's answers did not line up with the cues ({result.kept_english} of {len(cues)} left in English)")
+        if cleaned:
+            result.warnings.append(f"{cleaned} cue(s) had annotations removed" + (f", {emptied} left empty and skipped" if emptied else ""))
         if stats.get("refused"):
             result.warnings.append(f"{stats['refused']} answer(s) did not line up with their cue and were asked for again")
         if result.kept_english:

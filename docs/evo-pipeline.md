@@ -26,6 +26,7 @@ Sinhala is translated **on demand**, the first time a viewer picks it, not by th
 - **Pipeline**: ingest no longer translates; its `translate` node reads `skipped (on demand)`.
 - States returned to the player: `running`, `done`, `failed`, `unavailable` (daily cap reached, or no `OPENROUTER_API_KEY`).
 
+- **Cleanup before translation** (`evo-engine/app/services/subtitle_cleaner.py`): text between `{ }`, `( )`, `[ ]`, `* … *` and `# … #` is removed from each cue before anything is sent to OpenRouter (nesting and line breaks inside a span included). A cue left with no words is skipped, so it is not in the Sinhala track either. Unpaired marks stay (`:)`, `1)`), as do `5 * 3 * 2` and `#1`. A span that opens in one cue and closes in the next is not handled. The English track is not changed, and the task event shows `N cue(s) had annotations removed`. Translations cached before this change keep their old text until "clear Sinhala cache" on the engine page.
 - A tiny glossary call fixes Sinhala name spellings (from TMDB character names + synopsis, sent by `/api/evo/ingest`) so parallel chunks stay consistent.
 - One translation per title/episode (the cached file is keyed by the English subtitle id); other qualities reuse it.
 - Spend is ledgered (`api_usage`) and capped per UTC day by `TRANSLATE_DAILY_BUDGET_USD` (default `0` = unlimited for now; set a positive value to re-enable the cap). Typical cost: about $0.07 for a 1,100-cue film, $0.12 for a 2,400-cue one.
