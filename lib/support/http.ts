@@ -22,8 +22,10 @@ export async function threadResponse(req: NextRequest, userId: string, admin: bo
   try {
     const before = parseCursor(req.nextUrl.searchParams.get("before"));
     const after = parseCursor(req.nextUrl.searchParams.get("after"));
+    const rawVersion = req.nextUrl.searchParams.get("version");
+    const version = rawVersion === null ? undefined : z.string().regex(/^\d+:\d+$/).max(60).parse(rawVersion);
     if (before && after) return fail(400, "INVALID_CURSOR", "Use one message cursor at a time");
-    return privateJson(200, await readThread(userId, admin, { before, after }));
+    return privateJson(200, await readThread(userId, admin, { before, after, version }));
   } catch (e) {
     if (e instanceof z.ZodError) return fail(400, "INVALID_CURSOR", "Invalid message cursor");
     throw e;

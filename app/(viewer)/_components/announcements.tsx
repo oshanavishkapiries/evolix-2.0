@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { InboxItem } from "@/lib/announcements";
 import { fetchWithRefresh } from "@/lib/client/api";
 import { BellIcon, CloseIcon } from "./icons";
+import { useSupportNotifications } from "@/app/_components/support/unread";
 
 const POLL_MS = 60_000;
 
@@ -81,6 +82,8 @@ function useOpenLink() {
 
 export function NotificationBell() {
   const { items, unread, read, readAll } = useInbox();
+  const support = useSupportNotifications();
+  const totalUnread = unread + support.count;
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const openLink = useOpenLink();
@@ -100,20 +103,25 @@ export function NotificationBell() {
 
   return (
     <div className="v-menu" ref={root}>
-      <button type="button" className="v-top-bell" aria-haspopup="dialog" aria-expanded={open} aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="v-top-bell" aria-haspopup="dialog" aria-expanded={open} aria-label={totalUnread ? `Notifications, ${totalUnread} unread` : "Notifications"} onClick={() => { setOpen((o) => !o); if (!open) void support.refresh(); }}>
         <BellIcon size={20} />
-        {unread > 0 && <span className="v-badge" aria-hidden="true">{unread > 9 ? "9+" : unread}</span>}
+        {totalUnread > 0 && <span className="v-badge" aria-hidden="true">{totalUnread > 9 ? "9+" : totalUnread}</span>}
       </button>
       {open && (
         <section className="v-notify" role="dialog" aria-label="Notifications">
           <header>
             <h2>Notifications</h2>
-            <button type="button" className="v-notify-all" disabled={!unread} onClick={readAll}>Mark all as read</button>
+            <button type="button" className="v-notify-all" disabled={!totalUnread} onClick={() => { readAll(); void support.markAllRead(); }}>Mark all as read</button>
           </header>
-          {items.length === 0 ? (
+          {items.length === 0 && !support.count ? (
             <p className="v-notify-empty">You’re all caught up.</p>
           ) : (
             <ul>
+              {support.count > 0 && support.latest && <li data-unread="true"><button type="button" onClick={() => { setOpen(false); openLink("/support"); }}>
+                <span className="v-notify-title"><span className="v-notify-dot" aria-label="Unread" />Evolix Support replied</span>
+                <span className="v-notify-body">{support.latest.text}</span>
+                <span className="v-notify-meta">{support.count} unread {support.count === 1 ? "reply" : "replies"} · {ago(support.latest.createdAt)} · Open chat</span>
+              </button></li>}
               {items.map((i) => (
                 <li key={i.id} data-unread={!i.read || undefined}>
                   <button

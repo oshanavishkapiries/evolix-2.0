@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: "Support" };
 export const instant = false;
 export default async function SupportPage() {
   if (!(await currentUserId())) redirect("/login?next=/support");
-  return <div className="support-page"><h1>Support</h1><p className="support-intro">Questions, problems, or ideas? Talk to the Evolix team.</p><SupportChat /></div>;
+  return <div className="support-page"><SupportChat /></div>;
 }

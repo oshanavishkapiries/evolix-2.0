@@ -28,6 +28,10 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
   const [statusBusy, setStatusBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [newMessages, setNewMessages] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SupportMessage | "history" | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const deleteDialog = useRef<HTMLDialogElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const loaded = useRef(false);
   const latestId = useRef(0);
@@ -37,8 +41,15 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
   const alive = useRef(true);
   const sendingNow = useRef(false);
   const syncing = useRef(false);
+  const version = useRef<string | undefined>(undefined);
+  const generation = useRef(0);
   const pending = useRef<{ text: string; clientId: string } | null>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => {
+    const dialog = deleteDialog.current;
+    if (deleteTarget && dialog && !dialog.open) dialog.showModal();
+    else if (!deleteTarget && dialog?.open) dialog.close();
+  }, [deleteTarget]);
 
   async function acknowledge(id: number) {
     if (!id || id <= Math.max(readId.current, readingId.current) || document.visibilityState === "hidden" || !nearBottom.current || !alive.current) return;
@@ -64,20 +75,31 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
   async function sync() {
     if (syncing.current || !alive.current) return;
     syncing.current = true;
+    const requestedGeneration = generation.current;
     try {
-      const url = latestId.current ? `${endpoint}?after=${latestId.current}` : endpoint;
+      const params = new URLSearchParams();
+      if (latestId.current) params.set("after", String(latestId.current));
+      if (version.current) params.set("version", version.current);
+      const url = `${endpoint}?${params}`;
       const res = await fetchWithRefresh(url, { cache: "no-store" });
       if (!res.ok) throw new Error("Messages couldn’t be loaded. Please try again.");
       const data: SupportThread = await res.json();
-      if (!alive.current) return;
+      if (!alive.current || requestedGeneration !== generation.current) return;
       setConversation(data.conversation);
       setRecipient(data.conversation?.email ?? data.recipientEmail ?? email);
-      if (!loaded.current) setHasOlder(data.hasMore);
+      version.current = data.version;
+      if (!loaded.current || data.reset) setHasOlder(data.hasMore);
       loaded.current = true;
+      if (data.reset) {
+        generation.current += 1; // discard older in-flight pages that could contain deleted text
+        setMessages(data.messages);
+        latestId.current = data.messages.at(-1)?.id ?? data.clearedThrough ?? 0;
+        setNewMessages(false);
+      }
       if (data.messages.length) {
         latestId.current = Math.max(latestId.current, data.messages[data.messages.length - 1].id);
         setMessages((old) => merge(old, data.messages));
-        if (nearBottom.current) bottom(); else setNewMessages(true);
+        if (nearBottom.current) bottom(); else if (!data.reset) setNewMessages(true);
       }
       setError("");
       await acknowledge(latestId.current);
@@ -95,11 +117,21 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
     setOlderLoading(true);
     const previousHeight = list.current?.scrollHeight ?? 0;
     const previousTop = list.current?.scrollTop ?? 0;
+    const requestedGeneration = generation.current;
     try {
-      const res = await fetchWithRefresh(`${endpoint}?before=${messages[0].id}`, { cache: "no-store" });
+      const params = new URLSearchParams({ before: String(messages[0].id) });
+      if (version.current) params.set("version", version.current);
+      const res = await fetchWithRefresh(`${endpoint}?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Older messages couldn’t be loaded.");
       const data: SupportThread = await res.json();
-      if (!alive.current) return;
+      if (!alive.current || requestedGeneration !== generation.current) return;
+      version.current = data.version;
+      if (data.reset) {
+        generation.current += 1;
+        setMessages(data.messages); setHasOlder(data.hasMore);
+        latestId.current = data.messages.at(-1)?.id ?? data.clearedThrough ?? 0;
+        bottom(); return;
+      }
       nearBottom.current = false;
       setMessages((old) => merge(old, data.messages));
       setHasOlder(data.hasMore);
@@ -142,11 +174,35 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
     finally { setStatusBusy(false); }
   }
 
+  async function confirmDelete() {
+    if (!deleteTarget || deleting || admin) return;
+    setDeleting(true); setDeleteError("");
+    try {
+      const target = deleteTarget;
+      const url = target === "history" ? endpoint : `${endpoint}/messages/${target.id}`;
+      const res = await fetchWithRefresh(url, { method: "DELETE" });
+      if (!res.ok) throw new Error("This couldn’t be deleted. Please try again.");
+      if (!alive.current) return;
+      generation.current += 1;
+      if (target === "history") {
+        setMessages([]); setHasOlder(false); setNewMessages(false);
+        latestId.current = 0; loaded.current = false; version.current = undefined;
+      } else {
+        setMessages((old) => old.map((m) => m.id === target.id ? { ...m, text: "Message deleted", deletedAt: new Date().toISOString() } : m));
+      }
+      setDeleteTarget(null);
+      supportUpdated(); onUpdate?.();
+      await sync();
+    } catch { if (alive.current) setDeleteError("This couldn’t be deleted. Please try again."); }
+    finally { if (alive.current) setDeleting(false); }
+  }
+
   return (
     <section className="support-chat" aria-label={admin ? `Support conversation with ${email || "user"}` : "Your support conversation"}>
       <header className="support-chat-head">
-        <div>{onBack && <button type="button" className="support-mobile-back support-quiet" onClick={onBack}>← Inbox</button>}<h2>{admin ? recipient || "New conversation" : "Evolix Support"}</h2><p>{conversation?.status === "resolved" ? "Resolved · Send a message to reopen this conversation." : admin ? "Private conversation" : "Message our team. Replies will appear here."}</p></div>
+        <div className="support-chat-title">{onBack && <button type="button" className="support-mobile-back support-quiet" onClick={onBack}>← Inbox</button>}{admin ? <h2>{recipient || "New conversation"}</h2> : <h1>Evolix Support</h1>}<p>{conversation?.status === "resolved" ? "Resolved · Send a message to reopen this conversation." : admin ? "Private conversation" : "Talk to the Evolix team. We’ll reply here."}</p></div>
         {admin && <div className="support-actions"><Link href={`/admin/users/${userId}`}>View user</Link>{conversation && <button type="button" className="support-quiet" disabled={statusBusy} onClick={changeStatus}>{conversation.status === "resolved" ? "Reopen" : "Resolve"}</button>}</div>}
+        {!admin && messages.length > 0 && <button type="button" className="support-quiet" onClick={() => { setDeleteError(""); setDeleteTarget("history"); }}>Clear history</button>}
       </header>
       {error && <div className="support-notice" role="status">{error} <button type="button" onClick={() => void sync()}>Retry</button></div>}
       <div className="support-messages" role="log" aria-live="polite" aria-relevant="additions" ref={list} tabIndex={0} aria-label="Message history" onScroll={() => {
@@ -161,10 +217,12 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
           const mine = m.senderRole === (admin ? "admin" : "user");
           return <div key={m.id}>
             {(i === 0 || day(messages[i - 1].createdAt) !== day(m.createdAt)) && <p className="support-day">{day(m.createdAt)}</p>}
-            <article className="support-message" data-mine={mine}>
+            <article className="support-message" data-mine={mine} data-deleted={Boolean(m.deletedAt)}>
               <p className="support-sender">{m.senderRole === "admin" ? "Evolix Support" : admin ? "User" : "You"}</p>
               <p className="support-message-text">{m.text}</p>
-              <time dateTime={new Date(m.createdAt).toISOString()} title={new Date(m.createdAt).toLocaleString("en-GB", { timeZone: TZ })}>{time(m.createdAt)}</time>
+              <footer className="support-message-meta"><time dateTime={new Date(m.createdAt).toISOString()} title={new Date(m.createdAt).toLocaleString("en-GB", { timeZone: TZ })}>{time(m.createdAt)}</time>
+                {!admin && mine && !m.deletedAt && <button type="button" className="support-delete" aria-label="Delete your message" onClick={() => { setDeleteError(""); setDeleteTarget(m); }}>Delete</button>}
+              </footer>
             </article>
           </div>;
         })}
@@ -172,10 +230,16 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
       {newMessages && <button type="button" className="support-new" onClick={bottom}>New messages ↓</button>}
       <form className="support-composer" onSubmit={send}>
         <label htmlFor="support-message">{admin ? "Reply to user" : "Your message"}</label>
-        <div><textarea id="support-message" value={draft} maxLength={2000} rows={3} placeholder="Write a message…" disabled={sending} onChange={(e) => { setDraft(e.target.value); setSent(false); }} />
+        <div><textarea id="support-message" value={draft} maxLength={2000} rows={2} placeholder="Write a message…" disabled={sending} onChange={(e) => { setDraft(e.target.value); setSent(false); }} />
           <button type="submit" disabled={sending || !draft.trim()}>{sending ? "Sending…" : sendError ? "Retry send" : "Send"}</button></div>
         <div className="support-composer-meta"><span role={sendError ? "alert" : "status"}>{sendError || (sent ? "Message sent" : "Replies may take a little time.")}</span><span>{draft.length}/2000</span></div>
       </form>
+      <dialog ref={deleteDialog} className="support-confirm" aria-labelledby="support-delete-title" aria-describedby="support-delete-description" onCancel={(e) => { if (deleting) e.preventDefault(); else setDeleteTarget(null); }}>
+        <h2 id="support-delete-title">{deleteTarget === "history" ? "Clear chat history?" : "Delete this message?"}</h2>
+        <p id="support-delete-description">{deleteTarget === "history" ? "This clears the conversation from your view on all your devices. The support team keeps its copy. New replies will still appear here." : "Your message will be replaced with “Message deleted” for you and the support team. This can’t be undone."}</p>
+        {deleteError && <p role="alert">{deleteError}</p>}
+        <div><button type="button" className="support-quiet" disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</button><button type="button" className="support-danger" disabled={deleting} onClick={confirmDelete}>{deleting ? "Deleting…" : deleteTarget === "history" ? "Clear history" : "Delete message"}</button></div>
+      </dialog>
     </section>
   );
 }

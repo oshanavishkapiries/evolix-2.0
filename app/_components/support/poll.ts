@@ -15,6 +15,7 @@ export function useVisiblePoll(callback: () => Promise<void>, delay: number) {
     void run();
     const timer = setInterval(() => void run(), delay);
     document.addEventListener("visibilitychange", run);
-    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", run); };
+    window.addEventListener("focus", run);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", run); window.removeEventListener("focus", run); };
   }, [delay]);
 }

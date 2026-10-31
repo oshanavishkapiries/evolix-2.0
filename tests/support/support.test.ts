@@ -12,8 +12,9 @@ vi.mock('@/lib/auth/session', () => ({ authenticate: async () => state.viewer ? 
 vi.mock('@/lib/auth/admin', () => ({ requireAdmin: async () => state.admin ? { id: state.admin } : new Response(null, { status: 403 }) }));
 vi.mock('@/lib/env', () => ({ env: {} }));
 
-import { readThread, sendMessage, markRead, unreadCount, inbox, setStatus, findUsers } from '@/lib/support/store';
-import { GET as viewerGet, POST as viewerPost } from '@/app/api/me/support/route';
+import { readThread, sendMessage, markRead, unreadCount, inbox, setStatus, findUsers, deleteOwnMessage, clearHistory, supportNotification } from '@/lib/support/store';
+import { GET as viewerGet, POST as viewerPost, DELETE as viewerClear } from '@/app/api/me/support/route';
+import { DELETE as viewerDelete } from '@/app/api/me/support/messages/[id]/route';
 import { POST as viewerRead } from '@/app/api/me/support/read/route';
 import { GET as adminGet, POST as adminPost, PATCH as adminPatch } from '@/app/api/admin/support/[userId]/route';
 import { GET as adminInbox } from '@/app/api/admin/support/route';
@@ -162,5 +163,81 @@ describe('authenticated support routes', () => {
     expect((await viewerPost(req('/api/me/support', { text: 'Too many', clientId: randomUUID() }))).status).toBe(429);
     expect((await viewerPost(req('/api/me/support', { text: 'First', clientId }))).status).toBe(201);
     expect((await readThread(viewer, false)).messages).toHaveLength(30);
+  });
+});
+
+describe('deleting messages and clearing history', () => {
+  it('removes only the owner’s outgoing content for both sides and cannot restore it by retrying a send', async () => {
+    const clientId = randomUUID();
+    const mine = await send('Private original text', viewer, viewer, false, clientId);
+    const reply = await send('Support answer', viewer, admin, true);
+    const foreign = await send('Another user’s text', other, other);
+    expect(await deleteOwnMessage(viewer, reply.id)).toBe(false);
+    expect(await deleteOwnMessage(viewer, foreign.id)).toBe(false);
+    expect(await deleteOwnMessage(viewer, mine.id)).toBe(true);
+    for (const isAdmin of [false, true]) {
+      const thread = await readThread(viewer, isAdmin);
+      expect(thread.messages[0]).toMatchObject({ id: mine.id, text: 'Message deleted', deletedAt: expect.any(String) });
+      expect(JSON.stringify(thread)).not.toContain('Private original text');
+    }
+    expect(await unreadCount(admin, true)).toBe(1); // only the other user's message remains unread
+    expect((await send('Private original text', viewer, viewer, false, clientId)).text).toBe('Message deleted');
+  });
+
+  it('invalidates already loaded history in both participants’ other sessions', async () => {
+    const mine = await send('Remove me');
+    const reply = await send('Answer', viewer, admin, true);
+    const beforeUser = await readThread(viewer, false), beforeAdmin = await readThread(viewer, true);
+    await deleteOwnMessage(viewer, mine.id);
+    for (const [isAdmin, version] of [[false, beforeUser.version], [true, beforeAdmin.version]] as const) {
+      const updated = await readThread(viewer, isAdmin, { after: reply.id, version });
+      expect(updated.reset).toBe(true);
+      expect(updated.messages[0].text).toBe('Message deleted');
+    }
+  });
+
+  it('clears the user’s view across devices, preserves the admin copy, and delivers future replies', async () => {
+    await send('Question');
+    const reply = await send('Answer', viewer, admin, true);
+    const before = await readThread(viewer, false);
+    expect((await supportNotification(viewer)).count).toBe(1);
+    await clearHistory(viewer);
+    expect((await readThread(viewer, false)).messages).toEqual([]);
+    expect((await readThread(viewer, false, { before: reply.id })).messages).toEqual([]);
+    expect((await readThread(viewer, false, { after: reply.id, version: before.version })).reset).toBe(true);
+    expect((await readThread(viewer, true)).messages).toHaveLength(2);
+    expect(await supportNotification(viewer)).toEqual({ count: 0, latest: null });
+    const next = await send('A new answer', viewer, admin, true);
+    expect((await readThread(viewer, false)).messages.map((m) => m.id)).toEqual([next.id]);
+    expect((await supportNotification(viewer)).count).toBe(1);
+    expect(await unreadCount(viewer, false)).toBe(1);
+  });
+
+  it('requires authentication, validates IDs, and never deletes or clears another user’s chat', async () => {
+    const mine = await send('My question'), foreign = await send('Other question', other, other);
+    state.viewer = '';
+    expect((await viewerDelete(req('/api/me/support/messages/' + mine.id, {}, 'DELETE'), { params: Promise.resolve({ id: String(mine.id) }) })).status).toBe(401);
+    expect((await viewerClear(req('/api/me/support', {}, 'DELETE'))).status).toBe(401);
+    state.viewer = viewer;
+    expect((await viewerDelete(req('/api/me/support/messages/' + foreign.id, {}, 'DELETE'), { params: Promise.resolve({ id: String(foreign.id) }) })).status).toBe(404);
+    expect((await viewerDelete(req('/api/me/support/messages/bad', {}, 'DELETE'), { params: Promise.resolve({ id: 'bad' }) })).status).toBe(400);
+    expect((await viewerGet(req('/api/me/support?version=bad'))).status).toBe(400);
+    expect((await viewerClear(req('/api/me/support', { userId: other }, 'DELETE'))).status).toBe(200);
+    expect((await readThread(viewer, false)).messages).toEqual([]);
+    expect((await readThread(other, false)).messages[0].text).toBe('Other question');
+  });
+
+  it('returns only this user’s unread support reply summary, until explicitly read', async () => {
+    await send('First answer', viewer, admin, true);
+    const second = await send('Second answer', viewer, secondAdmin, true);
+    await send('Unrelated answer', other, admin, true);
+    const notification = await supportNotification(viewer);
+    expect(notification).toMatchObject({ count: 2, latest: { id: second.id, text: 'Second answer' } });
+    expect(JSON.stringify(notification)).not.toContain(admin);
+    await readThread(viewer, false); // fetching/opening the bell alone does not mark messages read
+    expect((await supportNotification(viewer)).count).toBe(2);
+    await markRead(viewer, viewer, second.id);
+    expect(await supportNotification(viewer)).toEqual({ count: 0, latest: null });
+    expect((await supportNotification(other)).count).toBe(1);
   });
 });
