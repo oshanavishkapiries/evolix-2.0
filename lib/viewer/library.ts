@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bookmarks, episodes, movies, seasons, shows, watchProgress } from "@/db/schema";
+import { airedEpisode } from "./availability-query";
 import type { Card } from "./catalog";
 import { isUuid } from "./ids";
 
@@ -153,6 +154,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
           eq(shows.isPublished, true),
           eq(seasons.isVisible, true),
           eq(episodes.isVisible, true),
+          airedEpisode(),
         ),
       )
       .orderBy(desc(watchProgress.updatedAt))
@@ -197,6 +199,7 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
           inArray(seasons.showId, finished.map((r) => r.showId)),
           eq(seasons.isVisible, true),
           eq(episodes.isVisible, true),
+          airedEpisode(),
         ),
       )
       .orderBy(seasons.seasonNumber, episodes.episodeNumber);

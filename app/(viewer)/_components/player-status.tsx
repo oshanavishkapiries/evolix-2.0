@@ -12,6 +12,7 @@ export function PlayerStatus({
   note,
   progress,
   error = false,
+  idle = false,
   children,
 }: {
   backdropPath?: string | null;
@@ -22,6 +23,7 @@ export function PlayerStatus({
   /** 0-100; the bar only shows while a real value is known. */
   progress?: number;
   error?: boolean;
+  idle?: boolean;
   children?: React.ReactNode;
 }) {
   const bg = backdropPath ? imageUrl(backdropPath, "w1280") : null;
@@ -29,7 +31,7 @@ export function PlayerStatus({
     <div className="v-scene" role={error ? "alert" : "status"} aria-live="polite">
       {bg && <div className="v-scene-bg" style={{ backgroundImage: `url("${bg}")` }} />}
       <div className="v-scene-card">
-        {error ? <span className="v-scene-icon" aria-hidden="true">!</span> : <div className="v-scene-spinner" aria-hidden="true" />}
+        {error ? <span className="v-scene-icon" aria-hidden="true">!</span> : !idle && <div className="v-scene-spinner" aria-hidden="true" />}
         {kicker && <p className="v-scene-kicker">{kicker}</p>}
         <h3 className="v-scene-title">{title}</h3>
         {message && <p className="v-scene-msg" data-error={error}>{message}</p>}

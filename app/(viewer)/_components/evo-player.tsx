@@ -336,11 +336,12 @@ export function EvoPlayer({
       message={waiting ? `${problem.message} Trying again in ${retryIn}s…` : problem ? problem.message : (message || "Connecting to the stream…")}
       note={waiting ? `Retry ${busyTry} of ${MAX_BUSY_RETRIES}` : problem?.ref ? `Reference: ${problem.ref}` : undefined}
       progress={problem ? undefined : progressPct}
-      error={Boolean(problem) && !waiting}
+      error={Boolean(problem) && !waiting && problem?.code !== "NOT_AIRED"}
+      idle={problem?.code === "NOT_AIRED"}
     >
       {problem && (
         <>
-          <button type="button" className="v-btn v-btn-primary" onClick={() => startIngest("720p")}>{waiting ? "Try now" : "Try again"}</button>
+          {problem.code !== "NOT_AIRED" && <button type="button" className="v-btn v-btn-primary" onClick={() => startIngest("720p")}>{waiting ? "Try now" : "Try again"}</button>}
           <Link href={backHref} className="v-btn">Back</Link>
         </>
       )}

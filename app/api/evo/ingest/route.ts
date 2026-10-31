@@ -40,11 +40,11 @@ export async function POST(req: NextRequest) {
     if (out.kind === "error") {
       // The raw engine text is for us, not the viewer: keep it in the error tracker and send the friendly version.
       const { detail, ...body } = out.body as { detail?: string; code?: string; retryAfter?: number };
-      if (body.code === "BUSY") {
-        // Being turned away because we are full is not the viewer's doing: it must not count against their allowance.
+      if (body.code === "BUSY" || body.code === "NOT_AIRED") {
+        // Waiting for capacity or an air date must not use up the viewer's ingestion allowance.
         release(limitKey);
         const res = json(out.status, body);
-        res.headers.set("Retry-After", String(body.retryAfter ?? PROBLEMS.BUSY.retryAfter));
+        if (body.code === "BUSY") res.headers.set("Retry-After", String(body.retryAfter ?? PROBLEMS.BUSY.retryAfter));
         return res;
       }
       if (body.code === "UNKNOWN") {

@@ -3,6 +3,7 @@ import { imageUrl } from "@/lib/images";
 import { PlayIcon } from "./icons";
 import { dateText, runtimeText } from "@/lib/viewer/format";
 import type { ShowDetail } from "@/lib/viewer/detail";
+import { isUpcoming } from "@/lib/viewer/availability";
 
 export type EpisodeItem = {
   episodeNumber: number;
@@ -29,28 +30,29 @@ export function EpisodeRow({
 }) {
   const still = imageUrl(ep.stillPath, "w300");
   const title = ep.name || `Episode ${ep.episodeNumber}`;
-  const meta = [dateText(ep.airDate), runtimeText(ep.runtimeMinutes)].filter(Boolean).join(" · ");
-  return (
-    <Link
-      href={`/watch/tv/${showId}/${seasonNumber}/${ep.episodeNumber}`}
-      className="v-ep"
-      aria-current={current}
-      prefetch={false}
-    >
+  const upcoming = isUpcoming(ep.airDate);
+  const meta = [upcoming ? `Coming soon · ${dateText(ep.airDate)}` : dateText(ep.airDate), runtimeText(ep.runtimeMinutes)].filter(Boolean).join(" · ");
+  const inner = (
+    <>
       <span className="v-ep-num">{ep.episodeNumber}</span>
       <span className="v-ep-still" style={{ display: "block" }}>
         {still && (
           // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
           <img src={still} alt="" width={300} height={169} loading="lazy" decoding="async" />
         )}
-        <span className="v-ep-play" aria-hidden="true"><span><PlayIcon size={22} /></span></span>
+        {!upcoming && <span className="v-ep-play" aria-hidden="true"><span><PlayIcon size={22} /></span></span>}
       </span>
       <span>
         <span className="v-ep-title" style={{ display: "block" }}>{title}</span>
         {meta && <span className="v-ep-meta" style={{ display: "block" }}>{meta}</span>}
         {!compact && ep.overview && <span className="v-ep-overview">{ep.overview}</span>}
       </span>
-    </Link>
+    </>
+  );
+  return upcoming ? (
+    <div className="v-ep" aria-disabled="true">{inner}</div>
+  ) : (
+    <Link href={`/watch/tv/${showId}/${seasonNumber}/${ep.episodeNumber}`} className="v-ep" aria-current={current} prefetch={false}>{inner}</Link>
   );
 }
 
@@ -74,7 +76,7 @@ export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: s
           const poster = imageUrl(s.posterPath ?? show.posterPath, "w342");
           const base = `/watch/tv/${show.id}/${s.seasonNumber}`;
           // Pick up where the viewer left off when they were last watching this season.
-          const href = resumeHref?.startsWith(`${base}/`) ? resumeHref : s.firstEpisode != null ? `${base}/${s.firstEpisode}` : null;
+          const href = s.firstEpisode == null ? null : resumeHref?.startsWith(`${base}/`) ? resumeHref : `${base}/${s.firstEpisode}`;
           const inner = (
             <>
               <span className="v-card-img" style={{ display: "block" }}>
@@ -87,7 +89,8 @@ export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: s
                 {href && <span className="v-card-play" aria-hidden="true"><PlayIcon size={22} /></span>}
               </span>
               <span className="v-card-title">{s.name || label(s)}</span>
-              <span className="v-card-sub">{s.episodeCount} {s.episodeCount === 1 ? "episode" : "episodes"}</span>
+              <span className="v-card-sub">{s.upcomingCount > 0 ? `${s.episodeCount - s.upcomingCount} available · ${s.upcomingCount} coming soon` : `${s.episodeCount} ${s.episodeCount === 1 ? "episode" : "episodes"}`}</span>
+              {!href && s.upcomingCount > 0 && s.airDate && <span className="v-card-sub">From {dateText(s.airDate)}</span>}
             </>
           );
           return (

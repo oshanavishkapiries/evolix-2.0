@@ -249,6 +249,9 @@
 .v-ep-play > span { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; background: rgb(255 255 255 / .9); color: #000; padding-left: .15rem; }
 .v-ep:hover .v-ep-play, .v-ep:focus-visible .v-ep-play { opacity: 1; }
 .v-ep:hover .v-ep-title { color: var(--v-primary); }
+.v-ep[aria-disabled="true"] { opacity: .65; }
+.v-ep[aria-disabled="true"]:hover { border-color: transparent; background: transparent; }
+.v-ep[aria-disabled="true"]:hover .v-ep-title { color: inherit; }
 @media (hover: none) { .v-ep-play { display: none; } }
 
 /* Cast, videos and gallery rows (inside ScrollRow) */

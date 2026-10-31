@@ -13,6 +13,8 @@ import { ApprovalNotice } from "../../../../../_components/approval-notice";
 import { getEpisodeWatch, type EpisodeRef } from "@/lib/viewer/watch";
 import { EpisodeRow } from "../../../../../_components/seasons";
 import { WatchView } from "../../../../../_components/watch-view";
+import { isUpcoming } from "@/lib/viewer/availability";
+import { dateText } from "@/lib/viewer/format";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
 // unpublished title is a real HTTP 404 instead of a streamed 200.
@@ -47,6 +49,16 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
   const { current, prev, next } = data;
   const userId = await currentUserId();
   if (!(await canWatch(userId))) return <ApprovalNotice />;
+  if (isUpcoming(current.airDate)) {
+    return (
+      <section className="v-detail">
+        <p className="v-muted">Coming soon · {dateText(current.airDate)}</p>
+        <h1>{current.showName}: {code(p.season, p.episode)}{current.name ? ` ${current.name}` : ""}</h1>
+        <p>This episode hasn’t aired yet. Please come back on its scheduled air date.</p>
+        <Link href={`/tv/${p.id}?season=${p.season}`} className="v-btn">Back to {current.showName}</Link>
+      </section>
+    );
+  }
   // Evo episodes start as TMDB-only ids; signed-in viewers get catalog rows so progress and reports can attach.
   const episodeId = isUuid(current.id) ? current.id : userId ? (await ensureEpisode(current.tmdbId, p.season, p.episode).catch(() => null))?.episodeId ?? null : null;
   const startAt = userId && episodeId ? await resumePosition(userId, { episodeId }) : 0;

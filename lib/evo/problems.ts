@@ -3,11 +3,12 @@
  * One table, used by the server (to answer) and the browser (to show), so the wording never drifts.
  * Raw engine text never goes to a viewer: it stays in the error tracker and the admin pages.
  */
-export type ProblemCode = "BUSY" | "ENGINE_UNAVAILABLE" | "NO_SOURCE" | "RATE_LIMITED" | "SUBTITLES" | "OFFLINE" | "UNKNOWN";
+export type ProblemCode = "BUSY" | "ENGINE_UNAVAILABLE" | "NO_SOURCE" | "NOT_AIRED" | "RATE_LIMITED" | "SUBTITLES" | "OFFLINE" | "UNKNOWN";
 
 type Entry = { title: string; message: string; retry: "auto" | "manual"; retryAfter?: number };
 
 export const PROBLEMS: Record<ProblemCode, Entry> = {
+  NOT_AIRED: { title: "Coming soon", message: "This episode hasn’t aired yet. Please come back on its scheduled air date.", retry: "manual" },
   BUSY: { title: "We’re very busy right now", message: "Lots of people are watching. We’ll keep trying for you.", retry: "auto", retryAfter: 20 },
   ENGINE_UNAVAILABLE: { title: "Our video service is restarting", message: "Please try again in a minute.", retry: "manual" },
   NO_SOURCE: { title: "No playable copy yet", message: "We couldn’t find a copy of this to play right now. Try again later, or pick another source.", retry: "manual" },

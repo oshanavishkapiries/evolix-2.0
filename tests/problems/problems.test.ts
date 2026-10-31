@@ -76,6 +76,17 @@ describe('ingest route', () => {
   let n = 0;
   beforeEach(() => { state.capture.mockClear(); state.viewer = `viewer-${++n}`; }); // the allowance is per viewer
 
+  it('treats an unaired episode as normal availability, without error logging or consuming the allowance', async () => {
+    state.outcome = { kind: 'error', status: 409, body: problemBody('NOT_AIRED') };
+    for (let i = 0; i < 15; i++) {
+      const res = await post();
+      expect(res.status).toBe(409);
+      expect(res.headers.has('Retry-After')).toBe(false);
+      expect(await res.json()).toMatchObject({ code: 'NOT_AIRED', title: 'Coming soon' });
+    }
+    expect(state.capture).not.toHaveBeenCalled();
+  });
+
   it('answers busy with a Retry-After and no engine text, and never uses up the viewer allowance', async () => {
     state.outcome = busy;
     for (let i = 0; i < 30; i++) {

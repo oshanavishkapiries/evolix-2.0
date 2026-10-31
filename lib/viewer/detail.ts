@@ -3,6 +3,8 @@ import { cache } from "react";
 import { db } from "@/db";
 import { AUDIO_LANGUAGES } from "@/lib/audio";
 import { catalogCache } from "./cache";
+import { isUpcoming } from "./availability";
+import { airedEpisode } from "./availability-query";
 import { episodes, movies, seasons, shows, sources, videos } from "@/db/schema";
 import { parseMediaId } from "./ids";
 import { findMovieIdByTmdb } from "@/lib/cms/movies";
@@ -45,7 +47,7 @@ export async function firstEpisode(showId: string): Promise<{ seasonNumber: numb
     .select({ seasonNumber: seasons.seasonNumber, episodeNumber: episodes.episodeNumber })
     .from(episodes)
     .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-    .where(and(eq(seasons.showId, showId), eq(seasons.isVisible, true), eq(episodes.isVisible, true)))
+    .where(and(eq(seasons.showId, showId), eq(seasons.isVisible, true), eq(episodes.isVisible, true), airedEpisode()))
     .orderBy(sql`${seasons.seasonNumber} = 0`, asc(seasons.seasonNumber), asc(episodes.episodeNumber))
     .limit(1);
   return rows[0] ?? null;
@@ -180,7 +182,8 @@ async function getDbShowDetail(id: string, seasonNumber: number | null) {
         posterPath: seasons.posterPath,
         // Table-qualified by hand: drizzle drops the table name on single-table selects.
         episodeCount: sql<number>`(select count(*)::int from episodes e where e.season_id = ${seasons}.id and e.is_visible)`,
-        firstEpisode: sql<number | null>`(select min(e.episode_number) from episodes e where e.season_id = ${seasons}.id and e.is_visible)`,
+        upcomingCount: sql<number>`(select count(*)::int from episodes e where e.season_id = ${seasons}.id and e.is_visible and e.air_date > (now() at time zone 'Asia/Colombo')::date)`,
+        firstEpisode: sql<number | null>`(select min(e.episode_number) from episodes e where e.season_id = ${seasons}.id and e.is_visible and (e.air_date is null or e.air_date <= (now() at time zone 'Asia/Colombo')::date))`,
       })
       .from(seasons)
       .where(and(eq(seasons.showId, id), eq(seasons.isVisible, true)))
@@ -258,9 +261,12 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
         airDate: sec.airDate,
         posterPath: sec.posterPath,
         episodeCount: sec.episodes?.length ?? 0,
-        firstEpisode: sec.episodes?.[0]?.episodeNumber ?? 1,
+        upcomingCount: sec.episodes.filter((e) => isUpcoming(e.airDate)).length,
+        firstEpisode: sec.episodes.find((e) => !isUpcoming(e.airDate))?.episodeNumber ?? null,
       }));
-      const first = eps[0] ? { seasonNumber: selected?.seasonNumber ?? 1, episodeNumber: eps[0].episodeNumber } : null;
+      const firstSeason = seasonRows.find((sec) => sec.seasonNumber > 0 && sec.firstEpisode !== null)
+        ?? seasonRows.find((sec) => sec.firstEpisode !== null);
+      const first = firstSeason ? { seasonNumber: firstSeason.seasonNumber, episodeNumber: firstSeason.firstEpisode! } : null;
       return {
         id: `tmdb-${media.tmdbId}`,
         title: s.name,
@@ -282,7 +288,7 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
         tmdbId: s.tmdbId,
         videos: s.videos.map((v, i) => ({ id: `tmdb-vid-${i}`, ...v })),
         seasons: seasonRows,
-        selected: selected ? { id: `tmdb-season-${media.tmdbId}-${selected.seasonNumber}`, seasonNumber: selected.seasonNumber, name: selected.name, overview: selected.overview, airDate: selected.airDate, posterPath: selected.posterPath, episodeCount: eps.length, firstEpisode: 1 } : null,
+        selected: seasonRows.find((sec) => sec.seasonNumber === selected?.seasonNumber) ?? null,
         episodes: eps,
         first,
         dubs: [],

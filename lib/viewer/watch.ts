@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/db";
 import { catalogCache } from "./cache";
+import { episodeNeighbors } from "./availability";
 import { normalizeSource } from "@/lib/viewer/providers";
 import { episodes, movies, seasons, shows, sources, subtitles } from "@/db/schema";
 import { parseMediaId } from "./ids";
@@ -136,6 +137,7 @@ async function getDbEpisodeWatch(showId: string, seasonNumber: number, episodeNu
   const i = list.findIndex((e) => e.seasonNumber === seasonNumber && e.episodeNumber === episodeNumber);
   if (i < 0) return null;
   const current = list[i];
+  const neighbors = episodeNeighbors(list, current);
   const ref = (e?: (typeof list)[number]): EpisodeRef | null =>
     e ? { seasonNumber: e.seasonNumber, episodeNumber: e.episodeNumber, name: e.name } : null;
 
@@ -145,8 +147,8 @@ async function getDbEpisodeWatch(showId: string, seasonNumber: number, episodeNu
   ]);
   return {
     current,
-    prev: ref(list[i - 1]),
-    next: ref(list[i + 1]),
+    prev: ref(neighbors.prev ?? undefined),
+    next: ref(neighbors.next ?? undefined),
     seasonEpisodes: list.filter((e) => e.seasonNumber === seasonNumber),
     sources: srcs,
     subtitles: subs,
@@ -212,13 +214,14 @@ export const getEpisodeWatch = cache(async (showId: string, seasonNumber: number
       const i = allEpisodes.findIndex((e) => e.seasonNumber === seasonNumber && e.episodeNumber === episodeNumber);
       if (i < 0) return null;
       const current = allEpisodes[i];
+      const neighbors = episodeNeighbors(allEpisodes, current);
       const ref = (e?: (typeof allEpisodes)[number]): EpisodeRef | null =>
         e ? { seasonNumber: e.seasonNumber, episodeNumber: e.episodeNumber, name: e.name } : null;
 
       return {
         current,
-        prev: ref(allEpisodes[i - 1]),
-        next: ref(allEpisodes[i + 1]),
+        prev: ref(neighbors.prev ?? undefined),
+        next: ref(neighbors.next ?? undefined),
         seasonEpisodes: allEpisodes.filter((e) => e.seasonNumber === seasonNumber),
         sources: [] as WatchSource[],
         subtitles: [] as WatchSubtitle[],
