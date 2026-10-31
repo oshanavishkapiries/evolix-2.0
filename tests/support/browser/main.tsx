@@ -6,10 +6,10 @@ import { SupportUnreadProvider } from '@/app/_components/support/unread';
 import { BottomNav } from '@/app/(viewer)/_components/bottom-nav';
 import { AdminNav } from '@/app/admin/_components/admin-nav';
 import { AnnouncementsProvider, NotificationBell } from '@/app/(viewer)/_components/announcements';
+import '@/app/_components/support/support.css';
 import '@/app/(viewer)/styles/tokens.css';
 import '@/app/(viewer)/styles/shell.css';
 import '@/app/admin/admin.css';
-import '@/app/_components/support/support.css';
 
 const admin = new URLSearchParams(location.search).has('admin');
 const dashboard = new URLSearchParams(location.search).has('dashboard');

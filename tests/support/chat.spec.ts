@@ -139,6 +139,19 @@ test('users confirm deletion of their own message and can clear their view witho
   await page.getByRole('button', { name: 'Clear history', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Clear chat history?' });
   await expect(dialog.getByText(/support team keeps its copy/)).toBeVisible();
+  const bounds = await dialog.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(Math.abs(bounds!.x + bounds!.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(bounds!.y + bounds!.height / 2 - viewport.height / 2)).toBeLessThanOrEqual(1);
+  const clearButton = dialog.getByRole('button', { name: 'Clear history', exact: true });
+  await expect(clearButton).toHaveCSS('background-color', 'rgb(190, 57, 57)');
+  expect((await clearButton.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: '/tmp/evolix-support-confirm.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileBounds = await dialog.boundingBox();
+  expect(Math.abs(mobileBounds!.y + mobileBounds!.height / 2 - 844 / 2)).toBeLessThanOrEqual(1);
+  expect(mobileBounds!.width).toBeLessThanOrEqual(390 - 32);
+  await expect(clearButton).toBeVisible();
   await dialog.getByRole('button', { name: 'Clear history', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'How can we help?' })).toBeVisible();
   expect(messages).toHaveLength(2); // history clearing preserves the support team's copy
