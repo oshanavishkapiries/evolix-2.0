@@ -12,11 +12,11 @@ vi.mock('@/lib/auth/session', () => ({ authenticate: async () => state.viewer ? 
 vi.mock('@/lib/auth/admin', () => ({ requireAdmin: async () => state.admin ? { id: state.admin } : new Response(null, { status: 403 }) }));
 vi.mock('@/lib/env', () => ({ env: {} }));
 
-import { readThread, sendMessage, markRead, unreadCount, inbox, setStatus, findUsers, deleteOwnMessage, clearHistory, supportNotification } from '@/lib/support/store';
+import { readThread, sendMessage, markRead, unreadCount, inbox, setStatus, findUsers, deleteOwnMessage, clearHistory, supportNotification, deleteConversation } from '@/lib/support/store';
 import { GET as viewerGet, POST as viewerPost, DELETE as viewerClear } from '@/app/api/me/support/route';
 import { DELETE as viewerDelete } from '@/app/api/me/support/messages/[id]/route';
 import { POST as viewerRead } from '@/app/api/me/support/read/route';
-import { GET as adminGet, POST as adminPost, PATCH as adminPatch } from '@/app/api/admin/support/[userId]/route';
+import { GET as adminGet, POST as adminPost, PATCH as adminPatch, DELETE as adminDelete } from '@/app/api/admin/support/[userId]/route';
 import { GET as adminInbox } from '@/app/api/admin/support/route';
 
 let pg: PGlite;
@@ -167,6 +167,42 @@ describe('authenticated support routes', () => {
 });
 
 describe('deleting messages and clearing history', () => {
+  it('deletes the whole thread and its read state, resets other sessions, and preserves user accounts and unrelated chats', async () => {
+    const first = await send('Question');
+    await send('Support answer', viewer, admin, true);
+    await send('Unrelated question', other, other);
+    await markRead(viewer, admin, first.id);
+    const prior = await readThread(viewer, false);
+    const oldId = prior.conversation!.id;
+    expect(await deleteConversation(viewer, oldId)).toBe(true);
+    const cleared = await readThread(viewer, false, { after: first.id, version: prior.version });
+    expect(cleared).toMatchObject({ conversation: null, reset: true, messages: [] });
+    expect((await pg.query('select * from support_read_states')).rows).toHaveLength(0);
+    expect((await readThread(other, false)).messages).toHaveLength(1);
+    expect((await pg.query('select * from users')).rows).toHaveLength(4);
+    const newMessage = await send('A fresh question');
+    expect(await deleteConversation(viewer, oldId)).toBe(false); // a stale confirmation cannot delete the new chat
+    const fresh = await readThread(viewer, false, { after: first.id, version: prior.version });
+    expect(fresh.reset).toBe(true);
+    expect(fresh.conversation!.id).not.toBe(oldId);
+    expect(fresh.messages.map((m) => m.id)).toEqual([newMessage.id]);
+  });
+
+  it('restricts conversation deletion to admins and validates the confirmed thread ID', async () => {
+    await send('Question');
+    await send('Other question', other, other);
+    const thread = await readThread(viewer, true), foreign = await readThread(other, true);
+    const request = (conversationId: string) => req('/api/admin/support/' + viewer, { conversationId }, 'DELETE');
+    state.admin = '';
+    expect((await adminDelete(request(thread.conversation!.id), ctx())).status).toBe(403);
+    state.admin = admin;
+    expect((await adminDelete(request('invalid'), ctx())).status).toBe(400);
+    expect((await adminDelete(request(foreign.conversation!.id), ctx())).status).toBe(404);
+    expect((await adminDelete(request(thread.conversation!.id), ctx())).status).toBe(200);
+    expect((await readThread(viewer, true)).conversation).toBeNull();
+    expect((await readThread(other, true)).messages).toHaveLength(1);
+  });
+
   it('removes only the owner’s outgoing content for both sides and cannot restore it by retrying a send', async () => {
     const clientId = randomUUID();
     const mine = await send('Private original text', viewer, viewer, false, clientId);

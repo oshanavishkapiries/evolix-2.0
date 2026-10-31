@@ -95,6 +95,6 @@ export function SupportInbox({ initialUserId }: { initialUserId?: string }) {
       </button></li>)}</ul>
       {hasMore && <button type="button" className="support-older" disabled={moreLoading} onClick={async () => { setMoreLoading(true); visibleLimit.current += 30; await refresh(); setMoreLoading(false); }}>{moreLoading ? "Loading…" : "Load more conversations"}</button>}
     </aside>
-    <div className="support-inbox-detail">{selected ? <SupportChat key={selected.id} admin userId={selected.id} email={selected.email} onUpdate={() => void refresh()} onBack={back} /> : <div className="support-empty support-select"><h2>Your support inbox</h2><p>Select a conversation to reply, or start one with a user.</p></div>}</div>
+    <div className="support-inbox-detail">{selected ? <SupportChat key={selected.id} admin userId={selected.id} email={selected.email} onUpdate={() => void refresh()} onBack={back} onDeleted={back} /> : <div className="support-empty support-select"><h2>Your support inbox</h2><p>Select a conversation to reply, or start one with a user.</p></div>}</div>
   </div>;
 }

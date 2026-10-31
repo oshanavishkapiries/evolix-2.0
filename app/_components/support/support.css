@@ -34,6 +34,7 @@
 .support-confirm p { font-size: .9rem; line-height: 1.6; color: #ccc; }
 .support-confirm > div { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.25rem; }
 .support-chat .support-danger { border: 0; border-radius: .35rem; padding: .5rem .8rem; background: #be3939; color: #fff; cursor: pointer; }
+.support-chat .support-actions .support-danger, .support-chat .support-confirm .support-danger { color: #fff; }
 .support-chat .support-confirm button { min-height: 2.75rem; padding: .65rem 1rem; border-radius: .4rem; font-size: .875rem; font-weight: 600; }
 .support-chat .support-confirm .support-quiet { color: #eee; background: #333; border: 1px solid #666; }
 .support-chat .support-confirm .support-quiet:hover { background: #444; }
@@ -45,6 +46,7 @@
 .support-composer textarea, .support-inbox-tools input, .support-inbox-tools select { background: #1f1f1f; color: #fff; border: 1px solid #555; border-radius: .4rem; padding: .65rem; font: inherit; min-width: 0; }
 .support-composer textarea { flex: 1; width: 100%; min-height: 3.5rem; max-height: 8rem; resize: vertical; font-size: 1rem; line-height: 1.4; }
 .support-composer button, .support-primary { background: #f5a623; color: #191919; font-weight: 700; border: 0; border-radius: .4rem; padding: .7rem 1rem; cursor: pointer; }
+.support-composer .support-send { display: grid; place-items: center; flex: 0 0 2.75rem; width: 2.75rem; height: 2.75rem; padding: 0; }
 .support-composer-meta { display: flex; justify-content: space-between; gap: .75rem; padding-top: .4rem; color: #b3b3b3; font-size: .72rem; }
 .support-composer-meta [role="alert"] { color: #ffb4ab; }
 .support-chat button:disabled, .support-inbox button:disabled { opacity: .5; cursor: default; }

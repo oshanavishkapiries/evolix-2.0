@@ -23,7 +23,7 @@ export async function threadResponse(req: NextRequest, userId: string, admin: bo
     const before = parseCursor(req.nextUrl.searchParams.get("before"));
     const after = parseCursor(req.nextUrl.searchParams.get("after"));
     const rawVersion = req.nextUrl.searchParams.get("version");
-    const version = rawVersion === null ? undefined : z.string().regex(/^\d+:\d+$/).max(60).parse(rawVersion);
+    const version = rawVersion === null ? undefined : z.string().regex(/^(?:[0-9a-f-]{36}:)?\d+:\d+$/).max(100).parse(rawVersion);
     if (before && after) return fail(400, "INVALID_CURSOR", "Use one message cursor at a time");
     return privateJson(200, await readThread(userId, admin, { before, after, version }));
   } catch (e) {

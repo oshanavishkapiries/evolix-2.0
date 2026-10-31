@@ -11,9 +11,9 @@ export async function readThread(userId: string, admin: boolean, cursor: { befor
       ${admin ? sql`0` : sql`coalesce(r.cleared_through_id, 0)::float8`} as "clearedThrough" ${admin ? sql`, u.email` : sql``}
     from users u left join support_conversations c on c.user_id = u.id
     left join support_read_states r on r.conversation_id = c.id and r.user_id = u.id where u.id = ${userId}`);
-  if (!row?.id) return { conversation: null, messages: [], hasMore: false, ...(admin ? { recipientEmail: row?.email } : {}) };
+  if (!row?.id) return { conversation: null, messages: [], hasMore: false, ...(cursor.version !== undefined || cursor.after ? { reset: true } : {}), ...(admin ? { recipientEmail: row?.email } : {}) };
   const { revision, clearedThrough, ...conversation } = row;
-  const version = `${revision}:${clearedThrough}`;
+  const version = `${conversation.id}:${revision}:${clearedThrough}`;
   const reset = cursor.version !== undefined && cursor.version !== version;
   const before = reset ? undefined : cursor.before;
   const after = reset ? undefined : cursor.after;
@@ -82,6 +82,11 @@ export async function setStatus(userId: string, status: "open" | "resolved") {
   const result = await rows<{ id: string }>(sql`update support_conversations set status = ${status}, updated_at = now()
     where user_id = ${userId} returning id`);
   return result.length > 0;
+}
+
+/** Cascade deletion removes the messages/read cursors, but never the user account. */
+export async function deleteConversation(userId: string, conversationId: string) {
+  return (await rows(sql`delete from support_conversations where user_id = ${userId} and id = ${conversationId} returning id`)).length > 0;
 }
 
 export async function inbox(readerId: string, filter: string, search: string, before?: number) {

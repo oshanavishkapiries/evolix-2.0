@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { SendIcon } from "@/app/(viewer)/_components/icons";
 import { useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
 import type { SupportConversation, SupportMessage, SupportThread } from "@/lib/support/types";
@@ -11,8 +12,8 @@ const day = (date: string) => new Date(date).toLocaleDateString("en-GB", { dateS
 const time = (date: string) => new Date(date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 const merge = (a: SupportMessage[], b: SupportMessage[]) => [...new Map([...a, ...b].map((m) => [m.id, m])).values()].sort((a, b) => a.id - b.id);
 
-export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: {
-  admin?: boolean; userId?: string; email?: string; onUpdate?: () => void; onBack?: () => void;
+export function SupportChat({ admin = false, userId, email, onUpdate, onBack, onDeleted }: {
+  admin?: boolean; userId?: string; email?: string; onUpdate?: () => void; onBack?: () => void; onDeleted?: () => void;
 }) {
   const endpoint = admin ? `/api/admin/support/${userId}` : "/api/me/support";
   const [conversation, setConversation] = useState<SupportConversation | null>(null);
@@ -28,7 +29,8 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
   const [statusBusy, setStatusBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [newMessages, setNewMessages] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<SupportMessage | "history" | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SupportMessage | "history" | "conversation" | null>(null);
+  const deleteConversationId = useRef<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const deleteDialog = useRef<HTMLDialogElement>(null);
@@ -175,16 +177,16 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
   }
 
   async function confirmDelete() {
-    if (!deleteTarget || deleting || admin) return;
+    if (!deleteTarget || deleting || (admin && deleteTarget !== "conversation")) return;
     setDeleting(true); setDeleteError("");
     try {
       const target = deleteTarget;
-      const url = target === "history" ? endpoint : `${endpoint}/messages/${target.id}`;
-      const res = await fetchWithRefresh(url, { method: "DELETE" });
+      const url = typeof target === "string" ? endpoint : `${endpoint}/messages/${target.id}`;
+      const res = await fetchWithRefresh(url, { method: "DELETE", ...(target === "conversation" ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId: deleteConversationId.current }) } : {}) });
       if (!res.ok) throw new Error("This couldn’t be deleted. Please try again.");
       if (!alive.current) return;
       generation.current += 1;
-      if (target === "history") {
+      if (typeof target === "string") {
         setMessages([]); setHasOlder(false); setNewMessages(false);
         latestId.current = 0; loaded.current = false; version.current = undefined;
       } else {
@@ -192,6 +194,7 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
       }
       setDeleteTarget(null);
       supportUpdated(); onUpdate?.();
+      if (target === "conversation") { setConversation(null); onDeleted?.(); return; }
       await sync();
     } catch { if (alive.current) setDeleteError("This couldn’t be deleted. Please try again."); }
     finally { if (alive.current) setDeleting(false); }
@@ -201,7 +204,7 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
     <section className="support-chat" aria-label={admin ? `Support conversation with ${email || "user"}` : "Your support conversation"}>
       <header className="support-chat-head">
         <div className="support-chat-title">{onBack && <button type="button" className="support-mobile-back support-quiet" onClick={onBack}>← Inbox</button>}{admin ? <h2>{recipient || "New conversation"}</h2> : <h1>Evolix Support</h1>}<p>{conversation?.status === "resolved" ? "Resolved · Send a message to reopen this conversation." : admin ? "Private conversation" : "Talk to the Evolix team. We’ll reply here."}</p></div>
-        {admin && <div className="support-actions"><Link href={`/admin/users/${userId}`}>View user</Link>{conversation && <button type="button" className="support-quiet" disabled={statusBusy} onClick={changeStatus}>{conversation.status === "resolved" ? "Reopen" : "Resolve"}</button>}</div>}
+        {admin && <div className="support-actions"><Link href={`/admin/users/${userId}`}>View user</Link>{conversation && <><button type="button" className="support-quiet" disabled={statusBusy} onClick={changeStatus}>{conversation.status === "resolved" ? "Reopen" : "Resolve"}</button><button type="button" className="support-danger" onClick={() => { deleteConversationId.current = conversation.id; setDeleteError(""); setDeleteTarget("conversation"); }}>Delete conversation</button></>}</div>}
         {!admin && messages.length > 0 && <button type="button" className="support-quiet" onClick={() => { setDeleteError(""); setDeleteTarget("history"); }}>Clear history</button>}
       </header>
       {error && <div className="support-notice" role="status">{error} <button type="button" onClick={() => void sync()}>Retry</button></div>}
@@ -231,14 +234,14 @@ export function SupportChat({ admin = false, userId, email, onUpdate, onBack }: 
       <form className="support-composer" onSubmit={send}>
         <label htmlFor="support-message">{admin ? "Reply to user" : "Your message"}</label>
         <div><textarea id="support-message" value={draft} maxLength={2000} rows={2} placeholder="Write a message…" disabled={sending} onChange={(e) => { setDraft(e.target.value); setSent(false); }} />
-          <button type="submit" disabled={sending || !draft.trim()}>{sending ? "Sending…" : sendError ? "Retry send" : "Send"}</button></div>
+          <button type="submit" className="support-send" aria-label={sending ? "Sending…" : sendError ? "Retry send" : "Send"} title={sendError ? "Retry send" : "Send message"} aria-busy={sending} disabled={sending || !draft.trim()}><SendIcon size={20} /></button></div>
         <div className="support-composer-meta"><span role={sendError ? "alert" : "status"}>{sendError || (sent ? "Message sent" : "Replies may take a little time.")}</span><span>{draft.length}/2000</span></div>
       </form>
       <dialog ref={deleteDialog} className="support-confirm" aria-labelledby="support-delete-title" aria-describedby="support-delete-description" onCancel={(e) => { if (deleting) e.preventDefault(); else setDeleteTarget(null); }}>
-        <h2 id="support-delete-title">{deleteTarget === "history" ? "Clear chat history?" : "Delete this message?"}</h2>
-        <p id="support-delete-description">{deleteTarget === "history" ? "This clears the conversation from your view on all your devices. The support team keeps its copy. New replies will still appear here." : "Your message will be replaced with “Message deleted” for you and the support team. This can’t be undone."}</p>
+        <h2 id="support-delete-title">{deleteTarget === "conversation" ? "Delete this conversation?" : deleteTarget === "history" ? "Clear chat history?" : "Delete this message?"}</h2>
+        <p id="support-delete-description">{deleteTarget === "conversation" ? "This permanently deletes the conversation and all messages for both you and the user. This can’t be undone. The user can start a new conversation later." : deleteTarget === "history" ? "This clears the conversation from your view on all your devices. The support team keeps its copy. New replies will still appear here." : "Your message will be replaced with “Message deleted” for you and the support team. This can’t be undone."}</p>
         {deleteError && <p role="alert">{deleteError}</p>}
-        <div><button type="button" className="support-quiet" disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</button><button type="button" className="support-danger" disabled={deleting} onClick={confirmDelete}>{deleting ? "Deleting…" : deleteTarget === "history" ? "Clear history" : "Delete message"}</button></div>
+        <div><button type="button" className="support-quiet" disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</button><button type="button" className="support-danger" disabled={deleting} onClick={confirmDelete}>{deleting ? "Deleting…" : deleteTarget === "conversation" ? "Delete conversation" : deleteTarget === "history" ? "Clear history" : "Delete message"}</button></div>
       </dialog>
     </section>
   );

@@ -2,6 +2,10 @@ type P = { size?: number; className?: string };
 const base = (size: number) => ({ width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": true as const, focusable: false as const });
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
+export const SendIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13" /></svg>
+);
+
 export const PlayIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" /></svg>
 );

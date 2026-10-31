@@ -45,11 +45,13 @@ test('mobile has a direct Support tab and failed sends retain the draft and requ
 test('admins can select a user, start a conversation, and resolve it', async ({ page }) => {
   const messages: SupportMessage[] = [];
   let status = 'open';
+  const deleted: string[] = [];
   await page.route('**/api/**', async (route) => {
     const request = route.request(), url = new URL(request.url());
     if (url.pathname.endsWith('/unread')) return json(route, { count: 0 });
     if (url.pathname.endsWith('/read')) return json(route, {});
     if (url.searchParams.has('directory')) return json(route, { users: [{ id: userId, email: 'viewer@test.invalid' }] });
+    if (request.method() === 'DELETE') { deleted.push(request.postDataJSON().conversationId); messages.length = 0; return json(route, {}); }
     if (request.method() === 'POST') { messages.push(msg(1, request.postDataJSON().text)); return json(route, { sent: messages[0] }, 201); }
     if (request.method() === 'PATCH') { status = request.postDataJSON().status; return json(route, {}); }
     if (url.pathname.endsWith(userId)) {
@@ -80,6 +82,16 @@ test('admins can select a user, start a conversation, and resolve it', async ({ 
   expect(Math.abs(mobileChat!.y + mobileChat!.height - 844)).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: '← Inbox' }).click();
   await expect(page.getByLabel('Search conversations')).toBeVisible();
+  await page.locator('.support-inbox-item').click();
+  await page.getByRole('button', { name: 'Delete conversation', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Delete this conversation?' });
+  await expect(confirmation.getByText(/for both you and the user/)).toBeVisible();
+  await confirmation.getByRole('button', { name: 'Cancel' }).click();
+  expect(deleted).toHaveLength(0);
+  await page.getByRole('button', { name: 'Delete conversation', exact: true }).click();
+  await confirmation.getByRole('button', { name: 'Delete conversation', exact: true }).click();
+  await expect(page.getByText('No conversations yet. Users can contact you from Support.')).toBeVisible();
+  expect(deleted).toEqual(['thread']);
 });
 
 test('incoming messages do not move a user reading older history or mark unseen replies read', async ({ page }) => {
