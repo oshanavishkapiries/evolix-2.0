@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BellIcon, FilmIcon, FlagIcon, MenuIcon, TvIcon } from "@/app/(viewer)/_components/icons";
+import { BellIcon, FilmIcon, FlagIcon, MenuIcon, SupportIcon, TvIcon } from "@/app/(viewer)/_components/icons";
 import { ActivityIcon, AnalyticsIcon, BugIcon, CdnIcon, FeedbackIcon, DashboardIcon, ModelIcon, PipelineIcon, SettingsIcon, UsersIcon } from "./admin-icons";
+import { SupportBadge } from "@/app/_components/support/unread";
 
 const LINKS = [
+  { href: "/admin/support", label: "Support", icon: SupportIcon, match: (p: string) => p.startsWith("/admin/support") },
   { href: "/admin", label: "Overview", icon: DashboardIcon, match: (p: string) => p === "/admin" },
   { href: "/admin/analytics", label: "Analytics", icon: AnalyticsIcon, match: (p: string) => p.startsWith("/admin/analytics") },
   { href: "/admin/movies", label: "Movies", icon: FilmIcon, match: (p: string) => p.startsWith("/admin/movies") },
@@ -57,6 +59,7 @@ export function AdminNav({ footer }: { footer?: React.ReactNode }) {
                 <Link href={l.href} aria-current={active ? "page" : undefined} onClick={close}>
                   <Icon size={20} />
                   <span>{l.label}</span>
+                  {l.href === "/admin/support" && <SupportBadge />}
                 </Link>
               </li>
             );

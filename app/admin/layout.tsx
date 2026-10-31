@@ -1,3 +1,5 @@
+import { SupportUnreadProvider } from "@/app/_components/support/unread";
+import "@/app/_components/support/support.css";
 import { Suspense } from "react";
 import { AdminGuard } from "./_components/guard";
 import { AdminNav } from "./_components/admin-nav";
@@ -15,16 +17,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <AdminGuard>
         <ToastProvider>
           <ConfirmProvider>
-            <div className={`adm ${font.className}`}>
-              <AdminNav
-                footer={
-                  <Suspense fallback={null}>
-                    <ServerInfo />
-                  </Suspense>
-                }
-              />
-              <main className="admin-main adm-main">{children}</main>
-            </div>
+            <SupportUnreadProvider admin>
+              <div className={`adm ${font.className}`}>
+                <AdminNav
+                  footer={
+                    <Suspense fallback={null}>
+                      <ServerInfo />
+                    </Suspense>
+                  }
+                />
+                <main className="admin-main adm-main">{children}</main>
+              </div>
+            </SupportUnreadProvider>
           </ConfirmProvider>
         </ToastProvider>
       </AdminGuard>

@@ -71,3 +71,7 @@ export const FlagIcon = ({ size = 20, className }: P) => (
 export const BellIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className} {...stroke}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
 );
+
+export const SupportIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className} {...stroke}><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2v-10A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z" /><path d="M7 9h9M7 13h6" /></svg>
+);

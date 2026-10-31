@@ -22,7 +22,9 @@
     "test:journeys": "vitest run --config tests/journeys/vitest.config.ts",
     "test:feedback": "vitest run --config tests/feedback/vitest.config.ts",
     "test:stream-worker": "vitest run --config tests/stream-worker/vitest.config.ts",
-    "test:openrouter": "vitest run --config tests/openrouter/vitest.config.ts"
+    "test:openrouter": "vitest run --config tests/openrouter/vitest.config.ts",
+    "test:support": "vitest run --config tests/support/vitest.config.ts",
+    "test:support:e2e": "playwright test --config tests/support/playwright.config.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

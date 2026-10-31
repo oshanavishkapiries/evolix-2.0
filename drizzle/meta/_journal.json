@@ -134,6 +134,13 @@
       "when": 1793352093841,
       "tag": "0018_wise_omega_flight",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793473074807,
+      "tag": "0019_support_chat",
+      "breakpoints": true
     }
   ]
 }

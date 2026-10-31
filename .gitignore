@@ -16,6 +16,7 @@
 /playwright-report/
 **/node_modules
 tests/subtitles/test-results/
+tests/support/test-results/
 
 # next.js
 /.next/

@@ -3,22 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
+import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, SupportIcon, TvIcon, UserIcon } from "./icons";
 import { activeNavKey, NAV_ITEMS } from "./nav-items";
+import { SupportBadge } from "@/app/_components/support/unread";
 
-const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon, search: SearchIcon };
-const MAX_TABS = 4;
+const ICONS = { support: SupportIcon, dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon, search: SearchIcon };
+const MAX_TABS = 5;
 
 /** Everything past the tab limit, plus Account, lives in the sheet behind the last tab. */
 const SHEET_EXTRA = [{ key: "account", href: "/account", label: "Account" }] as const;
 
-/** Phone tab bar: at most four tabs; with more destinations the last tab opens a bottom sheet (tablet and desktop use the sidebar). */
+/** Phone tab bar: four destinations plus More; with more destinations the last tab opens a bottom sheet (tablet and desktop use the sidebar). */
 export function BottomNav() {
   const pathname = usePathname();
   const active = activeNavKey(pathname);
   const sheet = useRef<HTMLDialogElement>(null);
 
-  // The sheet always exists (Account is in it), so the bar shows three destinations plus "More".
+  // The sheet always exists (Account is in it), so the bar shows four destinations plus "More".
   const tabs = NAV_ITEMS.slice(0, MAX_TABS - 1);
   const rest = NAV_ITEMS.slice(MAX_TABS - 1);
   const moreActive = rest.some((n) => n.key === active) || active === "account";
@@ -36,6 +37,7 @@ export function BottomNav() {
             <Link key={n.key} href={n.href} data-key={n.key} aria-current={n.key === active ? "page" : undefined}>
               <Icon size={20} />
               <span>{n.label}</span>
+                  {n.key === "support" && <SupportBadge />}
             </Link>
           );
         })}
@@ -61,6 +63,7 @@ export function BottomNav() {
                 <Link href={n.href} aria-current={n.key === active ? "page" : undefined}>
                   <Icon size={20} />
                   <span>{n.label}</span>
+                  {n.key === "support" && <SupportBadge />}
                 </Link>
               </li>
             );

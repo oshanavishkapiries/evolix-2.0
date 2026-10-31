@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  bigint,
+  bigserial,
   check,
   date,
   index,
@@ -698,3 +700,34 @@ export const feedbackPrefs = pgTable("feedback_prefs", {
   optedOut: boolean("opted_out").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------- Support chat
+export const supportConversations = pgTable("support_conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("open"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [check("support_status_check", sql`${t.status} in ('open', 'resolved')`), index("support_updated_idx").on(t.updatedAt)]);
+
+export const supportMessages = pgTable("support_messages", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  conversationId: uuid("conversation_id").notNull().references(() => supportConversations.id, { onDelete: "cascade" }),
+  senderId: uuid("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  senderRole: text("sender_role").notNull(),
+  clientId: uuid("client_id").notNull(),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check("support_sender_role_check", sql`${t.senderRole} in ('user', 'admin')`),
+  check("support_text_check", sql`length(trim(${t.text})) between 1 and 2000`),
+  unique("support_message_retry_uq").on(t.conversationId, t.senderId, t.clientId),
+  index("support_messages_thread_idx").on(t.conversationId, t.id),
+  index("support_messages_sender_idx").on(t.senderId, t.createdAt),
+]);
+
+export const supportReadStates = pgTable("support_read_states", {
+  conversationId: uuid("conversation_id").notNull().references(() => supportConversations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lastMessageId: bigint("last_message_id", { mode: "number" }).notNull().default(0),
+}, (t) => [primaryKey({ columns: [t.conversationId, t.userId] })]);

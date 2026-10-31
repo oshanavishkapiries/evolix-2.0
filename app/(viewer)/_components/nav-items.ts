@@ -2,6 +2,7 @@ export const NAV_ITEMS = [
   { key: "dashboard", href: "/dashboard", label: "Home" },
   { key: "movies", href: "/movies", label: "Movies" },
   { key: "tv", href: "/tv", label: "TV Shows" },
+  { key: "support", href: "/support", label: "Support" },
   { key: "my-list", href: "/my-list", label: "My List" },
   { key: "search", href: "/search", label: "Search" },
 ] as const;
@@ -15,6 +16,6 @@ export function activeNavKey(pathname: string): NavKey | null {
   const seg = pathname.split("/")[1];
   if (seg === "movie" || seg === "movies") return "movies";
   if (seg === "tv") return "tv";
-  if (seg === "dashboard" || seg === "my-list" || seg === "search" || seg === "account") return seg;
+  if (seg === "dashboard" || seg === "my-list" || seg === "search" || seg === "account" || seg === "support") return seg;
   return null;
 }

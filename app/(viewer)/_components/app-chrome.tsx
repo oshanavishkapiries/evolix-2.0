@@ -6,11 +6,12 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
 import { NotificationBell } from "./announcements";
-import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, TvIcon, UserIcon } from "./icons";
+import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, SupportIcon, TvIcon, UserIcon } from "./icons";
 import { activeNavKey, SIDEBAR_ITEMS } from "./nav-items";
 import { PREF_SIDEBAR, savePref } from "./prefs";
+import { SupportBadge } from "@/app/_components/support/unread";
 
-const ICONS = { dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon };
+const ICONS = { support: SupportIcon, dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon };
 const DESKTOP = "(min-width: 80rem)";
 
 /**
@@ -185,6 +186,7 @@ export function AppChrome() {
                 <Link href={n.href} data-key={n.key} aria-current={n.key === activeKey ? "page" : undefined} title={n.label} onClick={() => setDrawer(false)}>
                   <Icon size={22} />
                   <span>{n.label}</span>
+                  {n.key === "support" && <SupportBadge />}
                 </Link>
               </li>
             );

@@ -39,7 +39,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const admin = isAdminEmail(user.email);
   return (
     <>
-      <PageHeader title={user.email} />
+      <PageHeader title={user.email} actions={<Link href={`/admin/support?user=${user.id}`}>Message user</Link>} />
       <p className="mt-2 text-sm">
         <Link href="/admin/users">← All users</Link> · Joined {fmt(user.createdAt)} · Email {user.emailVerifiedAt ? "verified" : "not verified"} ·{" "}
         {admin ? "admin" : user.approvedAt ? `approved ${fmt(user.approvedAt)}` : "not approved"}

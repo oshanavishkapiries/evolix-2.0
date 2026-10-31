@@ -1,3 +1,5 @@
+import { SupportUnreadProvider } from "@/app/_components/support/unread";
+import "@/app/_components/support/support.css";
 import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
 import { AnnouncementBanner, AnnouncementPopup, AnnouncementsProvider } from "./_components/announcements";
@@ -25,17 +27,19 @@ export default function ViewerLayout({ children }: { children: React.ReactNode }
       {/* Applies saved sidebar/card-size prefs before first paint. */}
       <script dangerouslySetInnerHTML={{ __html: PREFS_SCRIPT }} />
       <a href="#main" className="v-skip">Skip to content</a>
-      <AnnouncementsProvider>
-        <AppChrome />
-        <BookmarkProvider>
-          <main id="main" className="v-main">
-            <AnnouncementBanner />
-            <AnnouncementPopup />
-            {children}
-          </main>
-        </BookmarkProvider>
-      </AnnouncementsProvider>
-      <BottomNav />
+      <SupportUnreadProvider>
+        <AnnouncementsProvider>
+          <AppChrome />
+          <BookmarkProvider>
+            <main id="main" className="v-main">
+              <AnnouncementBanner />
+              <AnnouncementPopup />
+              {children}
+            </main>
+          </BookmarkProvider>
+        </AnnouncementsProvider>
+        <BottomNav />
+      </SupportUnreadProvider>
     </div>
   );
 }
