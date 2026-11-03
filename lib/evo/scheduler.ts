@@ -1,3 +1,4 @@
+import { reconcileEngineConfig, type ReportedConfig } from "./engine-config-sync";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { evoClaims, evoEngines, evoSubtitleOwners, evoTasks } from "@/db/schema";
@@ -23,8 +24,8 @@ export type EngineRow = typeof evoEngines.$inferSelect;
 
 // ---------------------------------------------------------------- health
 
-type Health = { status: string; free_disk_gb?: number };
-type Queue = { paused: boolean; waiting_extraction: number; extracting: number; caching: number; max_extractions?: number };
+type Health = ReportedConfig & { status: string; free_disk_gb?: number };
+type Queue = ReportedConfig & { paused: boolean; waiting_extraction: number; extracting: number; caching: number; max_extractions?: number };
 
 async function check(engine: EngineRef) {
   const [h, q] = await Promise.all([
@@ -34,6 +35,8 @@ async function check(engine: EngineRef) {
   if (!h.ok) throw new Error(`health returned ${h.status}`);
   const health = (await h.json()) as Health;
   const queue = q.ok ? ((await q.json()) as Queue) : null;
+  // Configuration failures do not make an otherwise reachable engine unavailable.
+  await reconcileEngineConfig(engine.id, {...queue,...health}).catch(() => {});
   return { health, queue };
 }
 

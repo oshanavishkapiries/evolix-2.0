@@ -169,6 +169,20 @@
       "when": 1793733682735,
       "tag": "0023_slim_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793734393884,
+      "tag": "0024_fantastic_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793735117930,
+      "tag": "0025_cool_punisher",
+      "breakpoints": true
     }
   ]
 }

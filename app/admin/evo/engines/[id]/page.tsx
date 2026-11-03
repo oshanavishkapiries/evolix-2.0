@@ -1,3 +1,4 @@
+import { EngineConfigSyncChip } from "../../../_components/engine-config-panel";
 import Link from "next/link";
 import { EngineRegistryActions } from "../_components/registry-controls";
 import { notFound } from "next/navigation";
@@ -70,6 +71,7 @@ async function Engine({ params, searchParams }: Props) {
         </div>
       </div>
 
+      <EngineConfigSyncChip engine={e.id} />
       <EngineRegistryActions id={e.id} initialName={e.name} initialUrl={e.url} />
 
       <nav aria-label="Engine sections" className="tabs">
@@ -85,9 +87,9 @@ async function Engine({ params, searchParams }: Props) {
         </ul>
       </nav>
 
-      {!online ? (
+      {tab === "settings" ? <EngineSettings engine={e.id} /> : !online ? (
         <div className="evo-stack mt-4">
-          <p className="attn-bad">This engine is unreachable{error ? ` (${error})` : ""}, so its tasks, settings and queue controls are unavailable.</p>
+          <p className="attn-bad">This engine is unreachable{error ? ` (${error})` : ""}, so its tasks and queue controls are unavailable. Configuration can still be edited on the Settings tab.</p>
           <dl className="stat-row" aria-label="Last known numbers">
             <div><dt>Last good check</dt><dd>{e.lastOkAt ? fmt(e.lastOkAt) : "never"}</dd></div>
             <div><dt>Active jobs (last known)</dt><dd>{e.activeJobs}</dd></div>
@@ -169,12 +171,7 @@ async function Engine({ params, searchParams }: Props) {
             </div>
           )}
         </section>
-      ) : (
-        <div className="mt-4">
-          <p className="evo-note">Applies to the next job, no restart. Each engine has its own settings. The translation model is set for all engines under <Link href="/admin/openrouter">OpenRouter</Link>.</p>
-          <EngineSettings engine={e.id} />
-        </div>
-      )}
+      ) : null}
     </>
   );
 }

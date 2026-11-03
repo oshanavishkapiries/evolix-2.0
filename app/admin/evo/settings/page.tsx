@@ -1,7 +1,2 @@
-import { redirect } from "next/navigation";
-import { defaultEngine } from "@/lib/evo/client";
-
-/** Settings live on each engine's page now; the old "Pipeline control" link opens the primary engine's settings. */
-export default async function EvoSettingsPage() {
-  redirect(`/admin/evo/engines/${encodeURIComponent((await defaultEngine()).id)}?tab=settings`);
-}
+import { EngineConfigPanel } from "../../_components/engine-config-panel";
+export default function EvoSettingsPage() { return <div className="evo-stack"><div className="page-header"><h1>Engine configuration</h1></div><EngineConfigPanel/></div>; }

@@ -563,3 +563,14 @@ body:has(.adm) { background: #1f1f1f; }
 .adm .engine-registry-reveal { display: grid; gap: .8rem; border-color: #a16207; }
 .adm .engine-registry-reveal code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; color: #facc15; user-select: all; }
 /* END engine registry management (Phase 3) */
+
+/* BEGIN engine configuration Phase 4 */
+.adm .engine-config-panel fieldset { border: 0; padding: 0; min-width: 0; }
+.adm .engine-config-panel .evo-section { margin-bottom: 1.25rem; }
+.adm .engine-config-panel .set-control { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
+.adm .engine-config-panel .set-control input, .adm .engine-config-panel .set-control select { max-width: 100%; width: 24rem; }
+.adm .engine-config-panel [role="alert"] { color: var(--danger, #fb7185); }
+.adm .engine-config-sync { font-size: .8rem; border: 1px solid #475569; border-radius: .35rem; padding: .25rem .5rem; }
+.adm .engine-config-sync[data-state="in_sync"] { color: #86efac; }
+.adm .engine-config-sync[data-state="rejected"], .adm .engine-config-sync[data-state="too_old"] { color: #fda4af; }
+/* END engine configuration Phase 4 */

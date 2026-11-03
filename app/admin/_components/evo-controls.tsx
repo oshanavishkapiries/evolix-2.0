@@ -3,11 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
-import { groupSettings } from "@/lib/evo/admin-view";
+import { EngineConfigPanel } from "./engine-config-panel";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";
 
-type Setting = { key: string; label: string; description: string; kind: "int" | "float" | "choice" | "text"; min: number; max: number; choices: { value: string; label: string }[]; value: number | string; default: number | string; overridden: boolean };
 type Queue = { paused: boolean; waiting_extraction: number; extracting: number; caching: number; queue_limit: number };
 
 const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
@@ -166,121 +165,8 @@ export function QueueStats({ engine }: { engine?: string }) {
   );
 }
 
-/** The editable settings of one engine, in groups, with one save bar for every change. */
-export function EngineSettings({ engine }: { engine?: string }) {
-  const toast = useToast();
-  const q = scoped(engine);
-  const [settings, setSettings] = useState<Setting[] | null>(null);
-  const [error, setError] = useState("");
-  const [draft, setDraft] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    adminApi<{ data: Setting[] }>("GET", `/api/admin/evo/config${q}`).then((res) => {
-      if (!alive) return;
-      if (res.ok) setSettings(res.data);
-      else setError(errorText(res));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [q]);
-
-  const visible = (settings ?? []).filter((s) => s.kind !== "text");
-  // Only real changes count: typing a value back to what it is now is not a change.
-  const changes = Object.entries(draft).filter(([k, v]) => String(visible.find((s) => s.key === k)?.value) !== v);
-
-  const save = async () => {
-    const body: Record<string, number | string> = {};
-    for (const [k, v] of changes) {
-      if (visible.find((s) => s.key === k)?.kind === "choice") {
-        body[k] = v;
-        continue;
-      }
-      const n = Number(v);
-      if (v.trim() === "" || Number.isNaN(n)) return toast.error(`${visible.find((s) => s.key === k)?.label ?? k}: enter a number`);
-      body[k] = n;
-    }
-    setBusy(true);
-    const res = await adminApi<{ data: Setting[] }>("PUT", `/api/admin/evo/config${q}`, body);
-    setBusy(false);
-    if (!res.ok) return toast.error(errorText(res));
-    setSettings(res.data);
-    setDraft({});
-    toast.success("Settings applied (no restart needed)");
-  };
-
-  const reset = async (key: string) => {
-    setBusy(true);
-    const res = await adminApi<{ data: Setting[] }>("DELETE", `/api/admin/evo/config/${key}${q}`);
-    setBusy(false);
-    if (!res.ok) return toast.error(errorText(res));
-    setSettings(res.data);
-    setDraft((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== key)));
-    toast.success("Back to the .env value");
-  };
-
-  if (error) return <p className="evo-empty">{error}</p>;
-  if (!settings) return <div className="skeleton h-32" aria-busy="true" />;
-  const shown = (s: Setting) => (s.kind === "choice" ? (s.choices.find((c) => c.value === String(s.default))?.label ?? s.default) : s.default);
-
-  return (
-    <div className="evo-stack">
-      {groupSettings(visible).map((g) => (
-        <section key={g.title} className="evo-section set-group" aria-labelledby={`set-${g.title}`}>
-          <div className="evo-section-head">
-            <div>
-              <h2 id={`set-${g.title}`}>{g.title}</h2>
-              {g.hint && <p className="evo-sub">{g.hint}</p>}
-            </div>
-          </div>
-          <ul className="set-list">
-            {g.items.map((s) => {
-              const value = draft[s.key] ?? String(s.value);
-              const dirty = changes.some(([k]) => k === s.key);
-              return (
-                <li key={s.key} data-dirty={dirty}>
-                  <div className="set-text">
-                    <label htmlFor={s.key}>{s.label}</label>
-                    <p>{s.description}</p>
-                    <code>{s.key}</code>
-                  </div>
-                  <div className="set-control">
-                    {s.kind === "choice" ? (
-                      <select id={s.key} value={value} onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}>
-                        {s.choices.map((c) => (
-                          <option key={c.value} value={c.value}>{c.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input id={s.key} type="number" inputMode="decimal" min={s.min} max={s.max} step={s.kind === "int" ? 1 : "any"} value={value} onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))} />
-                    )}
-                    <span className="set-default">
-                      {s.overridden ? (
-                        <>
-                          <span className="tag" data-status="EXTRACTING">changed</span> .env: {shown(s)}{" "}
-                          <button type="button" className="btn-link-plain" disabled={busy} onClick={() => reset(s.key)} aria-label={`Reset ${s.label} to the .env value`}>Reset</button>
-                        </>
-                      ) : (
-                        <>.env default</>
-                      )}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
-      <div className="save-bar" data-show={changes.length > 0} role="region" aria-label="Unsaved changes">
-        <span>{changes.length ? `${changes.length} unsaved change(s)` : "No changes"}</span>
-        <button type="button" className={btn} disabled={busy || !changes.length} onClick={() => setDraft({})}>Discard</button>
-        <button type="button" disabled={busy || !changes.length} onClick={save}>Apply changes</button>
-      </div>
-    </div>
-  );
-}
+/** DB-backed engine overrides, available even when the engine is offline. */
+export function EngineSettings({engine}:{engine?:string}) { return <EngineConfigPanel engine={engine}/>; }
 
 /** Retry / cancel / remove buttons for one engine task row; with several engines a failed video task can also move. */
 export function TaskActions({ id, status, cacheFailed, canMove = false }: { id: string; status: string; cacheFailed: boolean; canMove?: boolean }) {

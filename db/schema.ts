@@ -475,8 +475,8 @@ export const evoEngines = pgTable("evo_engines", {
   token: text("token"),
   managed: boolean("managed").notNull().default(false),
   removedAt: timestamp("removed_at", { withTimezone: true }),
-  configVersion: integer("config_version").notNull().default(0),
-  configPushedVersion: integer("config_pushed_version").notNull().default(0),
+  configVersion: bigint("config_version", { mode: "number" }).notNull().default(0),
+  configPushedVersion: bigint("config_pushed_version", { mode: "number" }).notNull().default(0),
   /** Takes no new jobs; finishes the active ones. */
   draining: boolean("draining").notNull().default(false),
   /** Result of the latest health check. */
@@ -763,5 +763,18 @@ export const configAudit = pgTable("config_audit", {
 }, (t) => [
   index("config_audit_key_at_idx").on(t.scope, t.key, t.at),
   check("config_audit_action_check", sql`${t.action} in ('set', 'reset', 'rollback')`),
-  check("config_audit_scope_check", sql`${t.scope} = 'app' or ${t.scope} like 'engine:%'`),
+  check("config_audit_scope_check", sql`${t.scope} = 'app' or ${t.scope} = 'engine-global' or ${t.scope} like 'engine:%'`),
 ]);
+
+/** Desired engine configuration; secret values are encrypted envelopes. */
+export const engineConfig = pgTable("engine_config", {
+  scope: text("scope").notNull(), key: text("key").notNull(), value: text("value").notNull(),
+  isSecret: boolean("is_secret").notNull().default(false),
+  updatedAt: timestamp("updated_at", {withTimezone:true}).notNull().defaultNow(), updatedBy: text("updated_by"),
+}, t => [primaryKey({columns:[t.scope,t.key]})]);
+export const engineConfigSync = pgTable("engine_config_sync", {
+  engineId: text("engine_id").primaryKey(),
+  state: text("state").$type<"pending"|"in_sync"|"too_old"|"rejected">().notNull().default("pending"),
+  lastError: text("last_error"), lastAttemptAt: timestamp("last_attempt_at", {withTimezone:true}),
+  restartNeeded: jsonb("restart_needed").$type<string[]>().notNull().default([]),
+}, t => [check("engine_config_sync_state_check", sql`${t.state} in ('pending','in_sync','too_old','rejected')`)]);

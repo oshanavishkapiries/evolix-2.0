@@ -20,6 +20,7 @@
     "test:subtitles:e2e": "playwright test --config tests/subtitles/playwright.config.ts",
     "test:problems": "vitest run --config tests/problems/vitest.config.ts",
     "test:config": "vitest run --config tests/config/vitest.config.ts",
+    "test:engine-config": "vitest run --config tests/engine-config/vitest.config.ts",
     "test:engine-registry": "vitest run --config tests/engine-registry/vitest.config.ts",
     "test:journeys": "vitest run --config tests/journeys/vitest.config.ts",
     "test:feedback": "vitest run --config tests/feedback/vitest.config.ts",
