@@ -36,3 +36,25 @@ Phase 4 transport helpers use HKDF-SHA256 with UTF-8 engine-token input, salt `e
 info `engine-secrets`, and 32 output bytes. AES-256-GCM uses a random 12-byte IV, a 16-byte tag, and no
 AAD; envelopes are `enc:v1:<iv>:<tag>:<ciphertext>` with unpadded base64url segments. Engine transport
 keys are independent of the app master encryption key.
+
+The `/admin/config` page uses the registry's browser-safe metadata and validators, the shared
+admin form/save-bar hooks, masked snapshots, and a separate read-only bootstrap summary.
+`PUT /api/admin/config` accepts a plain key/value object, validates every key first, and calls
+`setConfigBatch`: one SQL statement commits every override and audit together, or rolls all
+of them back on conflict/failure. Concurrent batch conflicts return a sanitized failure;
+reload/retry rather than silently overwriting another administrator's edit. The route and
+batch store refuse an ADMIN_EMAILS change that omits the acting administrator's own address.
+Reset and rollback routes apply the same guard to the resulting effective allow-list.
+
+`GET /api/admin/config` returns `{ok, data, bootstrap}`; successful PUT, DELETE of
+`/api/admin/config/[key]`, and POST to `/api/admin/config/audit/[id]/rollback` return the
+same masked snapshot. Validation failures return status 422 and `{ok:false, code, message,
+errors?:{[key]:message}}`. All handlers authorize with the normal admin cookie/session guard
+before accessing settings; the authenticated email is the audit actor. Unexpected exceptions
+produce a generic error and never include database/request/secret details.
+
+`GET /api/admin/config/audit?key=SMTP_PORT&limit=25&before=<cursor>` returns `{ok, data, next}`.
+History is app-scoped, ordered by descending timestamp and UUID, and uses the opaque `next`
+cursor for older pages, including entries sharing a timestamp. Secret history is defensively
+masked again at the API boundary and carries `canRollback:false` plus a human-readable reason.
+Reset refuses to remove an override if its environment/default fallback is invalid or missing.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { includesAdmin } from "./admin-view";
 import { configEntry, validateConfigValue, type ConfigKey } from "./registry";
 import { encryptSecret, maskSecret } from "./crypto";
 import { decodeConfigRow, fallbackValue, invalidateConfig } from "./index";
@@ -47,3 +48,24 @@ export function createConfigStore(repository: ConfigRepository, invalidate = inv
   };
 }
 export const { setConfig, resetConfig, rollbackConfig } = createConfigStore(configRepository);
+
+/** Validate everything before one atomic batch statement; blank secrets preserve the current value. */
+export async function setConfigBatch(values: Record<string, unknown>, actor: string, repository: ConfigRepository = configRepository, environment: Record<string, string | undefined> = process.env) {
+  if (!z.email().safeParse(actor).success) throw new Error("Config actor must be an email address");
+  if ("ADMIN_EMAILS" in values && !includesAdmin(values.ADMIN_EMAILS, actor)) throw new Error("ADMIN_EMAILS must include your own admin email");
+  const parsed = Object.entries(values).flatMap(([key, value]) => {
+    const entry = configEntry(key);
+    if (entry.secret && value === "") return [];
+    return [{ entry, value: validateConfigValue(key, value) }];
+  });
+  const rows = await repository.readAll();
+  const mutations = parsed.map(({ entry, value }) => {
+    const expected = rows.find((r) => r.key === entry.key);
+    const old = expected ? decodeConfigRow(expected) : fallbackValue(entry.key, environment);
+    const safe = (v: unknown) => v === undefined ? null : entry.secret ? maskSecret(String(v)) : JSON.stringify(v);
+    const encoded = JSON.stringify(value);
+    return { expected, next: { key: entry.key, value: entry.secret ? encryptSecret(encoded) : encoded, isSecret: entry.secret }, audit: { key: entry.key, scope: "app", oldValue: safe(old), newValue: safe(value), actor, action: "set" as const } };
+  });
+  await repository.writeBatch(mutations);
+  invalidateConfig();
+}

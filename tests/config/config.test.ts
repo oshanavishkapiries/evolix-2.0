@@ -9,6 +9,8 @@ function environment(): NodeJS.ProcessEnv {
   return { NODE_ENV: "test", SMTP_HOST: "smtp.example.test", SMTP_USER: "fixture-user", SMTP_PASS: "fixture-mail-password", SMTP_FROM: "App <app@example.test>", JWT_ACCESS_SECRET: "a".repeat(32), JWT_REFRESH_SECRET: "b".repeat(32), TMDB_API_KEY: "fixture-tmdb-key" };
 }
 class MemoryRepository implements ConfigRepository {
+  async listAudit() { return []; }
+  async writeBatch() { throw new Error("not implemented in this single-write fixture"); }
   rows = new Map<string, ConfigRow>();
   audits: AuditRow[] = [];
   down = false;

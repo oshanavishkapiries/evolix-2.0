@@ -23,6 +23,7 @@ const LINKS = [
   { href: "/admin/announcements", label: "Announcements", icon: BellIcon, match: (p: string) => p.startsWith("/admin/announcements") },
   { href: "/admin/support", label: "Support", icon: SupportIcon, match: (p: string) => p.startsWith("/admin/support") },
   { href: "/admin/settings", label: "Settings", icon: SettingsIcon, match: (p: string) => p === "/admin/settings" },
+  { href: "/admin/config", label: "Configuration", icon: SettingsIcon, match: (p: string) => p === "/admin/config" },
 ];
 
 /** Sidebar on desktop (sticky, full height); collapsible top bar below 768px. */
