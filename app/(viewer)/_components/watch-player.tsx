@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import type { PauseInfo, ProgressTarget, QualityMenu } from "./player-impl";
 import type { SinhalaTarget } from "./sinhala-subtitles";
+import { notePlayerClosed } from "@/lib/client/error-reporter";
 import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 
 // The player (and hls.js) is only fetched on the watch page, and only for direct/HLS sources.
@@ -21,7 +22,10 @@ export function WatchPlayer(props: { title: string; source: Pick<WatchSource, "i
     // Intentional: this effect's setup/cleanup is the only signal that a cached page was shown or hidden again.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLive(true);
-    return () => setLive(false);
+    return () => {
+      notePlayerClosed();
+      setLive(false);
+    };
   }, []);
   if (!live) return <Skeleton />;
   return <PlayerImpl key={playerKey ?? props.source.id} {...rest} />;

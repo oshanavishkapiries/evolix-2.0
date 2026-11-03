@@ -1,7 +1,7 @@
 .viewer .v-main:has(> .support-page) { display: flex; flex-direction: column; height: 100dvh; box-sizing: border-box; overflow: hidden; }
 .support-page { display: flex; flex: 1; width: 100%; min-height: 0; min-width: 0; }
-.adm:has(.support-admin-page) { height: 100dvh; min-height: 0; overflow: hidden; }
-.adm .adm-main:has(> .support-admin-page) { display: flex; max-width: none; min-height: 0; margin: 0; padding: 0; overflow: hidden; animation: none; }
+.adm[data-fill="true"] { height: 100dvh; min-height: 0; overflow: hidden; }
+.adm .adm-main[data-fill="true"] { display: flex; max-width: none; min-height: 0; margin: 0; padding: 0; overflow: hidden; animation: none; }
 .support-admin-page { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
 .support-admin-heading { flex-shrink: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: .35rem 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid #3a3a3a; }
 .support-admin-page .support-admin-heading h1 { font-size: 1.3rem; line-height: 1.4; margin: 0; }

@@ -2,6 +2,7 @@ import { SupportUnreadProvider } from "@/app/_components/support/unread";
 import "@/app/_components/support/support.css";
 import { Suspense } from "react";
 import { AdminGuard } from "./_components/guard";
+import { AdminFrame } from "./_components/admin-frame";
 import { AdminNav } from "./_components/admin-nav";
 import { ConfirmProvider } from "./_components/confirm-dialog";
 import { ToastProvider } from "./_components/toast";
@@ -18,16 +19,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <ToastProvider>
           <ConfirmProvider>
             <SupportUnreadProvider admin>
-              <div className={`adm ${font.className}`}>
-                <AdminNav
-                  footer={
-                    <Suspense fallback={null}>
-                      <ServerInfo />
-                    </Suspense>
-                  }
-                />
-                <main className="admin-main adm-main">{children}</main>
-              </div>
+              <AdminFrame
+                className={font.className}
+                nav={
+                  <AdminNav
+                    footer={
+                      <Suspense fallback={null}>
+                        <ServerInfo />
+                      </Suspense>
+                    }
+                  />
+                }
+              >
+                {children}
+              </AdminFrame>
             </SupportUnreadProvider>
           </ConfirmProvider>
         </ToastProvider>

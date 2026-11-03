@@ -8,7 +8,6 @@ import { ActivityIcon, AnalyticsIcon, BugIcon, CdnIcon, FeedbackIcon, DashboardI
 import { SupportBadge } from "@/app/_components/support/unread";
 
 const LINKS = [
-  { href: "/admin/support", label: "Support", icon: SupportIcon, match: (p: string) => p.startsWith("/admin/support") },
   { href: "/admin", label: "Overview", icon: DashboardIcon, match: (p: string) => p === "/admin" },
   { href: "/admin/analytics", label: "Analytics", icon: AnalyticsIcon, match: (p: string) => p.startsWith("/admin/analytics") },
   { href: "/admin/movies", label: "Movies", icon: FilmIcon, match: (p: string) => p.startsWith("/admin/movies") },
@@ -22,6 +21,7 @@ const LINKS = [
   { href: "/admin/users", label: "Users", icon: UsersIcon, match: (p: string) => p.startsWith("/admin/users") },
   { href: "/admin/reports", label: "Reports", icon: FlagIcon, match: (p: string) => p.startsWith("/admin/reports") },
   { href: "/admin/announcements", label: "Announcements", icon: BellIcon, match: (p: string) => p.startsWith("/admin/announcements") },
+  { href: "/admin/support", label: "Support", icon: SupportIcon, match: (p: string) => p.startsWith("/admin/support") },
   { href: "/admin/settings", label: "Settings", icon: SettingsIcon, match: (p: string) => p === "/admin/settings" },
 ];
 

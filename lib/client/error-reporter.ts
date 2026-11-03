@@ -2,7 +2,7 @@
 // instrumentation bundle and the app bundle share it even if each gets its own copy of this module.
 
 type Crumb = { t: number; type: "nav" | "click" | "fetch" | "console" | "log"; message: string; level?: "info" | "warning" | "error" };
-type State = { crumbs: Crumb[]; sent: number; recent: Map<string, number>; installed: boolean };
+type State = { crumbs: Crumb[]; sent: number; recent: Map<string, number>; installed: boolean; playerClosedAt?: number };
 
 const MAX_CRUMBS = 40;
 const MAX_REPORTS = 25;
@@ -24,7 +24,19 @@ const IGNORE = [/ResizeObserver loop/, /^Script error\.?$/, /Non-Error promise r
   // Android in-app browsers inject iabjs:// scripts that throw once their Java host is closed.
   /Java object is gone/, /iabjs:\/\//,
   // The View Transition API aborts when the viewport changes or the page is hidden; nothing breaks.
-  /Transition was aborted because of invalid state/];
+  /Transition was aborted because of invalid state/,
+  // Facebook/Instagram in-app browsers inject a script that reads a global their own page never defined.
+  /window\._META\.IABInnerFrame/];
+
+// Vidstack destroys a player a tick after React unmounts it, and its sliders / hls.js loader can still run once on
+// the destroyed instance ("e is not a function", "player.dispatch" of null). Nothing is on screen by then.
+const PLAYER_TEARDOWN = [/^\w+ is not a function/, /\.player\.dispatch/];
+const TEARDOWN_WINDOW_MS = 5000;
+
+/** Called when a watch player unmounts, so the errors its teardown throws are not reported as bugs. */
+export function notePlayerClosed() {
+  state().playerClosedAt = Date.now();
+}
 
 export function reportError(error: unknown, extra: { mechanism: string; componentStack?: string; level?: "error" | "warning" | "fatal" }) {
   try {
@@ -32,6 +44,9 @@ export function reportError(error: unknown, extra: { mechanism: string; componen
     const err = error instanceof Error ? error : new Error(typeof error === "string" ? error : safe(error));
     const message = err.message || String(error);
     if (IGNORE.some((r) => r.test(message) || r.test(err.stack ?? ""))) return;
+    // A thrown `{}` / empty value carries nothing to act on.
+    if (message === "{}" || message === "[object Object]") return;
+    if (s.playerClosedAt && Date.now() - s.playerClosedAt < TEARDOWN_WINDOW_MS && PLAYER_TEARDOWN.some((r) => r.test(message))) return;
     // Errors from Server Components arrive with only a digest; the server already recorded the real one.
     if ((err as { digest?: string }).digest) return;
     const key = `${err.name}:${message}:${(err.stack ?? "").split("\n")[1] ?? ""}`;
