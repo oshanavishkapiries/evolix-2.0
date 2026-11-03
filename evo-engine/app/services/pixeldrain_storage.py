@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import requests
+from app.core.config import settings
 from app.interfaces.contracts import IStorageProvider
 from app.domain.models import UploadResult
 
@@ -40,9 +41,13 @@ class ProgressReader:
 class PixeldrainStorageProvider(IStorageProvider):
     """Storage provider implementation for Pixeldrain CDN."""
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+    def __init__(self, api_key: Optional[str] = None):
+        self._api_key = api_key
         self.base_url = "https://pixeldrain.com/api/file"
+
+    @property
+    def api_key(self):
+        return settings.PIXELDRAIN_API_KEY if self._api_key is None else self._api_key
 
     def upload_file(
         self,

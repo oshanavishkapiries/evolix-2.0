@@ -23,6 +23,7 @@ from app.services.hls_proxy import HlsProxyService
 from app.services.translation_service import SinhalaTranslator
 from app.core.config import settings
 from app.core import metrics, runtime_config
+from app.core.config_push import ConfigPush, StaleVersion
 
 router = APIRouter(prefix="/api/v1/media", tags=["Media Ingestion & Streaming"])
 
@@ -53,7 +54,7 @@ _composite = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor], val
 _extractor = CachingExtractor(_composite, validator=validate_streams)
 metrics.set_sink(_repository.add_metric)
 _downloader = FFmpegStreamDownloader()
-_storage = PixeldrainStorageProvider(api_key=settings.PIXELDRAIN_API_KEY)
+_storage = PixeldrainStorageProvider()
 _translator = SinhalaTranslator(repository=_repository)
 
 _service_instance = IngestService(
@@ -463,47 +464,70 @@ def get_subtitle_track(sub_id: str):
 _AUTH = [Depends(verify_secret_token)]
 
 
+_config_push = ConfigPush(_repository, on_apply=_service_instance.apply_config)
+
+
+def config_status():
+    return _config_push.status()
+
+
 def load_runtime_config() -> None:
-    """Applies admin overrides saved in SQLite (called at startup)."""
-    for key, value in _repository.get_config().items():
-        if key in runtime_config.BY_KEY:
-            runtime_config.apply(key, value)
-    _service_instance.apply_config()
+    """Apply the app cache first, or legacy settings if never managed."""
+    _config_push.load()
 
 
 @router.get("/config", dependencies=_AUTH)
 def get_config():
-    return runtime_config.snapshot(_repository.get_config())
+    return _config_push.snapshot()
+
+
+@router.put("/config/push", dependencies=_AUTH)
+def push_config(payload: dict):
+    try:
+        return _config_push.accept(payload)
+    except StaleVersion as exc:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=409, content={"detail": "stale", "version": exc.version})
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
 @router.put("/config", dependencies=_AUTH)
 def update_config(values: dict):
-    """Body: {KEY: number, ...}. All values are validated before any is applied."""
-    try:
-        clean = {k: runtime_config.coerce(k, v) for k, v in values.items()}
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    for k, v in clean.items():
-        _repository.set_config(k, v)
-        runtime_config.apply(k, v)
-    _service_instance.apply_config()
-    return runtime_config.snapshot(_repository.get_config())
+    """Legacy editing remains available until the first accepted app push."""
+    with _config_push.lock:
+        if _config_push.managed:
+            raise HTTPException(status_code=409, detail="Managed by the app")
+        try:
+            clean = {k: runtime_config.coerce(k, v) for k, v in values.items()}
+            if any(runtime_config.BY_KEY[k].kind == "secret" for k in clean):
+                raise ValueError("Secrets require encrypted config push")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        for key, value in clean.items():
+            _repository.set_config(key, value)
+            runtime_config.apply(key, value)
+        _service_instance.apply_config()
+        return get_config()
 
 
 @router.delete("/config/{key}", dependencies=_AUTH)
 def reset_config(key: str):
     """Back to the value from .env."""
-    if key not in runtime_config.BY_KEY:
-        raise HTTPException(status_code=404, detail="Unknown setting")
-    _repository.delete_config(key)
-    runtime_config.apply(key, None)
-    _service_instance.apply_config()
-    return runtime_config.snapshot(_repository.get_config())
+    with _config_push.lock:
+        if _config_push.managed:
+            raise HTTPException(status_code=409, detail="Managed by the app")
+        if key not in runtime_config.BY_KEY:
+            raise HTTPException(status_code=404, detail="Unknown setting")
+        _repository.delete_config(key)
+        runtime_config.apply(key, None)
+        _service_instance.apply_config()
+        return get_config()
 
 
 @router.get("/queue", dependencies=_AUTH)
 def queue_status():
-    return _service_instance.queue_status()
+    return {**_service_instance.queue_status(), **config_status()}
 
 
 @router.post("/queue/{action}", dependencies=_AUTH)
@@ -511,7 +535,7 @@ def queue_action(action: str):
     if action not in ("pause", "resume"):
         raise HTTPException(status_code=404, detail="Unknown action")
     _service_instance.paused = action == "pause"
-    return _service_instance.queue_status()
+    return {**_service_instance.queue_status(), **config_status()}
 
 
 _IN_FLIGHT = (IngestStatus.PENDING, IngestStatus.EXTRACTING, IngestStatus.DOWNLOADING, IngestStatus.UPLOADING)

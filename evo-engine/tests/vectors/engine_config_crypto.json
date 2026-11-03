@@ -1,0 +1,9 @@
+{
+  "token": "test-engine-token-α",
+  "salt": "evolix-engine-config-v1",
+  "info": "engine-secrets",
+  "derived_key_hex": "069c5574fb78c029feb537099e0aaca2cda480f49792eebdffb70a0cc2f77dd6",
+  "iv_hex": "000102030405060708090a0b",
+  "plaintext": "unit-test-secret-never-on-disk-5678",
+  "envelope": "enc:v1:AAECAwQFBgcICQoL:qpFcH3rjH4shqUACca39VA:JOJa_jyZdKnmgfk30rIQS1uYPXzTaOrskhXqMIJEzVrJ6Go"
+}

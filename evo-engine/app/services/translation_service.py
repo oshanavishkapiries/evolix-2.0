@@ -225,9 +225,13 @@ class SinhalaTranslator:
 
     def __init__(self, repository: Optional[ITaskRepository] = None, api_key: Optional[str] = None, model: Optional[str] = None):
         self.repository = repository
-        self.api_key = api_key if api_key is not None else settings.OPENROUTER_API_KEY
+        self._api_key = api_key
         self._model = model
         self._lock = threading.Lock()
+
+    @property
+    def api_key(self):
+        return settings.OPENROUTER_API_KEY if self._api_key is None else self._api_key
 
     @property
     def model(self) -> str:

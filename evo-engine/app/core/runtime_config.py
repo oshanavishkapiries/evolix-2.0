@@ -1,5 +1,7 @@
 """Settings an admin may change while the engine runs (stored in SQLite, applied onto `settings` in place)."""
 import re
+import math
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -11,7 +13,7 @@ class Spec:
     key: str
     label: str
     description: str
-    kind: str  # "int" | "float" | "choice" | "text"
+    kind: str  # int | float | choice | text | bool | url | secret
     min: float
     max: float
     live: bool = True
@@ -43,6 +45,18 @@ SPECS = [
     Spec("TRANSLATE_MODEL", "Translation model", "OpenRouter model that translates subtitles to Sinhala (e.g. google/gemini-3.1-flash-lite). Takes effect on the next job.", "text", 0, 0),
     Spec("TRANSLATE_DAILY_BUDGET_USD", "Daily translation budget (USD)", "0 = unlimited. Spend is always ledgered.", "float", 0, 100000),
 ]
+# Only startup cleanup cannot be applied to a running process. BrowserPool reads
+# size/limits at acquire/release; IngestService.apply_config resizes both limiters.
+SPECS += [
+    Spec("CLEAN_ORPHANS_ON_START", "Clean orphans on startup", "Delete abandoned downloads on next startup.", "bool", 0, 1, live=False),
+    Spec("TRANSLATE_CHUNK_CUES", "Translation chunk cues", "Cues per chunk on the next translation job.", "int", 1, 1000),
+    Spec("TRANSLATE_CONTEXT_CUES", "Translation context cues", "Context cues on the next translation job.", "int", 0, 1000),
+    Spec("TRANSLATE_CONCURRENCY", "Translation concurrency", "Parallel chunks on the next translation job.", "int", 1, 64),
+    Spec("EVO_WEBHOOK_URL", "Completion webhook", "HTTP(S) completion callback; empty disables callbacks.", "url", 0, 0),
+    Spec("ERROR_REPORT_URL", "Error reporting URL", "HTTP(S) error callback; empty derives from the completion webhook.", "url", 0, 0),
+    Spec("PIXELDRAIN_API_KEY", "Pixeldrain API key", "Used on the next storage call.", "secret", 0, 0),
+    Spec("OPENROUTER_API_KEY", "OpenRouter API key", "Used on the next translation call.", "secret", 0, 0),
+]
 BY_KEY = {s.key: s for s in SPECS}
 DEFAULTS = {s.key: getattr(settings, s.key) for s in SPECS}
 
@@ -55,6 +69,30 @@ def coerce(key: str, value: Any):
     spec = BY_KEY.get(key)
     if spec is None:
         raise ValueError(f"Unknown setting {key}")
+    if spec.kind == "secret":
+        if not isinstance(value, str) or len(value) > 16384:
+            raise ValueError(f"{key} must be a string of at most 16384 characters")
+        return value
+    if spec.kind == "url":
+        if not isinstance(value, str) or len(value) > 4096:
+            raise ValueError(f"{key} must be an HTTP(S) URL or empty")
+        text = value.strip()
+        try:
+            url = urlsplit(text)
+            valid = not text or (url.scheme in ("http", "https") and url.hostname and not url.username and not url.password)
+            if any(c.isspace() or ord(c) < 32 for c in text):
+                valid = False
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError(f"{key} must be an HTTP(S) URL or empty")
+        return text
+    if spec.kind == "bool":
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, str)) and value in (0, 1, "0", "1", "true", "false"):
+            return value in (1, "1", "true")
+        raise ValueError(f"{key} must be a boolean")
     if spec.kind == "text":
         text = value.strip() if isinstance(value, str) else ""
         if len(text) > 120 or not MODEL_ID.match(text):
@@ -66,6 +104,12 @@ def coerce(key: str, value: Any):
         return value
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{key} must be a number")
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
+        raise ValueError(f"{key} must be finite")
     v = int(value) if spec.kind == "int" else float(value)
     if spec.kind == "int" and v != value:
         raise ValueError(f"{key} must be a whole number")
@@ -79,12 +123,20 @@ def apply(key: str, value: Optional[Any]) -> None:
     setattr(settings, key, DEFAULTS[key] if value is None else value)
 
 
-def snapshot(overrides: dict) -> list[dict]:
+def mask(value):
+    return "••••" + value[-4:] if value else None
+
+
+def snapshot(overrides: dict, *, managed=False, restart_needed=(), desired=None) -> list[dict]:
+    desired = desired or {}
     return [
         {
             "key": s.key, "label": s.label, "description": s.description, "kind": s.kind, "min": s.min, "max": s.max,
             "choices": [{"value": v, "label": l} for v, l in s.choices],
-            "value": getattr(settings, s.key), "default": DEFAULTS[s.key], "overridden": s.key in overrides,
+            "value": mask(desired.get(s.key, getattr(settings, s.key))) if s.kind == "secret" else desired.get(s.key, getattr(settings, s.key)),
+            "default": mask(DEFAULTS[s.key]) if s.kind == "secret" else DEFAULTS[s.key],
+            "overridden": s.key in overrides, "source": "push" if managed and s.key in overrides else "env",
+            "live": s.live, "restart_needed": s.key in restart_needed,
         }
         for s in SPECS
     ]

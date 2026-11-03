@@ -16,10 +16,11 @@ cp .env.example .env
 python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
 ```
 
-Edit `.env`: set `EVO_SECRET_TOKEN` to the generated token, set
-`PIXELDRAIN_API_KEY` for media uploads, and set `EVO_WEBHOOK_URL` to your Next.js
-application's public `/api/evo/complete` URL (or leave it empty to disable callbacks).
-Set `OPENROUTER_API_KEY` if you need Sinhala translation. A translation budget of
+Edit `.env`: set `EVO_SECRET_TOKEN` to the generated token and set
+`EVO_WEBHOOK_URL` to your Next.js application's public `/api/evo/complete` URL
+(or leave it empty to disable callbacks). Configure `PIXELDRAIN_API_KEY` for
+uploads and `OPENROUTER_API_KEY` for Sinhala translation in admin config, or
+uncomment their environment fallbacks until they are saved in the app DB. A translation budget of
 `0` means unlimited; set a positive dollar amount to cap daily translation spend.
 
 ```bash
@@ -35,12 +36,10 @@ this port and configure the engine's public URL in Next.js. To publish directly
 on the host's network interfaces, set `EVO_BIND_ADDRESS=0.0.0.0`; `EVO_PORT`
 changes the host port. The container always listens on port 8000.
 
-In the **Next.js application's** environment, configure:
-
-```dotenv
-EVO_ENGINES='["https://engine.your-domain.example"]'
-EVO_SECRET_TOKEN=<same value as the engine's EVO_SECRET_TOKEN>
-```
+In the Next.js admin engine registry, register this engine's public URL and its
+own `EVO_SECRET_TOKEN`. Each engine has a separate token. The app pushes merged
+global configuration and per-engine overrides; existing environment configuration
+continues to work before the first push.
 
 If Next.js runs directly on the same host, its engine URL can be
 `http://127.0.0.1:8000`. If it shares a Docker network with the engine, use
@@ -65,7 +64,7 @@ Bind mounts also need those permissions.
 
 Keep one engine container with one Uvicorn worker: job queues, locks, and caches
 live in process memory. Jobs interrupted by a restart are marked failed at startup;
-they do not resume automatically. The example configuration removes orphaned
+they do not resume automatically. Setting CLEAN_ORPHANS_ON_START=true removes orphaned
 download files on startup.
 
 Allow disk space for concurrent full media downloads. By default, background media
@@ -95,3 +94,41 @@ docker run -d --name evo-engine --restart unless-stopped \
 
 Compose checks that `EVO_SECRET_TOKEN` is set; when running Docker directly, ensure
 you set it yourself. The application accepts unauthenticated requests when it is empty.
+
+## App-managed configuration
+
+Keep `EVO_SECRET_TOKEN`, `ENGINE_NAME`, `EVO_BIND_ADDRESS`, `EVO_PORT`, and the
+initial app callback address (`EVO_WEBHOOK_URL`) in the engine environment.
+`EVO_WEBHOOK_URL` is also push-managed and can override that initial address.
+Storage paths (`DOWNLOAD_DIR`, `TEMP_DIR`, `SQLITE_DB_PATH`) stay local deployment
+settings. The app's first deployment still needs its login-critical environment
+keys until an admin saves them in its database.
+
+All resource limits, browser/extractor/provider settings, `TRANSLATE_*`,
+`PIXELDRAIN_API_KEY`, `OPENROUTER_API_KEY`, `EVO_WEBHOOK_URL`, and `ERROR_REPORT_URL`
+are push-managed. Effective precedence is app DB > engine .env > built-in default;
+when a full-state push omits a managed key, it returns to the original environment
+fallback. Optional environment entries may be removed once stored in the app DB.
+
+Authenticated `PUT /api/v1/media/config/push` accepts the full desired state with
+an increasing version. Secrets travel as AES-256-GCM envelopes using a key derived
+from this engine's token with HKDF-SHA256. SQLite caches the accepted version,
+non-secret values, and encrypted secret envelopes, so startup needs no app
+connection. Decrypted secrets exist in memory only. After token rotation, cached
+secrets that cannot decrypt fall back to the environment with a warning; re-push
+with the new token to restore them.
+
+`GET /health` and `GET /api/v1/media/queue` report `config_version`,
+`config_managed`, and `restart_needed` (key names only). `CLEAN_ORPHANS_ON_START`
+requires a manual restart because cleanup only runs at startup. Browser pool size
+and recycle limits read live settings; extraction/download limiters are resized
+by `IngestService.apply_config()`. Other settings take effect on subsequent jobs
+or calls. A pending startup value remains reported until restart or a push
+restores the value the current process uses.
+
+Before the first push, existing SQLite runtime overrides and legacy admin edits
+continue to work. Afterwards, legacy `PUT /api/v1/media/config` and
+`DELETE /api/v1/media/config/{key}` return 409 (`Managed by the app`).
+`GET /api/v1/media/config` continues to expose a masked snapshot with per-key
+`source` (`push` or `env`), `live`, and `restart_needed`. See
+[the configuration pipeline](docs/config-push.md).

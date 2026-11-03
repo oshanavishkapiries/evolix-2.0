@@ -48,9 +48,8 @@ def _frames(tb) -> list[dict]:
 
 
 class AppErrorHandler(logging.Handler):
-    def __init__(self, url: str):
+    def __init__(self):
         super().__init__(level=logging.ERROR)
-        self.url = url
         self.q: queue.Queue = queue.Queue(maxsize=100)
         self.window = (0.0, 0)
         self.recent: dict[str, float] = {}
@@ -94,15 +93,15 @@ class AppErrorHandler(logging.Handler):
         while True:
             body = self.q.get()
             try:
-                requests.post(self.url, json=body, headers={"X-Evo-Secret": settings.EVO_SECRET_TOKEN}, timeout=10)
+                url = errors_endpoint()
+                if url and settings.EVO_SECRET_TOKEN:
+                    requests.post(url, json=body, headers={"X-Evo-Secret": settings.EVO_SECRET_TOKEN}, timeout=10)
             except Exception:
                 pass
 
 
 def install() -> None:
-    url = errors_endpoint()
-    if not url or not settings.EVO_SECRET_TOKEN:
-        logging.getLogger("evo.error_reporting").info("Error reporting off (needs EVO_SECRET_TOKEN and ERROR_REPORT_URL or EVO_WEBHOOK_URL)")
-        return
-    logging.getLogger().addHandler(AppErrorHandler(url))
-    logging.getLogger("evo.error_reporting").info(f"Reporting errors to {url}")
+    # Install even without a URL: a later config push can enable error reports.
+    root = logging.getLogger()
+    if not any(isinstance(handler, AppErrorHandler) for handler in root.handlers):
+        root.addHandler(AppErrorHandler())

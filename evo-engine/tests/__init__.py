@@ -13,5 +13,7 @@ os.environ.update(
     EVO_WEBHOOK_URL="",
     MIN_FREE_DISK_GB="0",
     OPENROUTER_API_KEY="",
+    PIXELDRAIN_API_KEY="",
+    ERROR_REPORT_URL="",
     TRANSLATE_DAILY_BUDGET_USD="0.5",
 )

@@ -3,7 +3,7 @@ import shutil
 import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from app.api.routes import router as media_router, _repository, load_runtime_config
+from app.api.routes import router as media_router, _repository, load_runtime_config, config_status
 from app.core.browser_pool import shutdown_pool
 from app.core.config import APP_NAME, settings
 from app.core.error_reporting import install as install_error_reporting
@@ -51,6 +51,7 @@ app.include_router(media_router)
 @app.get("/health")
 def health_check():
     return {
+        **config_status(),
         "status": "healthy",
         "service": APP_NAME,
         "ffmpeg_available": shutil.which("ffmpeg") is not None,

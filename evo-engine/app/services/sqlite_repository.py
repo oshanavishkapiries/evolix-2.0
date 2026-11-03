@@ -125,6 +125,7 @@ class SQLiteTaskRepository(ITaskRepository):
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_extraction_metrics_ts ON extraction_metrics(ts);")
             conn.execute("CREATE TABLE IF NOT EXISTS runtime_config (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
+            conn.execute("CREATE TABLE IF NOT EXISTS pushed_config (id INTEGER PRIMARY KEY CHECK(id = 1), version INTEGER NOT NULL, payload TEXT NOT NULL);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_api_usage_ts ON api_usage(ts);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_events_ts ON task_events(ts);")
@@ -557,3 +558,20 @@ class SQLiteTaskRepository(ITaskRepository):
             ).rowcount
             conn.commit()
         return n
+
+    def get_pushed_config(self):
+        import json
+        with self._get_connection() as conn:
+            row = conn.execute("SELECT version, payload FROM pushed_config WHERE id = 1").fetchone()
+            return {"version": row["version"], **json.loads(row["payload"])} if row else None
+
+    def save_pushed_config(self, version: int, values: dict, secrets: dict) -> None:
+        """Secrets are the received encrypted envelopes, never decrypted values."""
+        import json
+        with self._get_connection() as conn:
+            conn.execute(
+                "INSERT INTO pushed_config (id, version, payload) VALUES (1, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET version = excluded.version, payload = excluded.payload",
+                (version, json.dumps({"values": values, "secrets": secrets})),
+            )
+            conn.commit()
