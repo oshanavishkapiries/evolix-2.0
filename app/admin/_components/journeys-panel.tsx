@@ -5,6 +5,8 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
 import { NODES } from "@/lib/evo/flow";
 import { JOURNEY_WINDOWS, OUTCOMES, OUTCOME_TEXT, waitText, type Journey, type JourneyReport, type Outcome } from "@/lib/evo/journeys";
+import type { EngineCard } from "@/lib/evo/admin-view";
+import { EngineRows, OverviewDecision, type FailureSamples } from "./evo-overview";
 import { TZ } from "@/lib/tz";
 import { TaskActions } from "./evo-controls";
 import { SummaryFlow } from "./pipeline-graph";
@@ -20,7 +22,7 @@ const clip = (t: string, n = 90) => (t.length > n ? `${t.slice(0, n - 1)}…` : 
  * What viewers went through, per title, instead of one row per engine task: did they finally get to watch, after how
  * many tries and how long. Failed tries that were followed by a success are folded into that title's row.
  */
-export function JourneysPanel({ initial, multi }: { initial: JourneyReport | null; multi: boolean }) {
+export function JourneysPanel({ initial, multi, engines = [], failures = {}, asOf = 0 }: { initial: JourneyReport | null; multi: boolean; engines?: EngineCard[]; failures?: FailureSamples; asOf?: number }) {
   const [hours, setHours] = useState<number>(initial?.hours ?? 24);
   const [report, setReport] = useState(initial);
   const [filter, setFilter] = useState<Outcome | null>(null);
@@ -28,14 +30,16 @@ export function JourneysPanel({ initial, multi }: { initial: JourneyReport | nul
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [shown, setShown] = useState(PAGE);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [now, setNow] = useState(asOf);
   const asked = useRef(hours);
 
   const load = useCallback(async (h: number) => {
     const res = await fetchWithRefresh(`/api/admin/evo/journeys?hours=${h}`, { cache: "no-store" }).catch(() => null);
-    const body = res?.ok ? await res.json() : null;
+    const body = res?.ok ? await res.json().catch(() => null) : null;
     // A slow answer for the window the admin has already left must not overwrite the one they are looking at.
-    if (body?.report && asked.current === h) setReport(body.report);
-    if (asked.current === h) setLoading(false);
+    if (body?.report && asked.current === h) { setReport(body.report); setNow(Date.now()); }
+    if (asked.current === h) { setLoading(false); setLoadError(!body?.report); }
   }, []);
 
   useEffect(() => {
@@ -64,69 +68,53 @@ export function JourneysPanel({ initial, multi }: { initial: JourneyReport | nul
 
   if (!report) {
     return (
-      <section className="evo-section">
-        <div className="evo-section-head"><h2>Viewers</h2></div>
-        <p className="evo-empty">No engine could report what viewers went through. Rebuild the engines if they were not updated yet.</p>
-      </section>
+      <div className="evo-stack">
+        <OverviewDecision failures={failures} engines={engines} report={null} now={now} refresh={() => void load(hours)} />
+        <section className="evo-section"><div className="evo-section-head"><h2>Viewers</h2>{windows}</div><p className="evo-empty">No engine could report viewer outcomes. Check that the engines are available and updated.</p></section>
+        <section className="evo-section"><div className="evo-section-head"><h2>Engines</h2><p className="evo-sub">Failure rates: last 100 tries per engine, or fewer for a new engine.</p></div><EngineRows engines={engines} failures={failures} /></section>
+      </div>
     );
   }
 
   const { totals } = report;
+  const viewerSummary = { ...report.summary, steps: Object.fromEntries(NODES.map((node) => {
+    const cell = report.summary.steps[node.id] ?? { ok: 0, failed: 0, running: 0, skipped: 0 };
+    return [node.id, { ...cell, failed: report.journeys.filter((j) => j.outcome === "never" && j.trouble?.step === node.id).length }];
+  })) };
   const total = OUTCOMES.reduce((sum, o) => sum + totals[o], 0);
-  const decided = total - totals.trying;
-  const watched = totals.smooth + totals.struggled;
   const needle = search.trim().toLowerCase();
   const rows = report.journeys.filter((j) => (!filter || j.outcome === filter) && (!needle || (j.title ?? `TMDB ${j.tmdbId}`).toLowerCase().includes(needle)));
   const toggle = (id: string) => setOpen((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set(s).add(id)));
 
   return (
     <div aria-busy={loading} className="evo-stack">
+      <OverviewDecision failures={failures} engines={engines} report={report} now={now} refresh={() => void load(hours)} />
       <section className="evo-section">
         <div className="evo-section-head">
           <div>
             <h2>Viewers</h2>
-            <p className="evo-sub">Each title counts once, by the try that decided it.</p>
+            <p className="evo-sub">Each title counts once, by the try that decided it. The selected window applies to the verdict, metrics, fixes and titles.</p>
           </div>
           {windows}
         </div>
+        {loading && <p className="evo-note" role="status">Loading the selected window; showing the last {report.hours} hours until it arrives.</p>}
+        {loadError && <p className="evo-note" role="status">Could not refresh viewer outcomes. Showing the last available report ({report.hours} hours).</p>}
 
-        <div className="kpis">
-          <div className="kpi" role="status">
-            <span className="kpi-label">Watch success</span>
-            <strong className="kpi-value">{decided ? `${Math.round((watched / decided) * 100)}%` : "—"}</strong>
-            <span className="kpi-note">{total === 0 ? "No viewer activity in this window" : decided === 0 ? `${total} title(s) in progress` : `of ${decided} title(s) ended watchable`}</span>
-          </div>
-          <div className="kpi">
-            <span className="kpi-label">Typical wait</span>
-            <strong className="kpi-value">{report.medianWaitSeconds !== null ? waitText(report.medianWaitSeconds) : "—"}</strong>
-            <span className="kpi-note">first try to stream ready</span>
-          </div>
-          {OUTCOMES.map((o) => (
-            <button key={o} type="button" className="j-card" data-outcome={o} aria-pressed={filter === o} title={OUTCOME_TEXT[o].hint} onClick={() => { setFilter(filter === o ? null : o); setShown(PAGE); }}>
-              <strong>{totals[o]}</strong>
-              <span>{OUTCOME_TEXT[o].label}</span>
-              <small>{OUTCOME_TEXT[o].hint}</small>
-            </button>
-          ))}
-        </div>
-        {total > 0 && (
-          <div className="j-bar" aria-hidden="true">
-            {OUTCOMES.map((o) => totals[o] > 0 && <span key={o} data-outcome={o} style={{ width: `${(totals[o] / total) * 100}%`, background: "var(--j)" }} />)}
-          </div>
-        )}
-        {report.unreachable.length > 0 && <p className="evo-note">Could not read journeys from {report.unreachable.join(", ")} (offline, or not updated to the version that reports them).</p>}
-        {report.truncated && <p className="evo-note">This window has more tasks than the engine reports at once; the oldest are left out.</p>}
+        {report.unreachable.length > 0 && <p className="evo-note">Could not read viewer outcomes from {report.unreachable.join(", ")} (offline, or not updated to the version that reports them).</p>}
+        {report.truncated && <p className="evo-note">This window has more tries than the engine reports at once; the oldest are left out.</p>}
       </section>
 
       <section className="evo-section">
         <div className="evo-section-head">
           <div>
             <h2>Where it breaks</h2>
-            <p className="evo-sub">Red: viewers stuck here for good. Yellow: failed here once, still got through. Click a step for its numbers.</p>
+            <p className="evo-sub">Failed steps come first. Recovered steps had a failed try before a watchable result.</p>
           </div>
         </div>
-        <SummaryFlow initial={report.summary} byJourney />
+        <SummaryFlow initial={viewerSummary} byJourney issuesOnly />
       </section>
+
+      <section className="evo-section"><div className="evo-section-head"><h2>Engines</h2><p className="evo-sub">Failure rates: last 100 tries per engine, or fewer for a new engine.</p></div><EngineRows engines={engines} failures={failures} /></section>
 
       <section className="evo-section">
         <div className="evo-section-head">
@@ -139,6 +127,10 @@ export function JourneysPanel({ initial, multi }: { initial: JourneyReport | nul
             )}
             <input type="search" className="evo-search" placeholder="Search titles" aria-label="Search titles" value={search} onChange={(e) => { setSearch(e.target.value); setShown(PAGE); }} />
           </div>
+        </div>
+        <div className="outcome-filters" role="group" aria-label="Filter titles by outcome">
+          <button type="button" className="btn-secondary" aria-pressed={filter === null} onClick={() => { setFilter(null); setShown(PAGE); }}>All titles <strong>{total}</strong></button>
+          {OUTCOMES.map((o) => <button key={o} type="button" className="btn-secondary" data-outcome={o} aria-pressed={filter === o} title={OUTCOME_TEXT[o].hint} onClick={() => { setFilter(filter === o ? null : o); setShown(PAGE); }}>{OUTCOME_TEXT[o].label} <strong>{totals[o]}</strong></button>)}
         </div>
         {!rows.length ? (
           <p className="evo-empty">{needle ? `No title matches “${search.trim()}”.` : filter ? `Nothing in “${OUTCOME_TEXT[filter].label}”.` : "Nothing here yet."}</p>
@@ -202,7 +194,7 @@ export function JourneysPanel({ initial, multi }: { initial: JourneyReport | nul
           </div>
         )}
         {rows.length > shown && <button type="button" className="btn-link mt-3 rounded-md border px-3 py-1.5 text-sm" onClick={() => setShown(shown + PAGE)}>Show {Math.min(PAGE, rows.length - shown)} more of {rows.length - shown}</button>}
-        <p className="evo-note">Counted from the engines&rsquo; tasks: a title that was already cached and watched by many people is one smooth journey, not one per viewer.</p>
+        <p className="evo-note">Counted from engine tries: a cached title watched by many people counts as one title. Still-trying titles are included in these filters and excluded from the watch-success denominator.</p>
       </section>
     </div>
   );

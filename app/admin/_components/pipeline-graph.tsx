@@ -70,10 +70,11 @@ function Canvas({ views, edges, selected, onSelect }: { views: Record<StepId, No
 }
 
 /** The same steps as the graph, as one wrapping row of chips: easier to scan, and it fits a phone. */
-function Strip({ views, selected, onSelect }: { views: Record<StepId, NodeView>; selected: StepId | null; onSelect: (id: StepId) => void }) {
+function Strip({ views, selected, onSelect, ids = STEP_IDS }: { views: Record<StepId, NodeView>; ids?: readonly StepId[]; selected: StepId | null; onSelect: (id: StepId) => void }) {
   return (
     <ol className="step-strip" aria-label="Evo engine pipeline">
-      {NODES.map((n) => {
+      {ids.map((id) => {
+        const n = nodeById[id];
         const v = views[n.id];
         return (
           <li key={n.id}>
@@ -208,11 +209,12 @@ function StepLog({ id, view }: { id: StepId | null; view: StepView | null }) {
  * from the journey report: each title counts once by the try that decided it, a step an earlier try failed at but the
  * viewer got through shows as "recovered", and red means viewers got stuck there for good.
  */
-export function SummaryFlow({ initial, engine, byJourney = false }: { initial: Summary | null; engine?: string; byJourney?: boolean }) {
+export function SummaryFlow({ initial, engine, byJourney = false, issuesOnly = false }: { initial: Summary | null; engine?: string; byJourney?: boolean; issuesOnly?: boolean }) {
   const [polled, setSummary] = useState(initial);
   const summary = byJourney ? initial : polled;
   const [selected, setSelected] = useState<StepId | null>(null);
   const [graph, setGraph] = useState(false);
+  const [full, setFull] = useState(false);
 
   useEffect(() => {
     if (byJourney) return; // the journey panel refreshes its own report
@@ -234,24 +236,27 @@ export function SummaryFlow({ initial, engine, byJourney = false }: { initial: S
       const recovered = c.recovered ?? 0;
       // By journey, a title stuck here for good outranks one that is merely still in flight, so red never hides behind "running".
       const state: NodeState = byJourney
-        ? c.failed > 0 ? "failed" : c.running > 0 ? "running" : recovered > 0 ? "recovered" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending"
+        ? c.failed > 0 ? "failed" : recovered > 0 ? "recovered" : c.running > 0 ? "running" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending"
         : c.running > 0 ? "running" : c.failed > 0 ? "failed" : c.ok > 0 ? "ok" : c.skipped > 0 ? "skipped" : "pending";
-      const sub = byJourney ? `✓ ${c.ok}  ↻ ${recovered}  ✗ ${c.failed}${c.running ? `  ⟳ ${c.running}` : ""}` : `✓ ${c.ok}  ✗ ${c.failed}  ⟳ ${c.running}${c.skipped ? `  ↷ ${c.skipped}` : ""}`;
+      const sub = byJourney && issuesOnly && !full ? [c.failed ? `${c.failed} ${c.failed === 1 ? "title" : "titles"} stuck here` : "", recovered ? `${recovered} failed then recovered` : ""].filter(Boolean).join(" · ") : byJourney ? `✓ ${c.ok}  ↻ ${recovered}  ✗ ${c.failed}${c.running ? `  ⟳ ${c.running}` : ""}` : `✓ ${c.ok}  ✗ ${c.failed}  ⟳ ${c.running}${c.skipped ? `  ↷ ${c.skipped}` : ""}`;
       return [id, { state, sub }];
     }),
   ) as Record<StepId, NodeView>;
   const edges = Object.fromEntries(EDGES.map((e) => [`${e.from}-${e.to}`, views[e.to].state === "running" ? "active" : views[e.to].state === "pending" ? "idle" : "done"]));
   const c = selected ? summary?.steps[selected] : null;
+  const visible = issuesOnly && !full ? STEP_IDS.filter((id) => (summary?.steps[id]?.failed ?? 0) > 0 || (summary?.steps[id]?.recovered ?? 0) > 0).sort((a, b) => (summary?.steps[b]?.failed ?? 0) - (summary?.steps[a]?.failed ?? 0)) : STEP_IDS;
 
   return (
     <>
-      {graph ? <Canvas views={views} edges={edges} selected={selected} onSelect={setSelected} /> : <Strip views={views} selected={selected} onSelect={setSelected} />}
+      {issuesOnly && <div className="step-foot"><span className="evo-muted">✓ got through · ↻ failed then recovered · ✗ stuck · ⟳ still trying</span><button type="button" className="btn-secondary rounded-md border px-2 py-1 text-xs" aria-pressed={full} onClick={() => { setFull(!full); setSelected(null); }}>{full ? "Show failing steps" : "Show full pipeline"}</button></div>}
+      {!visible.length && <p className="evo-empty">No failed or recovered steps in this window.</p>}
+      {graph && (!issuesOnly || full) ? <Canvas views={views} edges={edges} selected={selected} onSelect={setSelected} /> : <Strip views={views} selected={selected} onSelect={setSelected} ids={visible} />}
       <div className="step-foot">
-        <Legend byJourney={byJourney} />
+        {!issuesOnly && <Legend byJourney={byJourney} />}
         <span className="step-meta">
           Last {summary?.window_hours ?? 24}h · {summary?.tasks_in_flight ?? 0} {byJourney ? "still being tried" : "in flight"}
           {!summary && " · engine offline"}
-          <button type="button" className="btn-link rounded-md border px-2 py-0.5 text-xs" aria-pressed={graph} onClick={() => setGraph(!graph)}>{graph ? "Show as list" : "Show as graph"}</button>
+          {(!issuesOnly || full) && <button type="button" className="btn-link rounded-md border px-2 py-0.5 text-xs" aria-pressed={graph} onClick={() => setGraph(!graph)}>{graph ? "Show as list" : "Show as graph"}</button>}
         </span>
       </div>
       {selected ? (

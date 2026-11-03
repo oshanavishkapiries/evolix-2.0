@@ -2,11 +2,11 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { recentCachedSources } from "@/lib/cms/evo";
-import { attentionItems, healthLine, shortEngine } from "@/lib/evo/admin-view";
-import { NODES } from "@/lib/evo/flow";
+import { failureRate, shortEngine } from "@/lib/evo/admin-view";
+import { engineGet, engines } from "@/lib/evo/client";
+import type { EngineTask } from "@/lib/cms/evo";
 import { allEngineTasks, engineCards, journeyReport } from "@/lib/evo/overview";
 import { AutoRefresh } from "../_components/auto-refresh";
-import { AttentionList, EngineCards, StatusPill } from "../_components/evo-overview";
 import { JourneysPanel } from "../_components/journeys-panel";
 import { SourceDeleteButton, TaskActions } from "../_components/evo-controls";
 import { PageHeader } from "../_components/page-header";
@@ -14,7 +14,12 @@ import { TZ } from "@/lib/tz";
 
 const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 const code = (s: number | null, e: number | null) => (s !== null && e !== null ? `S${s}E${e}` : "Movie");
-const stepLabel = (id: string | null) => (id ? (NODES.find((n) => n.id === id)?.label ?? id) : "");
+async function failureSamples() {
+  return Object.fromEntries(await Promise.all(engines().map(async (engine) => {
+    const sample = await engineGet<EngineTask[]>("/tasks?limit=100", 4000, engine);
+    return [engine.id, { rate: failureRate(sample ? sample.filter((t) => t.status === "FAILED" || t.cache_failed).length : null, sample?.length ?? 0), size: sample?.length ?? 0 }];
+  })));
+}
 
 export default function EvoPage() {
   return (
@@ -32,52 +37,18 @@ export default function EvoPage() {
 
 async function EvoOverview() {
   await connection(); // live engine calls: never at build time
-  const [cards, { tasks, unreachable }, cached, journeys] = await Promise.all([engineCards(), allEngineTasks(), recentCachedSources(), journeyReport(24)]);
+  const [cards, { tasks, unreachable }, cached, journeys, failures] = await Promise.all([engineCards(), allEngineTasks(), recentCachedSources(), journeyReport(24), failureSamples()]);
+  const asOf = new Date().getTime();
   const multi = cards.length > 1;
   const nameOf = (id: string | null) => {
     const e = cards.find((x) => x.id === id);
     return e ? shortEngine(e.name, e.url).label : (id ?? "—");
   };
-  const stuck = journeys.journeys
-    .filter((j) => j.outcome === "never")
-    .slice(0, 5)
-    .map((j) => ({
-      id: j.id,
-      title: `${j.title ?? `TMDB ${j.tmdbId}`}${j.mediaType === "tv" && j.season !== null ? ` S${j.season}E${j.episode}` : ""}${j.kind === "sinhala" ? " (Sinhala)" : ""}`,
-      detail: j.trouble ? `${stepLabel(j.trouble.step)}${j.trouble.step ? ": " : ""}${j.trouble.detail}`.slice(0, 140) : "",
-      href: `/admin/evo/${j.decisive.task_id}`,
-    }));
-  const attention = attentionItems(cards, stuck);
-  const health = healthLine(cards);
-  const up = cards.filter((e) => e.available).length;
-  const sum = (f: (e: (typeof cards)[number]) => number) => cards.reduce((n, e) => n + f(e), 0);
-  const providers = cards.flatMap((e) => e.providers ?? []);
 
   return (
     <div className="evo-stack">
       <AutoRefresh seconds={20} />
-      <div className="health" data-tone={health.level}>
-        <StatusPill tone={health.level} text={health.text} />
-        <ul>
-          <li><strong>{up}/{cards.length}</strong> engines up</li>
-          <li><strong>{sum((e) => e.queue?.extracting ?? e.activeJobs)}</strong> extracting</li>
-          <li><strong>{sum((e) => e.queue?.caching ?? 0)}</strong> caching</li>
-          <li><strong>{sum((e) => e.queue?.waiting_extraction ?? e.queueDepth)}</strong> waiting</li>
-          <li><strong>{providers.filter((p) => p.state === "healthy").length}/{providers.length}</strong> providers healthy</li>
-        </ul>
-      </div>
-
-      <section className="evo-section">
-        <div className="evo-section-head"><h2>Needs attention {attention.length > 0 && <span className="evo-count" data-tone="bad">{attention.length}</span>}</h2></div>
-        <AttentionList items={attention} />
-      </section>
-
-      <section className="evo-section">
-        <div className="evo-section-head"><h2>Engines</h2></div>
-        <EngineCards engines={cards} />
-      </section>
-
-      <JourneysPanel initial={journeys} multi={multi} />
+      <JourneysPanel initial={journeys} multi={multi} engines={cards} failures={failures} asOf={asOf} />
 
       <section className="evo-section">
         <div className="evo-section-head">
@@ -87,10 +58,10 @@ async function EvoOverview() {
           </div>
         </div>
         <details className="evo-details">
-          <summary>Engine tasks <span className="evo-count">{tasks.length}</span><span className="evo-muted"> · one row per try, newest first</span></summary>
-          {unreachable.length > 0 && <p className="evo-note">Tasks of {unreachable.join(", ")} are not shown while it is unreachable.</p>}
+          <summary>Engine tries <span className="evo-count">{tasks.length}</span><span className="evo-muted"> · one row per try, newest first</span></summary>
+          {unreachable.length > 0 && <p className="evo-note">Tries from {unreachable.join(", ")} are not shown while unreachable.</p>}
           {!tasks.length ? (
-            <p className="evo-empty">No tasks yet.</p>
+            <p className="evo-empty">No tries yet.</p>
           ) : (
             <div className="table-wrap">
               <table className="data-table evo-table">

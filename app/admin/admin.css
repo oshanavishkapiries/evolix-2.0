@@ -382,7 +382,48 @@ body:has(.adm) { background: #1f1f1f; }
 .adm .prov-list li[data-state="cooling"] i, .adm .prov-cards li[data-state="cooling"] i { background: var(--tone-bad); }
 .adm .prov-list li[data-state="trial"] i, .adm .prov-cards li[data-state="trial"] i { background: var(--tone-warn); }
 
-/* KPIs (the journey outcome cards sit in the same row) */
+/* Decision-first overview */
+.adm .verdict { justify-content: space-between; }
+.adm .health .verdict-text { color: var(--tone); font-size: .9rem; flex: 1 1 22rem; }
+.adm .verdict ul { font-size: .75rem; color: #9a9a9a; margin-left: auto; }
+.adm .kpis.decision-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.adm .decision-kpis .kpi[data-tone] { border-top-color: var(--tone) !important; }
+.adm .decision-kpis .kpi[data-tone] .kpi-value { color: var(--tone); }
+.adm .decision-kpis .kpi-step { font-size: 1.2rem; line-height: 1.5; overflow-wrap: anywhere; }
+.adm .cause-group { padding: 1rem; border: 1px solid #59322f; border-left: 3px solid var(--tone); border-radius: 8px; background: #292323; min-width: 0; }
+.adm .cause-group header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.adm .cause-group header > div { flex: 1 1 18rem; min-width: 0; }
+.adm .cause-group h3 { font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
+.adm .cause-group h3 .evo-count { margin-left: .4rem; }
+.adm .cause-group ul { margin-top: .65rem; padding: 0; list-style: none; }
+.adm .cause-group li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; padding: .55rem 0; border-top: 1px solid #42312f; }
+.adm .cause-group li > a { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; font-size: .85rem; }
+.adm .cause-group fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.adm .outcome-filters { display: flex; flex-wrap: wrap; gap: .5rem; }
+.adm .outcome-filters button { display: inline-flex; gap: .5rem; align-items: center; cursor: pointer; padding: .4rem .7rem; border: 1px solid #505050; border-radius: 999px; font-size: .8rem; }
+.adm .outcome-filters button:hover { background: #383838; }
+.adm .outcome-filters button[aria-pressed="true"] { color: var(--j, var(--a-gold)); border-color: currentColor; background: #383838; box-shadow: inset 0 0 0 1px currentColor; }
+.adm .outcome-filters strong { color: var(--j, #eee); font-variant-numeric: tabular-nums; }
+.adm .engine-rows { border: 1px solid #3a3a3a; border-radius: 8px; overflow: hidden; }
+.adm .engine-row { display: grid; grid-template-columns: minmax(5rem, 1fr) auto minmax(5rem, .8fr) minmax(9rem, 1.4fr) minmax(5rem, .8fr) auto auto; align-items: center; gap: .6rem 1rem; padding: .8rem 1rem; background: #262626; font-size: .78rem; }
+.adm .engine-row + .engine-row { border-top: 1px solid #3a3a3a; }
+.adm .engine-row > a:first-child { overflow-wrap: anywhere; }
+.adm .engine-row > span { color: #b3b3b3; }
+.adm .engine-row .engine-rate-warning, .adm .engine-row .engine-disk[data-tone] { color: var(--tone); }
+.adm .engine-row .prov-list { gap: .3rem; }
+.adm .engine-row .prov-list li { padding: .2rem; background: none; }
+@media (max-width: 65rem) {
+  .adm .engine-row { display: flex; flex-wrap: wrap; }
+  .adm .engine-row > a:first-child { flex: 1 1 8rem; }
+  .adm .engine-row > a:last-child { margin-left: auto; }
+}
+@media (max-width: 40rem) {
+  .adm .kpis.decision-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adm .verdict ul { margin-left: 0; }
+}
+
+/* KPIs */
+
 .adm .kpis { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); }
 .adm .kpi { display: flex; flex-direction: column; gap: .15rem; padding: .8rem 1rem; border: 1px solid #3a3a3a !important; border-top: 3px solid var(--a-gold) !important; border-radius: .6rem !important; background: #2a2a2a !important; color: #e6e6e6 !important; }
 .adm .kpi-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: #9a9a9a; }
@@ -422,7 +463,7 @@ body:has(.adm) { background: #1f1f1f; }
 .adm .step-chip[data-state="failed"] { background: rgb(255 107 97 / .07) !important; }
 .adm .step-name { display: flex; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; }
 .adm .step-name i { width: .45rem; height: .45rem; border-radius: 50%; background: var(--st); flex: none; }
-.adm .step-sub { font-size: .72rem; color: #9a9a9a; font-variant-numeric: tabular-nums; white-space: pre; }
+.adm .step-sub { font-size: .72rem; color: #9a9a9a; font-variant-numeric: tabular-nums; white-space: pre-wrap; overflow-wrap: anywhere; }
 .adm .step-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
 .adm .step-foot .flow-legend { margin-top: 0; }
 .adm .step-meta { display: flex; align-items: center; gap: .75rem; font-size: .78rem; color: #9a9a9a; }
