@@ -37,11 +37,14 @@ async function check(engine: EngineRef) {
   return { health, queue };
 }
 
-async function ensureRows() {
-  await db
-    .insert(evoEngines)
-    .values((await engines()).map((e) => ({ id: e.id, url: e.url })))
-    .onConflictDoUpdate({ target: evoEngines.id, set: { url: sql`excluded.url` } });
+export async function ensureRows() {
+  const refs = await engines();
+  if (!refs.length) return;
+  // Only env health rows can be refreshed. Registry records and tombstones survive stale scheduler snapshots.
+  await db.insert(evoEngines).values(refs.map((e) => ({ id: e.id, url: e.url }))).onConflictDoUpdate({
+    target: evoEngines.id, set: { url: sql`excluded.url` },
+    setWhere: and(eq(evoEngines.managed, false), sql`${evoEngines.removedAt} is null`),
+  });
 }
 
 let refreshing: Promise<void> | null = null;
@@ -147,12 +150,15 @@ const bump = (engine: EngineRef) =>
  * A claim whose engine is down (or draining with nothing left to finish) is moved to a healthy engine: that
  * request becomes a controlled retry, and the old task stays with its old engine.
  *
- * With a single engine there is nothing to decide and no database round trip.
+ * A single engine still honors its drain switch; there is no claim assignment to arbitrate.
  */
 export async function claimEngine(key: string, opts: { affinityPrefix?: string; avoid?: string } = {}): Promise<EngineRef> {
   if ((await engines()).length === 1) {
     if (opts.avoid) throw new NoEngineAvailableError("There is no other engine to move this job to");
-    return (await defaultEngine());
+    const engine = await defaultEngine();
+    const [row] = await db.select({ draining: evoEngines.draining }).from(evoEngines).where(eq(evoEngines.id, engine.id)).limit(1);
+    if (row?.draining) throw new NoEngineAvailableError("The Evo engine is draining");
+    return engine;
   }
   await refreshHealth();
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -228,7 +234,6 @@ export class EngineGoneError extends Error {
 
 /** Engine that owns a task; tasks from before multi-engine belong to the primary engine. */
 export async function engineForTask(taskId: string): Promise<EngineRef> {
-  if ((await engines()).length === 1) return (await defaultEngine());
   let id = owners.get(taskId);
   if (!id) {
     const [row] = await db.select({ engineId: evoTasks.engineId }).from(evoTasks).where(eq(evoTasks.taskId, taskId)).limit(1);

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "evo_engines_live_url_idx" ON "evo_engines" USING btree ("url") WHERE "evo_engines"."removed_at" is null;

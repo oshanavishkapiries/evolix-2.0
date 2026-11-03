@@ -1,13 +1,16 @@
 import { z } from "zod";
 import { json, parseBody } from "@/lib/auth/http";
-import { adminRoute, notFound } from "@/lib/cms/api";
 import { setDraining } from "@/lib/evo/scheduler";
+import { removeEngine, updateEngine, RegistryError } from "@/lib/evo/registry";
+import { registryRoute } from "../_shared";
 
-const body = z.object({ draining: z.boolean() });
-
-/** Marks an engine as draining (no new jobs; active ones finish) or puts it back in rotation. */
-export const PATCH = adminRoute<{ id: string }>(async (req, { id }) => {
-  const parsed = await parseBody(req, body);
+export const PATCH = registryRoute<{ id: string }>(async (req, { id }, actor) => {
+  const parsed = await parseBody(req, z.object({ draining: z.boolean().optional(), name: z.string().optional(), url: z.string().optional() }).strict().refine((v) => Object.keys(v).length > 0));
   if ("error" in parsed) return parsed.error;
-  return (await setDraining(id, parsed.data.draining)) ? json(200, { id, draining: parsed.data.draining }) : notFound("Engine");
+  let engine;
+  if (parsed.data.name !== undefined || parsed.data.url !== undefined) engine = await updateEngine(id, parsed.data, actor);
+  if (parsed.data.draining !== undefined && !(await setDraining(id, parsed.data.draining))) throw new RegistryError("Engine not found", 404);
+  return json(200, { ...engine, id, draining: parsed.data.draining });
 });
+export const DELETE = registryRoute<{ id: string }>(async (req, { id }, actor) =>
+  json(200, await removeEngine(id, actor, req.nextUrl.searchParams.get("force") === "1")));

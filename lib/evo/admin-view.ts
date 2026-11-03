@@ -73,7 +73,7 @@ export function attentionItems(engines: EngineCard[], stuck: { id: string; title
     const { label } = shortEngine(e.name, e.url);
     if (!e.available) out.push({ level: "bad", key: `down:${e.id}`, text: `${label} is not answering`, detail: e.lastError ?? undefined, href: `/admin/evo/engines/${encodeURIComponent(e.id)}` });
     if (e.queue?.paused) out.push({ level: "warn", key: `paused:${e.id}`, text: `${label}: queue is paused`, detail: "Running jobs finish, no new ones start.", href: `/admin/evo/engines/${encodeURIComponent(e.id)}` });
-    if (e.draining) out.push({ level: "warn", key: `drain:${e.id}`, text: `${label} is draining`, detail: e.safeToRemove ? "Empty: safe to remove from EVO_ENGINES." : "Finishing its jobs, takes no new ones.", href: `/admin/evo/engines/${encodeURIComponent(e.id)}` });
+    if (e.draining) out.push({ level: "warn", key: `drain:${e.id}`, text: `${label} is draining`, detail: e.safeToRemove ? "Empty: safe to remove from the admin engines page." : "Finishing its jobs, takes no new ones.", href: `/admin/evo/engines/${encodeURIComponent(e.id)}` });
     if (e.freeDiskGb != null && e.freeDiskGb < LOW_DISK_GB) out.push({ level: "warn", key: `disk:${e.id}`, text: `${label}: only ${Math.round(e.freeDiskGb)} GB free disk`, href: `/admin/cdn?engine=${encodeURIComponent(e.id)}` });
     for (const p of e.providers ?? []) {
       if (p.state === "healthy") continue;

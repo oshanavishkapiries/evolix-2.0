@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { getConfig } from "@/lib/config";
 
 vi.mock("@/lib/config", () => ({ getConfig: vi.fn() }));
+// No managed records: exercise the real registry fallback against an empty DB fixture.
+vi.mock("@/db", () => ({ db: { select: () => ({ from: () => ({ then: (resolve: (value: unknown[]) => unknown) => Promise.resolve([]).then(resolve), where: async () => [] }) }) } }));
 import { engines, engineById } from "@/lib/evo/client";
 import { isEngineCall } from "@/lib/evo/engine";
 import { viewerStreamUrl } from "@/lib/evo/stream-url";
@@ -12,10 +14,10 @@ vi.mock("nodemailer", () => ({ default: { createTransport: vi.fn(() => ({ close:
 
 const config = (values: Record<string, unknown>) => vi.mocked(getConfig).mockResolvedValue(values as unknown as Awaited<ReturnType<typeof getConfig>>);
 describe("asynchronous config consumers", () => {
-  it("refreshes the memoised engines when the config changes", async () => {
+  it("refreshes fallback engines when the config changes", async () => {
     config({ EVO_ENGINES: '["http://first.example.test:8000"]' });
     const first = await engines(); expect(first[0].url).toContain("first.");
-    expect(await engines()).toBe(first);
+    expect(await engines()).toEqual(first);
     config({ EVO_ENGINES: '["http://second.example.test:8000"]' });
     expect((await engines())[0].url).toContain("second.");
     expect(await engineById(first[0].id)).toBeUndefined();

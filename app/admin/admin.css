@@ -553,3 +553,13 @@ body:has(.adm) { background: #1f1f1f; }
   .adm .ov-trend strong { font-size: 1.25rem; }
   .adm .ov-status-detail, .adm .ov-trend .an-delta { font-size: .7rem; }
 }
+
+/* BEGIN engine registry management (Phase 3) */
+.adm .engine-registry { display: grid; gap: 1rem; }
+.adm .engine-registry form { display: grid; gap: .85rem; max-width: 42rem; }
+.adm .engine-registry label { display: grid; gap: .35rem; color: var(--adm-muted, #a1a1aa); }
+.adm .engine-registry input { width: 100%; padding: .65rem .8rem; border: 1px solid #3f3f46; border-radius: .4rem; background: #18181b; color: #f4f4f5; }
+.adm .engine-registry-banner, .adm .engine-registry-reveal { padding: 1rem; border: 1px solid #52525b; border-radius: .5rem; background: #202024; }
+.adm .engine-registry-reveal { display: grid; gap: .8rem; border-color: #a16207; }
+.adm .engine-registry-reveal code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; color: #facc15; user-select: all; }
+/* END engine registry management (Phase 3) */

@@ -48,6 +48,7 @@ async function EvoOverview() {
   return (
     <div className="evo-stack">
       <AutoRefresh seconds={20} />
+      <div className="evo-section-head"><h2>Engines</h2><Link href="/admin/evo/engines">Manage engines</Link></div>
       <JourneysPanel initial={journeys} multi={multi} engines={cards} failures={failures} asOf={asOf} />
 
       <section className="evo-section">

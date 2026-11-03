@@ -1,12 +1,15 @@
 import { timingSafeEqual } from "node:crypto";
-import { getConfig } from "@/lib/config";
+import { engineCallbackTokens } from "./registry";
 
-/** Constant-time check of the shared secret on calls coming FROM the engine. Fails closed when no secret is configured. */
+/** Constant-time comparisons against effective per-engine credentials for engine callbacks. */
 export async function isEngineCall(req: Request): Promise<boolean> {
-  const expected = (await getConfig()).EVO_SECRET_TOKEN;
   const got = req.headers.get("x-evo-secret") ?? "";
+  if (!got) return false;
   const actualBytes = Buffer.from(got);
-  const expectedBytes = Buffer.from(expected);
-  if (!expected || actualBytes.length !== expectedBytes.length) return false;
-  return timingSafeEqual(actualBytes, expectedBytes);
+  let valid = false;
+  for (const expected of await engineCallbackTokens()) {
+    const expectedBytes = Buffer.from(expected);
+    if (actualBytes.length === expectedBytes.length) valid = timingSafeEqual(actualBytes, expectedBytes) || valid;
+  }
+  return valid;
 }

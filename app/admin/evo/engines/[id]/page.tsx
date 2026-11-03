@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EngineRegistryActions } from "../_components/registry-controls";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -57,17 +58,19 @@ async function Engine({ params, searchParams }: Props) {
           <p className="engine-sub">
             <span>{host}</span>
             <CopyText text={e.url} label="Copy engine URL" />
-            {e.draining && <span className="warn-text">{e.safeToRemove ? "Empty: safe to remove from EVO_ENGINES" : e.available ? "Finishing its jobs, takes no new ones" : "Cannot confirm it is empty while unreachable"}</span>}
+            {e.draining && <span className="warn-text">{e.safeToRemove ? "Empty: safe to remove using Manage engine" : e.available ? "Finishing its jobs, takes no new ones" : "Cannot confirm it is empty while unreachable"}</span>}
           </p>
         </div>
         <div className="toolbar">
           {online ? (
-            <EngineActions engine={e.id}>{multi && <DrainButton id={e.id} draining={e.draining} />}</EngineActions>
+            <EngineActions engine={e.id}><DrainButton id={e.id} draining={e.draining} /></EngineActions>
           ) : (
-            multi && <DrainButton id={e.id} draining={e.draining} />
+            <DrainButton id={e.id} draining={e.draining} />
           )}
         </div>
       </div>
+
+      <EngineRegistryActions id={e.id} initialName={e.name} initialUrl={e.url} />
 
       <nav aria-label="Engine sections" className="tabs">
         <ul>

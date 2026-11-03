@@ -20,7 +20,7 @@ export type EngineOverview = {
   freeDiskGb: number | null;
   /** Recent tasks that failed or were not cached (looked at the last 100 tasks the engine reports). */
   failures: number | null;
-  /** Draining and nothing left to finish: nothing is lost by removing it from EVO_ENGINES. */
+  /** Draining and nothing left to finish: nothing is lost by removing it from the admin engines page. */
   safeToRemove: boolean;
 };
 

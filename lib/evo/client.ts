@@ -1,35 +1,23 @@
-import { getConfig } from "@/lib/config";
+import { registeredEngines, engineToken } from "./registry";
+import { fetchEngine, EngineUnavailableError } from "./transport";
+export { DEFAULT_TIMEOUT_MS, EngineUnavailableError } from "./transport";
 
 /**
- * The only place that knows where an Evo engine lives, adds the shared secret and applies timeouts.
+ * Resolves engine addresses and credentials, and applies the shared transport timeouts.
  * Every app-to-engine call goes through `engineFetch`.
  */
-import { parseEngines, type EngineRef } from "@/lib/config/engine-list";
+import { type EngineRef } from "@/lib/config/engine-list";
 export { parseEngines, engineIdFor, type EngineRef } from "@/lib/config/engine-list";
 
-const MEDIA = "/api/v1/media";
+/** DB-managed records replace the env list as soon as one exists. */
+export const engines = registeredEngines;
 
-let configured: EngineRef[] | null = null;
-let configuredValue: string | undefined;
-
-/** Engines this deployment can talk to, refreshed when config changes. The first one is the primary (owner of tasks from before multi-engine). */
-export async function engines(): Promise<EngineRef[]> {
-  const value = (await getConfig()).EVO_ENGINES;
-  if (!configured || configuredValue !== value) {
-    configured = parseEngines(value);
-    configuredValue = value;
-  }
-  return configured;
+export async function defaultEngine(): Promise<EngineRef> {
+  const engine = (await engines())[0];
+  if (!engine) throw new EngineUnavailableError("No Evo engine configured");
+  return engine;
 }
-
-export const defaultEngine = async (): Promise<EngineRef> => (await engines())[0];
 export const engineById = async (id: string): Promise<EngineRef | undefined> => (await engines()).find((e) => e.id === id);
-
-export class EngineUnavailableError extends Error {
-  constructor(message = "The Evo engine did not answer") {
-    super(message);
-  }
-}
 
 export type EngineCall = {
   method?: "GET" | "HEAD" | "POST" | "PUT" | "DELETE";
@@ -41,33 +29,11 @@ export type EngineCall = {
   engine?: EngineRef;
 };
 
-export const DEFAULT_TIMEOUT_MS = 15_000;
-
-/**
- * Calls the engine. `path` is relative to the media API ("/ingest"), or absolute ("/health") when it starts with
- * "/health". Resolves with the raw Response (a streaming body stays a stream); rejects with EngineUnavailableError
- * when the engine cannot be reached or does not answer in time.
- */
+/** Every engine call uses its own token, falling back to the global credential. */
 export async function engineFetch(path: string, call: EngineCall = {}): Promise<Response> {
   const engine = call.engine ?? (await defaultEngine());
-  const headers: Record<string, string> = { ...call.headers };
-  if ((await getConfig()).EVO_SECRET_TOKEN) headers["X-Evo-Secret"] = (await getConfig()).EVO_SECRET_TOKEN;
-  let body: BodyInit | undefined;
-  if (call.body !== undefined) {
-    body = typeof call.body === "string" ? call.body : JSON.stringify(call.body);
-    if (typeof call.body !== "string") headers["Content-Type"] = "application/json";
-  }
-
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), call.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  try {
-    const url = path.startsWith("/health") ? `${engine.url}${path}` : `${engine.url}${MEDIA}${path}`;
-    return await fetch(url, { method: call.method ?? "GET", headers, body, cache: "no-store", signal: ctrl.signal });
-  } catch (e) {
-    throw new EngineUnavailableError(e instanceof Error && e.name !== "AbortError" ? e.message : undefined);
-  } finally {
-    clearTimeout(timer); // headers are in (or we gave up); the body is read without a deadline
-  }
+  if (!engine) throw new Error("No Evo engine configured");
+  return fetchEngine(engine.url, path, await engineToken(engine.id), call);
 }
 
 /** JSON call: `data` is the parsed body ({} when it is not JSON). */

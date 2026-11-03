@@ -467,10 +467,16 @@ export const announcementReads = pgTable(
 
 // ---------------------------------------------------------------- Evo engines (the app is the gateway and scheduler)
 
-/** Last known health of each configured engine, plus the admin's drain switch. Rows mirror EVO_ENGINES. */
+/** Engine registry and health snapshots. Removed rows remain as tombstones; task history is preserved. */
 export const evoEngines = pgTable("evo_engines", {
   id: text("id").primaryKey(),
   url: text("url").notNull(),
+  name: text("name"),
+  token: text("token"),
+  managed: boolean("managed").notNull().default(false),
+  removedAt: timestamp("removed_at", { withTimezone: true }),
+  configVersion: integer("config_version").notNull().default(0),
+  configPushedVersion: integer("config_pushed_version").notNull().default(0),
   /** Takes no new jobs; finishes the active ones. */
   draining: boolean("draining").notNull().default(false),
   /** Result of the latest health check. */
@@ -484,7 +490,7 @@ export const evoEngines = pgTable("evo_engines", {
   maxExtractions: integer("max_extractions").notNull().default(1),
   freeDiskGb: real("free_disk_gb"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [uniqueIndex("evo_engines_live_url_idx").on(t.url).where(sql`${t.removedAt} is null`)]);
 
 /** Which engine owns each task. Never moves: a retry elsewhere is a new task. */
 export const evoTasks = pgTable(
