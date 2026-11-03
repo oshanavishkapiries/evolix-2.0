@@ -1,0 +1,1 @@
+pip install pyrogram tgcrypto "aiohttp>=3.8.3" python-dotenv motor aiofiles dnspython apscheduler requests psutil pyromod colorama

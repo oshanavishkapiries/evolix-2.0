@@ -1,0 +1,86 @@
+<!--(c) adarsh-goel-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sinhalasub.net - සිංහල උපසිරසි සමඟ ඔන්ලයින් බලන්න ඩිරෙක්ට් ඩවුලෝඩ් කරන්න</title>
+    <meta name="title" content="Sinhalasub.LK - සිංහල උපසිරසි සමඟ ඔන්ලයින් බලන්න ඩිරෙක්ට් ඩවුලෝඩ් කරන්න" />
+    <meta name="description" content="Sinhalasub.LK Watch %s" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sinhalasub.lk/" />
+    <meta property="og:title" content="Sinhalasub.net - සිංහල උපසිරසි සමඟ ඔන්ලයින් බලන්න ඩිරෙක්ට් ඩවුලෝඩ් කරන්න" />
+    <meta property="og:description" content="Sinhalasub.net ඔන්ලයින් බලන්න ඩිරෙක්ට් ඩවුන්ලෝඩ් කරන්න" />
+    <meta property="og:image" content="https://metatags.io/images/meta-tags.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://sinhalasub.lk/" />
+    <meta property="twitter:title" content="Sinhalasub.net - සිංහල උපසිරසි සමඟ ඔන්ලයින් බලන්න ඩිරෙක්ට් ඩවුලෝඩ් කරන්න" />
+    <meta property="twitter:description" content="Sinhalasub.net ඔන්ලයින් බලන්න ඩිරෙක්ට් ඩවුන්ලෝඩ් කරන්න" />
+    <meta property="twitter:image" content="https://metatags.io/images/meta-tags.png" />
+
+    <!-- Meta Tags Generated with https://metatags.io -->
+
+    <meta charset="UTF-8">
+    <meta property="og:image" content="https://i.ibb.co/M8S0Zzj/live-streaming.png" itemprop="thumbnailUrl">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Delius">
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css"/>
+<style></style>
+</head>
+
+<body>
+    <header>
+        <div class="toogle"></div>
+        <div id="file-name">
+           <marquee direction = "left"> %s</marquee>
+        </div>
+    </header>
+
+    <div class="container">
+        <tag src="%s" class="player"></tag>
+    </div>
+    
+    <footer>
+	<h4><a href="https://SinhalaSub.LK" style="color:blue" >SinhalaSub.LK &emsp; &emsp;</a></h4>
+        <span id="fork-text"><a href="tg://resolve?domain=SSBNETBOT">Find Movies</a></span>
+	    
+    </footer>
+    
+    
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+	<script>
+        const controls = [
+              'play-large',
+              'rewind',
+              'play', 
+              'fast-forward', 
+              'progress', 
+              'current-time',
+              'duration',
+              'mute',
+              'volume',
+              'captions',
+              'settings',
+              'pip',
+              'airplay',
+              'download',
+              'fullscreen'
+            ];
+        document.addEventListener('DOMContentLoaded', () => {
+            const player = Plyr.setup('.player', { controls });
+        });
+
+        const body = document.querySelector('body');
+        const footer = document.querySelector('footer');
+        const toogle = document.querySelector('.toogle');
+        toogle.onclick = () => {
+            body.classList.toggle('dark')
+            footer.classList.toggle('dark')
+        }
+    </script>
+</body>
+</html>

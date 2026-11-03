@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sinhalasub.LK - Download %s</title>
+    <meta name="title" content="Sinhalasub.LK - Download %s" />
+    <meta name="description" content="Sinhalasub.LK Download %s" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sinhalasub.lk/" />
+    <meta property="og:title" content="Sinhalasub.LK - Download %s" />
+    <meta property="og:description" content="Sinhalasub.LK Download %s" />
+    <meta property="og:image" content="https://sinhalasub.lk/wp-content/uploads/2023/07/300365330_168083112405368_4327563437952848026_n.png" itemprop="thumbnailUrl"/>
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://sinhalasub.lk/" />
+    <meta property="twitter:title" content="Sinhalasub.LK - Download %s" />
+    <meta property="twitter:description" content="Sinhalasub.LK Download %s" />
+    <meta property="twitter:image" content="https://sinhalasub.lk/wp-content/uploads/2023/07/300365330_168083112405368_4327563437952848026_n.png" />
+
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Delius">
+  
+<style></style>
+
+</head>
+
+<body class='cyber'>
+    <header>
+        <div class="toogle"></div>
+        <div id="file-name" class="cyber">
+		<marquee direction = "left"> %s</marquee>
+        </div>
+    </header>
+
+    <div class="container">
+        <a href=%s>
+            <button class="cybr-btn">
+                Download
+                <span aria-hidden>_</span>
+                <span aria-hidden class="cybr-btn__glitch">_404 Error</span>
+                <span aria-hidden class="cybr-btn__tag">_%s</span>
+            </button>
+        </a>
+    </div>
+    
+    <footer>
+        <h4><a href="https://SinhalaSub.LK" style="color:blue" >SinhalaSub.LK &emsp; &emsp;</a></h4>
+            <span id="fork-text"><a href="tg://resolve?domain=SSBNETBOT">Find Movies</a>a></span>
+            
+    </footer>
+    
+    
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+	<script>
+        const controls = [
+              'play-large',
+              'rewind',
+              'play', 
+              'fast-forward', 
+              'progress', 
+              'current-time',
+              'duration',
+              'mute',
+              'volume',
+              'captions',
+              'settings',
+              'pip',
+              'airplay',
+              'download',
+              'fullscreen'
+            ];
+        document.addEventListener('DOMContentLoaded', () => {
+            const player = Plyr.setup('.player', { controls });
+        });
+
+        const body = document.querySelector('body');
+        const title = document.querySelector('#file-name');
+        const footer = document.querySelector('footer');
+        const toogle = document.querySelector('.toogle');
+        toogle.onclick = () => {
+            body.classList.toggle('dark')
+            footer.classList.toggle('dark')
+            title.classList.toggle('dark')
+        }
+    </script>
+</body>
+</html>
