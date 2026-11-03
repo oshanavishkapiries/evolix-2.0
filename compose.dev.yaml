@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: evolix_local
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d evolix_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  neon-proxy:
+    image: ghcr.io/timowilhelm/local-neon-http-proxy:main
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PG_CONNECTION_STRING: postgres://postgres:postgres@postgres:5432/evolix_local
+    ports:
+      - "127.0.0.1:4444:4444"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://127.0.0.1:4444/ >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  evo-engine:
+    build:
+      context: ./evo-engine
+    image: evo-engine:local
+    restart: unless-stopped
+    env_file:
+      - evo-engine/.env.docker-local
+    environment:
+      DOWNLOAD_DIR: /app/downloads
+      TEMP_DIR: /app/temp
+      SQLITE_DB_PATH: /app/data/evo_engine.sqlite3
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - engine-data:/app/data
+      - engine-downloads:/app/downloads
+      - engine-temp:/app/temp
+    shm_size: "1gb"
+    stop_grace_period: 2m
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json, urllib.request; h = json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); assert h['status'] == 'healthy' and h['ffmpeg_available'] and h['ffprobe_available']"]
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+volumes:
+  postgres-data:
+  engine-data:
+  engine-downloads:
+  engine-temp:
