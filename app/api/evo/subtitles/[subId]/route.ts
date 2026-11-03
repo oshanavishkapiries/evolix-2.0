@@ -19,7 +19,7 @@ export async function GET(
     const owner = await subtitleOwner(subId.replace(/\.vtt$/, ""));
     let res = await engineFetch(`/subtitles/${cleanId}`, { engine: owner ?? undefined });
     if (!owner && res.status === 404) {
-      for (const engine of engines().slice(1)) {
+      for (const engine of (await engines()).slice(1)) {
         const next = await engineFetch(`/subtitles/${cleanId}`, { engine }).catch(() => null);
         if (next?.ok) {
           res = next;

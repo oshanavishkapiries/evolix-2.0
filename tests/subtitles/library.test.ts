@@ -9,7 +9,7 @@ import * as schema from '@/db/schema';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PgliteDatabase<typeof schema>, user: '' as string | null, movie: '', engineFetch: vi.fn(), engine: { id: 'local-test', name: 'test', url: 'http://127.0.0.1:9999' }, revalidate: vi.fn() }));
 vi.mock('@/db', () => ({ get db() { return state.db; } }));
-vi.mock('@/lib/env', () => ({ env: { JWT_ACCESS_SECRET: 'subtitle-tests-only-secret-0000000000000000000000' } }));
+vi.mock('@/lib/config', () => ({ getConfig: async () => ({ JWT_ACCESS_SECRET: 'subtitle-tests-only-secret-0000000000000000000000' }) }));
 vi.mock('next/cache', () => ({ revalidateTag: state.revalidate }));
 vi.mock('@/lib/auth/session', () => ({ authenticate: vi.fn(async () => state.user ? { userId: state.user, sessionId: 'test' } : null) }));
 vi.mock('@/lib/viewer/access', () => ({ canWatch: vi.fn(async () => true) }));

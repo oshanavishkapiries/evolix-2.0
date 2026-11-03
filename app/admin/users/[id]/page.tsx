@@ -36,7 +36,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     .where(eq(watchProgress.userId, id))
     .orderBy(desc(watchProgress.updatedAt))
     .limit(200);
-  const admin = isAdminEmail(user.email);
+  const admin = (await isAdminEmail(user.email));
   return (
     <>
       <PageHeader title={user.email} actions={<Link href={`/admin/support?user=${user.id}`}>Message user</Link>} />

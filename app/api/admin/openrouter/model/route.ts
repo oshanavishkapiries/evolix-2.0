@@ -9,7 +9,7 @@ type EngineModel = { id: string; name: string; model: string | null; error?: str
 
 async function current(): Promise<EngineModel[]> {
   return Promise.all(
-    engines().map(async (e): Promise<EngineModel> => {
+    (await engines()).map(async (e): Promise<EngineModel> => {
       try {
         const res = await engineFetch("/config", { engine: e, timeoutMs: 8000 });
         if (!res.ok) return { id: e.id, name: e.name, model: null, error: `Engine returned ${res.status}` };
@@ -40,7 +40,7 @@ export const PUT = adminRoute(async (req) => {
   if (known.length && !known.some((m) => m.id === model)) return json(422, { message: `"${model}" is not a model OpenRouter lists. Pick one from the list.` });
 
   const results = await Promise.all(
-    engines().map(async (e) => {
+    (await engines()).map(async (e) => {
       try {
         const res = await engineFetch("/config", { method: "PUT", engine: e, body: { TRANSLATE_MODEL: model }, timeoutMs: 15_000 });
         if (res.ok) return { id: e.id, name: e.name, ok: true as const };

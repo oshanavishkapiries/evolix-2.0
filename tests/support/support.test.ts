@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({ db: null as unknown as ReturnType<typeof drizz
 vi.mock('@/db', () => ({ db: new Proxy({}, { get: (_, key) => { const value = Reflect.get(state.db, key); return typeof value === 'function' ? value.bind(state.db) : value; } }) }));
 vi.mock('@/lib/auth/session', () => ({ authenticate: async () => state.viewer ? { userId: state.viewer } : null }));
 vi.mock('@/lib/auth/admin', () => ({ requireAdmin: async () => state.admin ? { id: state.admin } : new Response(null, { status: 403 }) }));
-vi.mock('@/lib/env', () => ({ env: {} }));
+vi.mock('@/lib/config', () => ({ getConfig: async () => ({}) }));
 
 import { readThread, sendMessage, markRead, unreadCount, inbox, setStatus, findUsers, deleteOwnMessage, clearHistory, supportNotification, deleteConversation } from '@/lib/support/store';
 import { GET as viewerGet, POST as viewerPost, DELETE as viewerClear } from '@/app/api/me/support/route';

@@ -28,7 +28,7 @@ export const PATCH = adminRoute<{ id: string }>(async (req, { id }) => {
   const d = parsed.data;
   const [current] = await db.select({ email: users.email }).from(users).where(eq(users.id, id)).limit(1);
   if (!current) return notFound("User");
-  if (d.email && d.email !== current.email && isAdminEmail(current.email))
+  if (d.email && d.email !== current.email && (await isAdminEmail(current.email)))
     return fail(409, "CONFLICT", "Admin emails are set in ADMIN_EMAILS and cannot be changed here");
 
   const set: Partial<typeof users.$inferInsert> = { updatedAt: new Date() };
@@ -46,7 +46,7 @@ export const DELETE = adminRoute<{ id: string }>(async (_req, { id }) => {
   if (!isUuid(id)) return notFound("User");
   const [current] = await db.select({ email: users.email }).from(users).where(eq(users.id, id)).limit(1);
   if (!current) return notFound("User");
-  if (isAdminEmail(current.email)) return fail(409, "CONFLICT", "Admin accounts cannot be deleted here");
+  if ((await isAdminEmail(current.email))) return fail(409, "CONFLICT", "Admin accounts cannot be deleted here");
   await db.delete(users).where(eq(users.id, id));
   return json(200, { ok: true });
 });

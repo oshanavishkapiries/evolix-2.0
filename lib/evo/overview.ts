@@ -54,7 +54,7 @@ export async function enginesOverview(): Promise<EngineOverview[]> {
 /** The overview plus each reachable engine's queue and provider health, as plain JSON for the admin cards. */
 export async function engineCards(): Promise<EngineCard[]> {
   const list = await enginesOverview();
-  const refs = new Map(engines().map((e) => [e.id, e]));
+  const refs = new Map((await engines()).map((e) => [e.id, e]));
   return Promise.all(
     list.map(async (e) => {
       const ref = refs.get(e.id);
@@ -68,7 +68,7 @@ export type OwnedTask = EngineTask & { engineId: string; engineName: string };
 
 /** Recent tasks of every reachable engine, newest first, each tagged with the engine that holds it. */
 export async function allEngineTasks(limit = 40): Promise<{ tasks: OwnedTask[]; unreachable: string[] }> {
-  const lists = await Promise.all(engines().map(async (e) => ({ e, tasks: await engineGet<EngineTask[]>(`/tasks?limit=${limit}`, 5000, e) })));
+  const lists = await Promise.all((await engines()).map(async (e) => ({ e, tasks: await engineGet<EngineTask[]>(`/tasks?limit=${limit}`, 5000, e) })));
   const tasks = lists
     .flatMap(({ e, tasks }) => (tasks ?? []).map((t) => ({ ...t, engineId: e.id, engineName: e.name })))
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
@@ -78,7 +78,7 @@ export async function allEngineTasks(limit = 40): Promise<{ tasks: OwnedTask[]; 
 
 /** Pipeline step counts summed over all engines (or one). */
 export async function combinedSummary(only?: EngineRef): Promise<Summary | null> {
-  const list = only ? [only] : engines();
+  const list = only ? [only] : (await engines());
   const parts = (await Promise.all(list.map((e) => engineGet<Summary>("/pipeline/summary?hours=24", 5000, e)))).filter((s): s is Summary => !!s);
   if (!parts.length) return null;
   const out: Summary = { window_hours: parts[0].window_hours, steps: {}, tasks_in_flight: 0 };
@@ -100,7 +100,7 @@ export async function combinedSummary(only?: EngineRef): Promise<Summary | null>
  * engine are merged with the others', so a try that failed on one engine and worked on another is one journey.
  */
 export async function journeyReport(hours: number, only?: EngineRef): Promise<JourneyReport> {
-  const list = only ? [only] : engines();
+  const list = only ? [only] : (await engines());
   const answers = await Promise.all(list.map(async (e) => ({ e, data: await engineGet<{ journeys: EngineJourney[]; truncated?: boolean }>(`/pipeline/journeys?hours=${hours}`, 20_000, e) })));
   const parts = answers.filter((a) => a.data).map((a) => ({ engineId: a.e.id, engineName: a.e.name, journeys: a.data!.journeys }));
   return summarize(mergeJourneys(parts), hours, {

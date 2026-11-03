@@ -3,7 +3,7 @@ import Link from "next/link";
 import { and, desc, eq, ilike, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { users, watchProgress } from "@/db/schema";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { getConfig } from "@/lib/config";
 import { getSetting } from "@/lib/settings";
 import { PageHeader } from "../_components/page-header";
 import { UserActions } from "../_components/user-actions";
@@ -42,6 +42,8 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       .limit(500),
     getSetting("requireApproval"),
   ]);
+  const { adminEmails } = await getConfig();
+  const isAdminEmail = (email: string) => adminEmails.includes(email.toLowerCase());
   const waiting = rows.filter((u) => !u.approvedAt && !isAdminEmail(u.email));
   return (
     <>

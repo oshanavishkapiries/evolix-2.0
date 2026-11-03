@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, lte, notExists, 
 import { z } from "zod";
 import { db } from "@/db";
 import { announcementReads, announcementRecipients, announcements, users } from "@/db/schema";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 import {
   announcementState,
   AUDIENCE_KEYS,
@@ -42,16 +42,16 @@ export class AnnouncementError extends Error {
 
 // ---- recipients and read counts (aggregate SQL, no per-user loops)
 
-const adminList = () => {
-  const list = env.adminEmails;
+const adminList = async () => {
+  const list = (await getConfig()).adminEmails;
   return list.length ? sql`lower("users"."email") in (${sql.join(list.map((e) => sql`${e}`), sql`, `)})` : sql`false`;
 };
 
 /** Condition on `users` selecting who an announcement is addressed to. */
-function addressedTo(a: { id: SQLWrapper | string; audience: SQLWrapper | AnnouncementAudience }): SQL {
+async function addressedTo(a: { id: SQLWrapper | string; audience: SQLWrapper | AnnouncementAudience }): Promise<SQL> {
   return sql`(
     ${a.audience} = 'everyone'
-    or (${a.audience} = 'admins' and ${adminList()})
+    or (${a.audience} = 'admins' and ${(await adminList())})
     or (${a.audience} = 'users' and exists (select 1 from announcement_recipients r where r.announcement_id = ${a.id} and r.user_id = "users"."id"))
   )`;
 }
@@ -60,11 +60,11 @@ function addressedTo(a: { id: SQLWrapper | string; audience: SQLWrapper | Announ
 // subqueries resolve "id" to the inner users table; so the outer announcement is referenced by raw name.
 const outer = { id: sql.raw('"announcements"."id"'), audience: sql.raw('"announcements"."audience"') };
 // Built per query: the admin list comes from env, which is read on use.
-const recipientCountSql = () => sql<number>`(select count(*)::int from users where ${addressedTo(outer)})`;
-const readCountSql = () => sql<number>`(
+const recipientCountSql = async () => sql<number>`(select count(*)::int from users where ${(await addressedTo(outer))})`;
+const readCountSql = async () => sql<number>`(
   select count(*)::int from announcement_reads rd
   join users on users.id = rd.user_id
-  where rd.announcement_id = ${outer.id} and ${addressedTo(outer)}
+  where rd.announcement_id = ${outer.id} and ${(await addressedTo(outer))}
 )`;
 
 // ---- listing
@@ -111,8 +111,8 @@ export async function listAnnouncements({ state, page, pageSize }: { state?: Ann
         publishAt: announcements.publishAt,
         expiresAt: announcements.expiresAt,
         createdAt: announcements.createdAt,
-        recipients: recipientCountSql(),
-        reads: readCountSql(),
+        recipients: (await recipientCountSql()),
+        reads: (await readCountSql()),
       })
       .from(announcements)
       .where(where)
@@ -134,7 +134,7 @@ export async function announcementCounts() {
 
 export async function getAnnouncement(id: string) {
   const [row] = await db
-    .select({ a: announcements, recipients: recipientCountSql(), reads: readCountSql() })
+    .select({ a: announcements, recipients: (await recipientCountSql()), reads: (await readCountSql()) })
     .from(announcements)
     .where(eq(announcements.id, id))
     .limit(1);
@@ -155,7 +155,7 @@ export async function getAnnouncement(id: string) {
 export async function listReaders(id: string, { kind, q, page, pageSize }: { kind: "read" | "unread"; q: string; page: number; pageSize: number }) {
   const [a] = await db.select({ id: announcements.id, audience: announcements.audience }).from(announcements).where(eq(announcements.id, id)).limit(1);
   if (!a) return null;
-  const audienceCond = addressedTo({ id: a.id, audience: a.audience });
+  const audienceCond = (await addressedTo({ id: a.id, audience: a.audience }));
   const search = q ? ilike(users.email, `%${q.replace(/[%_\\]/g, "\\$&")}%`) : undefined;
   const readsFor = and(eq(announcementReads.announcementId, a.id), eq(announcementReads.userId, users.id));
 

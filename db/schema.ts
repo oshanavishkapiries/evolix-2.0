@@ -734,3 +734,28 @@ export const supportReadStates = pgTable("support_read_states", {
   lastMessageId: bigint("last_message_id", { mode: "number" }).notNull().default(0),
   clearedThroughId: bigint("cleared_through_id", { mode: "number" }).notNull().default(0),
 }, (t) => [primaryKey({ columns: [t.conversationId, t.userId] })]);
+
+/** DB-managed application settings, distinct from boolean runtime app_settings switches. */
+export const appConfig = pgTable("app_config", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  isSecret: boolean("is_secret").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: text("updated_by"),
+});
+
+/** Secrets are masked, never recoverable from audit history; secret rollback must be refused. */
+export const configAudit = pgTable("config_audit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull(),
+  scope: text("scope").notNull().default("app"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  actor: text("actor").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  action: text("action").$type<"set" | "reset" | "rollback">().notNull(),
+}, (t) => [
+  index("config_audit_key_at_idx").on(t.scope, t.key, t.at),
+  check("config_audit_action_check", sql`${t.action} in ('set', 'reset', 'rollback')`),
+  check("config_audit_scope_check", sql`${t.scope} = 'app' or ${t.scope} like 'engine:%'`),
+]);

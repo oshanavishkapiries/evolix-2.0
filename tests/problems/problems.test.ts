@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const state = vi.hoisted(() => ({ viewer: 'viewer-0', outcome: null as unknown, engine: null as unknown, capture: vi.fn() }));
-vi.mock('@/lib/env', () => ({ env: { JWT_ACCESS_SECRET: 'problems-tests-only-secret-0000000000000000000000' } }));
+vi.mock('@/lib/config', () => ({ getConfig: async () => ({ JWT_ACCESS_SECRET: 'problems-tests-only-secret-0000000000000000000000', STREAM_BASE: '' }) }));
 vi.mock('@/lib/evo/guard', async (original) => ({ ...(await original<typeof import('@/lib/evo/guard')>()), viewerId: async () => state.viewer }));
 vi.mock('@/lib/viewer/access', () => ({ canWatch: async () => true }));
 vi.mock('@/lib/tmdb', () => ({ TmdbError: class extends Error {} }));

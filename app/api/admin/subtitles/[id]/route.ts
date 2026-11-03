@@ -30,7 +30,7 @@ export const DELETE = adminRoute<P>(async (req, { id }) => {
     if (force || !pixeldrainId(sub.url)) continue;
     const shared = await db.select({ id: subtitles.id }).from(subtitles).where(and(eq(subtitles.url, sub.url), notInArray(subtitles.id, deleting.map((s) => s.id)))).limit(1);
     if (shared.length) continue;
-    const engine = sub.engineId ? engineById(sub.engineId) : defaultEngine();
+    const engine = sub.engineId ? (await engineById(sub.engineId)) : (await defaultEngine());
     if (!engine) return json(503, { message: "The engine that owns this subtitle must be configured before deleting its CDN file" });
     const res = await engineProxy("POST", "/cdn/delete", { url: sub.url }, engine);
     if (!res.ok) return res;

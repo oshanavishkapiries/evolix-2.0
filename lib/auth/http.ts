@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 
 export const ACCESS_COOKIE = "access_token";
 export const REFRESH_COOKIE = "refresh_token";
@@ -53,18 +53,18 @@ export function clientInfo(req: NextRequest) {
   };
 }
 
-const base = () => ({ httpOnly: true, sameSite: "lax", secure: env.isProd }) as const;
+const base = () => ({ httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" }) as const;
 
-export function setAuthCookies(res: NextResponse, access: string, refresh: string) {
+export async function setAuthCookies(res: NextResponse, access: string, refresh: string) {
   res.cookies.set(ACCESS_COOKIE, access, {
     ...base(),
     path: "/",
-    maxAge: env.ACCESS_TOKEN_TTL_SECONDS,
+    maxAge: (await getConfig()).ACCESS_TOKEN_TTL_SECONDS,
   });
   res.cookies.set(REFRESH_COOKIE, refresh, {
     ...base(),
     path: "/api/auth",
-    maxAge: env.REFRESH_TOKEN_TTL_SECONDS,
+    maxAge: (await getConfig()).REFRESH_TOKEN_TTL_SECONDS,
   });
   return res;
 }

@@ -34,13 +34,13 @@ describe("the Worker and the app agree", () => {
 
 describe("viewerStreamUrl (app side)", () => {
   const rel = `/api/v1/media/stream/${TASK}/master.m3u8`;
-  it("is unchanged without STREAM_BASE, so the Vercel proxy keeps working", () => {
-    expect(viewerStreamUrl(rel, "e", "")).toBe(rel);
-    expect(viewerStreamUrl(null, "e", "https://w.example")).toBeNull();
-    expect(viewerStreamUrl("https://cdn.example/x.mp4", "e", "https://w.example")).toBe("https://cdn.example/x.mp4");
+  it("is unchanged without STREAM_BASE, so the Vercel proxy keeps working", async () => {
+    expect(await viewerStreamUrl(rel, "e", "")).toBe(rel);
+    expect(await viewerStreamUrl(null, "e", "https://w.example")).toBeNull();
+    expect(await viewerStreamUrl("https://cdn.example/x.mp4", "e", "https://w.example")).toBe("https://cdn.example/x.mp4");
   });
-  it("points at the Worker with the engine's short key", () => {
-    expect(viewerStreamUrl(rel, "some-engine", "https://w.example")).toBe(`https://w.example/${appKey("some-engine")}/${TASK}/master.m3u8`);
+  it("points at the Worker with the engine's short key", async () => {
+    expect(await viewerStreamUrl(rel, "some-engine", "https://w.example")).toBe(`https://w.example/${appKey("some-engine")}/${TASK}/master.m3u8`);
   });
 });
 

@@ -8,7 +8,7 @@ import { captureException } from "@/lib/errors/capture";
 
 /** Engine -> app: a quality finished caching to the CDN. Registers it as a source (and subtitles). */
 export async function POST(req: NextRequest) {
-  if (!isEngineCall(req)) return fail(401, "UNAUTHORIZED", "Invalid engine secret");
+  if (!(await isEngineCall(req))) return fail(401, "UNAUTHORIZED", "Invalid engine secret");
   const parsed = await parseBody(req, promotionInput);
   if ("error" in parsed) return parsed.error;
   try {

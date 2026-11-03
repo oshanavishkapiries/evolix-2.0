@@ -59,7 +59,7 @@ function limited(key: string) {
 
 /** Error reports from browsers (same origin) and from Evo engines (X-Evo-Secret). Answers 202 whatever happens. */
 export async function POST(req: NextRequest) {
-  const engine = isEngineCall(req);
+  const engine = (await isEngineCall(req));
   if (!engine) {
     // Browsers only: reject cross-site posts so other sites cannot fill the error log.
     const origin = req.headers.get("origin");

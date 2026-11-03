@@ -1,5 +1,5 @@
 // Server-only TMDB client. The API key never leaves the server.
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 import type { CastMember } from "@/db/schema";
 import { pickImages } from "@/lib/cms/image-pick";
 import {
@@ -29,7 +29,7 @@ export { imageUrl };
 
 async function tmdb<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const url = new URL(`${BASE}${path}`);
-  url.searchParams.set("api_key", env.TMDB_API_KEY);
+  url.searchParams.set("api_key", (await getConfig()).TMDB_API_KEY);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
 
   let res: Response;

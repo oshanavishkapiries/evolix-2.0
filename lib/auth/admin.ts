@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 import { ACCESS_COOKIE, fail } from "./http";
 import { verifyAccessToken } from "./tokens";
 
@@ -11,7 +11,7 @@ export type AdminCheck =
   | { status: "unauthenticated" }
   | { status: "forbidden" };
 
-export const isAdminEmail = (email: string) => env.adminEmails.includes(email.toLowerCase());
+export const isAdminEmail = async (email: string) => (await getConfig()).adminEmails.includes(email.toLowerCase());
 
 /** Verifies the access token, the live session, and the admin allow-list. */
 export async function checkAdminToken(token: string | undefined): Promise<AdminCheck> {
@@ -35,7 +35,7 @@ export async function checkAdminToken(token: string | undefined): Promise<AdminC
     )
     .limit(1);
   if (!row) return { status: "unauthenticated" };
-  if (!row.emailVerifiedAt || !isAdminEmail(row.email)) return { status: "forbidden" };
+  if (!row.emailVerifiedAt || !(await isAdminEmail(row.email))) return { status: "forbidden" };
   return { status: "ok", user: { id: row.id, email: row.email } };
 }
 

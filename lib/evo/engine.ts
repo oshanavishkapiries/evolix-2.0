@@ -1,10 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 
 /** Constant-time check of the shared secret on calls coming FROM the engine. Fails closed when no secret is configured. */
-export function isEngineCall(req: Request): boolean {
-  const expected = env.EVO_SECRET_TOKEN;
+export async function isEngineCall(req: Request): Promise<boolean> {
+  const expected = (await getConfig()).EVO_SECRET_TOKEN;
   const got = req.headers.get("x-evo-secret") ?? "";
-  if (!expected || got.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(got), Buffer.from(expected));
+  const actualBytes = Buffer.from(got);
+  const expectedBytes = Buffer.from(expected);
+  if (!expected || actualBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(actualBytes, expectedBytes);
 }

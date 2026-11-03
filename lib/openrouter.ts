@@ -1,5 +1,5 @@
 import "server-only";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 
 const BASE = "https://openrouter.ai/api/v1";
 
@@ -34,7 +34,7 @@ export type OpenRouterStats =
 
 async function get<T>(path: string): Promise<{ status: number; body: T | null }> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${env.OPENROUTER_API_KEY}` },
+    headers: { Authorization: `Bearer ${(await getConfig()).OPENROUTER_API_KEY}` },
     next: { revalidate: 300 },
     signal: AbortSignal.timeout(15_000),
   });
@@ -43,7 +43,7 @@ async function get<T>(path: string): Promise<{ status: number; body: T | null }>
 
 /** OpenRouter /activity (last 30 UTC days, needs a management key) folded into per-day series. */
 export async function openRouterStats(): Promise<OpenRouterStats> {
-  if (!env.OPENROUTER_API_KEY) {
+  if (!(await getConfig()).OPENROUTER_API_KEY) {
     return { ok: false, reason: "unconfigured", message: "Set OPENROUTER_API_KEY (a management key) to show OpenRouter analytics." };
   }
   try {

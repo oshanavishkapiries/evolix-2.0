@@ -10,7 +10,7 @@ export const GET = adminRoute(async (req) => {
   const asked = Number(req.nextUrl.searchParams.get("hours"));
   const hours = (JOURNEY_WINDOWS as readonly number[]).includes(asked) ? asked : 24;
   const one = req.nextUrl.searchParams.has("engine") && req.nextUrl.searchParams.get("engine") !== "all";
-  const engine = one ? adminEngine(req) : undefined;
+  const engine = one ? (await adminEngine(req)) : undefined;
   if (engine instanceof NextResponse) return engine;
   return json(200, { report: await journeyReport(hours, engine) });
 });

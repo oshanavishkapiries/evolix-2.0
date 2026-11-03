@@ -2,15 +2,15 @@ import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { otps } from "@/db/schema";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 import { sendOtpEmail } from "./mailer";
 import { captureException } from "@/lib/errors/capture";
 
 export type OtpPurpose = "verify_email" | "reset_password";
 
 // Bound to user + purpose so a hash cannot be replayed across contexts.
-const hashCode = (userId: string, purpose: OtpPurpose, code: string) =>
-  createHmac("sha256", env.JWT_ACCESS_SECRET)
+const hashCode = async (userId: string, purpose: OtpPurpose, code: string) =>
+  createHmac("sha256", (await getConfig()).JWT_ACCESS_SECRET)
     .update(`${userId}:${purpose}:${code}`)
     .digest();
 
@@ -33,10 +33,10 @@ export async function issueOtp(
     .limit(1);
   if (last) {
     const elapsed = (Date.now() - last.createdAt.getTime()) / 1000;
-    if (elapsed < env.OTP_RESEND_COOLDOWN_SECONDS) {
+    if (elapsed < (await getConfig()).OTP_RESEND_COOLDOWN_SECONDS) {
       return {
         status: "cooldown",
-        retryAfter: Math.ceil(env.OTP_RESEND_COOLDOWN_SECONDS - elapsed),
+        retryAfter: Math.ceil((await getConfig()).OTP_RESEND_COOLDOWN_SECONDS - elapsed),
       };
     }
   }
@@ -52,11 +52,11 @@ export async function issueOtp(
   await db.insert(otps).values({
     userId,
     purpose,
-    codeHash: hashCode(userId, purpose, code).toString("hex"),
-    expiresAt: new Date(now.getTime() + env.OTP_TTL_SECONDS * 1000),
+    codeHash: (await hashCode(userId, purpose, code)).toString("hex"),
+    expiresAt: new Date(now.getTime() + (await getConfig()).OTP_TTL_SECONDS * 1000),
   });
 
-  if (env.devLogOtp) console.log(`[dev] ${purpose} OTP for ${email}: ${code}`);
+  if ((await getConfig()).devLogOtp) console.log(`[dev] ${purpose} OTP for ${email}: ${code}`);
 
   try {
     await sendOtpEmail(email, code, purpose);
@@ -64,7 +64,7 @@ export async function issueOtp(
     console.error("OTP email failed:", err instanceof Error ? err.message : "unknown");
     await captureException(err, { level: "warning", route: "otp email", tags: { mechanism: "otpEmail", purpose } });
     // In dev with OTP logging the code is still usable, so do not fail the flow.
-    if (!env.devLogOtp) return { status: "mail_failed" };
+    if (!(await getConfig()).devLogOtp) return { status: "mail_failed" };
   }
   return { status: "sent" };
 }
@@ -80,7 +80,7 @@ export async function verifyOtp(userId: string, purpose: OtpPurpose, code: strin
         eq(otps.purpose, purpose),
         isNull(otps.consumedAt),
         gt(otps.expiresAt, new Date()),
-        lt(otps.attempts, env.OTP_MAX_ATTEMPTS),
+        lt(otps.attempts, (await getConfig()).OTP_MAX_ATTEMPTS),
       ),
     )
     .orderBy(desc(otps.createdAt))
@@ -94,14 +94,14 @@ export async function verifyOtp(userId: string, purpose: OtpPurpose, code: strin
       and(
         eq(otps.id, current.id),
         isNull(otps.consumedAt),
-        lt(otps.attempts, env.OTP_MAX_ATTEMPTS),
+        lt(otps.attempts, (await getConfig()).OTP_MAX_ATTEMPTS),
       ),
     )
     .returning({ id: otps.id });
   if (!counted) return false;
 
   const expected = Buffer.from(current.codeHash, "hex");
-  if (!timingSafeEqual(expected, hashCode(userId, purpose, code))) return false;
+  if (!timingSafeEqual(expected, (await hashCode(userId, purpose, code)))) return false;
 
   // Single use: only one concurrent request can flip consumed_at.
   const consumed = await db

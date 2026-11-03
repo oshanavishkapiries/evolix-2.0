@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       }
       return json(out.status, body);
     }
-    return json(200, { ...out.data, stream_url: viewerStreamUrl(out.data.stream_url, out.engineId) });
+    return json(200, { ...out.data, stream_url: (await viewerStreamUrl(out.data.stream_url, out.engineId)) });
   } catch (e) {
     if (e instanceof TmdbError) return fail(404, "NOT_FOUND", "Title not found");
     throw e;

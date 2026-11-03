@@ -18,6 +18,6 @@ export async function GET(req: NextRequest) {
   if (!user) return fail(401, "UNAUTHORIZED", "Not authenticated");
   return json(200, {
     user,
-    isAdmin: Boolean(user.emailVerifiedAt) && isAdminEmail(user.email),
+    isAdmin: Boolean(user.emailVerifiedAt) && (await isAdminEmail(user.email)),
   });
 }

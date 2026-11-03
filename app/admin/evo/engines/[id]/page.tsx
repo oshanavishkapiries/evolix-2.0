@@ -37,7 +37,7 @@ export default function EnginePage({ params, searchParams }: Props) {
 async function Engine({ params, searchParams }: Props) {
   await connection(); // live engine calls: never at build time
   const [{ id }, { tab: asked }] = await Promise.all([params, searchParams]);
-  const ref = engineById(id);
+  const ref = (await engineById(id));
   if (!ref) notFound();
   const tab: TabId = TABS.some((t) => t.id === asked) ? (asked as TabId) : "status";
   const [all, { online, tasks, error }, summary] = await Promise.all([enginesOverview(), engineOverview(40, ref), tab === "status" ? combinedSummary(ref) : null]);

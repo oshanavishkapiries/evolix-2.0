@@ -20,5 +20,5 @@ export async function GET(req: NextRequest) {
   if (result.status !== "ok") {
     return clearAuthCookies(redirectTo(`/login?next=${encodeURIComponent(next)}`));
   }
-  return setAuthCookies(redirectTo(next), result.access, result.refresh);
+  return (await setAuthCookies(redirectTo(next), result.access, result.refresh));
 }

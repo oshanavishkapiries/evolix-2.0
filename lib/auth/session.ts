@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { db } from "@/db";
 import { sessions } from "@/db/schema";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "./http";
 import {
   sha256,
@@ -24,7 +24,7 @@ export async function createSession(userId: string, meta: Meta, id = randomUUID(
     refreshTokenHash: sha256(refresh),
     userAgent: meta.userAgent,
     ip: meta.ip,
-    expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_TTL_SECONDS * 1000),
+    expiresAt: new Date(Date.now() + (await getConfig()).REFRESH_TOKEN_TTL_SECONDS * 1000),
   });
   return { sessionId: id, access: await signAccessToken(userId, id), refresh };
 }

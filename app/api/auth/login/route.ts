@@ -34,5 +34,5 @@ export async function POST(req: NextRequest) {
   }
 
   const { access, refresh } = await createSession(user.id, clientInfo(req));
-  return setAuthCookies(json(200, { message: "Logged in" }), access, refresh);
+  return (await setAuthCookies(json(200, { message: "Logged in" }), access, refresh));
 }

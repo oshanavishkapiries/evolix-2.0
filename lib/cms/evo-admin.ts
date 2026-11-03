@@ -3,10 +3,10 @@ import { fail, json } from "@/lib/auth/http";
 import { defaultEngine, engineById, engineFetch, EngineUnavailableError, type EngineRef } from "@/lib/evo/client";
 
 /** The engine an admin call is about: `?engine=<id>`, or the primary one when none is given. A bad id is a 404. */
-export function adminEngine(req: NextRequest): EngineRef | NextResponse {
+export async function adminEngine(req: NextRequest): Promise<EngineRef | NextResponse> {
   const id = req.nextUrl.searchParams.get("engine");
-  if (!id) return defaultEngine();
-  return engineById(id) ?? fail(404, "NOT_FOUND", "Unknown engine");
+  if (!id) return (await defaultEngine());
+  return (await engineById(id)) ?? fail(404, "NOT_FOUND", "Unknown engine");
 }
 
 /** Forwards an admin action to an Evo engine and maps its answer onto our uniform JSON/error responses. */
@@ -25,6 +25,6 @@ export async function engineProxy(method: "GET" | "POST" | "PUT" | "DELETE", pat
 
 /** Like engineProxy for the engine named in the request's `engine` query parameter. */
 export async function engineProxyFor(req: NextRequest, method: "GET" | "POST" | "PUT" | "DELETE", path: string, body?: unknown) {
-  const engine = adminEngine(req);
+  const engine = (await adminEngine(req));
   return engine instanceof NextResponse ? engine : engineProxy(method, path, body, engine);
 }

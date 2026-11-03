@@ -29,7 +29,7 @@ function visibleTo(userId: string, admin: boolean) {
 
 async function isAdminUser(userId: string) {
   const [u] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
-  return u ? isAdminEmail(u.email) : false;
+  return u ? (await isAdminEmail(u.email)) : false;
 }
 
 /** Newest first, with this user's read state and the total unread count. */

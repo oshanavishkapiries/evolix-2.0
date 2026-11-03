@@ -15,7 +15,7 @@ import { TZ } from "@/lib/tz";
 const fmt = (d: Date | string) => new Date(d).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ });
 const code = (s: number | null, e: number | null) => (s !== null && e !== null ? `S${s}E${e}` : "Movie");
 async function failureSamples() {
-  return Object.fromEntries(await Promise.all(engines().map(async (engine) => {
+  return Object.fromEntries(await Promise.all((await engines()).map(async (engine) => {
     const sample = await engineGet<EngineTask[]>("/tasks?limit=100", 4000, engine);
     return [engine.id, { rate: failureRate(sample ? sample.filter((t) => t.status === "FAILED" || t.cache_failed).length : null, sample?.length ?? 0), size: sample?.length ?? 0 }];
   })));

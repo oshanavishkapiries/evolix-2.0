@@ -9,5 +9,5 @@ export async function POST(req: NextRequest) {
   if (result.status !== "ok") {
     return clearAuthCookies(fail(401, "INVALID_REFRESH_TOKEN", "Invalid refresh token"));
   }
-  return setAuthCookies(json(200, { message: "Refreshed" }), result.access, result.refresh);
+  return (await setAuthCookies(json(200, { message: "Refreshed" }), result.access, result.refresh));
 }

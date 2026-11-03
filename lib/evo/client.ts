@@ -1,62 +1,29 @@
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 
 /**
  * The only place that knows where an Evo engine lives, adds the shared secret and applies timeouts.
  * Every app-to-engine call goes through `engineFetch`.
  */
-export type EngineRef = { id: string; url: string; name: string };
+import { parseEngines, type EngineRef } from "@/lib/config/engine-list";
+export { parseEngines, engineIdFor, type EngineRef } from "@/lib/config/engine-list";
 
 const MEDIA = "/api/v1/media";
 
-/** Stable id for an engine: its address. It survives reordering the list; changing the address makes it a new engine. */
-export function engineIdFor(url: string) {
-  try {
-    const u = new URL(url);
-    return `${u.hostname}${u.port ? `-${u.port}` : ""}${u.pathname.replace(/\/+$/, "").replace(/[^\w]+/g, "-")}`.toLowerCase();
-  } catch {
-    return url.replace(/[^\w]+/g, "-").toLowerCase();
-  }
-}
-
-/** Parses EVO_ENGINES: a JSON array of URLs or {url, name}. A bare URL or a comma-separated list is accepted too, and so is a value wrapped in stray quotes. */
-export function parseEngines(list: string): EngineRef[] {
-  let text = list.trim();
-  while (text.length > 1 && /^(["'])[\s\S]*\1$/.test(text)) text = text.slice(1, -1).trim();
-  let raw: unknown;
-  if (text.startsWith("[")) {
-    try {
-      raw = JSON.parse(text);
-    } catch {
-      throw new Error("EVO_ENGINES must be a JSON array, e.g. [\"http://10.0.0.1:8000\", \"http://10.0.0.2:8000\"]");
-    }
-  } else {
-    raw = text.split(/[,\s]+/).filter(Boolean);
-  }
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error("EVO_ENGINES must list at least one engine URL");
-  const entries = raw.map((e) => {
-    const entry = typeof e === "string" ? { url: e } : (e as { url?: unknown; name?: unknown });
-    if (typeof entry.url !== "string" || !/^https?:\/\//.test(entry.url)) throw new Error(`EVO_ENGINES has an invalid engine URL: ${JSON.stringify(e)}`);
-    return { url: entry.url, name: typeof entry.name === "string" ? entry.name : undefined };
-  });
-  const seen = new Set<string>();
-  return entries.map((e) => {
-    const url = e.url.replace(/\/+$/, "");
-    const id = engineIdFor(url);
-    if (seen.has(id)) throw new Error(`EVO_ENGINES lists ${url} twice`);
-    seen.add(id);
-    return { id, url, name: e.name ?? id };
-  });
-}
-
 let configured: EngineRef[] | null = null;
+let configuredValue: string | undefined;
 
-/** Engines this deployment can talk to, fixed until restart. The first one is the primary (owner of tasks from before multi-engine). */
-export function engines(): EngineRef[] {
-  return (configured ??= parseEngines(env.EVO_ENGINES));
+/** Engines this deployment can talk to, refreshed when config changes. The first one is the primary (owner of tasks from before multi-engine). */
+export async function engines(): Promise<EngineRef[]> {
+  const value = (await getConfig()).EVO_ENGINES;
+  if (!configured || configuredValue !== value) {
+    configured = parseEngines(value);
+    configuredValue = value;
+  }
+  return configured;
 }
 
-export const defaultEngine = (): EngineRef => engines()[0];
-export const engineById = (id: string): EngineRef | undefined => engines().find((e) => e.id === id);
+export const defaultEngine = async (): Promise<EngineRef> => (await engines())[0];
+export const engineById = async (id: string): Promise<EngineRef | undefined> => (await engines()).find((e) => e.id === id);
 
 export class EngineUnavailableError extends Error {
   constructor(message = "The Evo engine did not answer") {
@@ -82,9 +49,9 @@ export const DEFAULT_TIMEOUT_MS = 15_000;
  * when the engine cannot be reached or does not answer in time.
  */
 export async function engineFetch(path: string, call: EngineCall = {}): Promise<Response> {
-  const engine = call.engine ?? defaultEngine();
+  const engine = call.engine ?? (await defaultEngine());
   const headers: Record<string, string> = { ...call.headers };
-  if (env.EVO_SECRET_TOKEN) headers["X-Evo-Secret"] = env.EVO_SECRET_TOKEN;
+  if ((await getConfig()).EVO_SECRET_TOKEN) headers["X-Evo-Secret"] = (await getConfig()).EVO_SECRET_TOKEN;
   let body: BodyInit | undefined;
   if (call.body !== undefined) {
     body = typeof call.body === "string" ? call.body : JSON.stringify(call.body);

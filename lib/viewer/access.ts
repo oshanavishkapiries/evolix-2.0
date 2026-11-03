@@ -9,5 +9,5 @@ export async function canWatch(userId: string | null): Promise<boolean> {
   if (!(await getSetting("requireApproval"))) return true;
   if (!userId) return false;
   const [u] = await db.select({ approvedAt: users.approvedAt, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
-  return Boolean(u && (u.approvedAt || isAdminEmail(u.email)));
+  return Boolean(u && (u.approvedAt || (await isAdminEmail(u.email))));
 }

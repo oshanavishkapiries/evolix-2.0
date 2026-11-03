@@ -11,7 +11,7 @@ import { publicTrack } from "@/lib/subtitles/store";
 export const POST = subtitleRoute(async (req, userId) => {
   const body = await parseBody(req, z.union([z.object({ trackId: z.uuid() }), z.object({ invite: z.string().max(2000) })]));
   if ("error" in body) return body.error;
-  const key = tokenKey();
+  const key = (await tokenKey());
   if ("trackId" in body.data) {
     const [track] = await db.select().from(subtitles).where(eq(subtitles.id, body.data.trackId)).limit(1);
     if (!track || track.uploadedBy !== userId || track.hidden || track.source !== "upload") return json(404, { message: "Your uploaded subtitle was not found" });

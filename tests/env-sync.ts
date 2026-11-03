@@ -1,6 +1,7 @@
 /** Fails when `.env.example` and the variables the app reads drift apart. Run: pnpm test:env */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { configRegistry } from "../lib/config/registry";
 
 const root = join(__dirname, "..");
 const SKIP = new Set(["node_modules", ".next", "evo-engine", "tests", ".git", "drizzle"]);
@@ -17,9 +18,7 @@ function sources(dir: string): string[] {
   });
 }
 
-const schema = readFileSync(join(root, "lib/env.ts"), "utf8");
-const body = schema.slice(schema.indexOf("z.object({"), schema.indexOf("});"));
-const used = new Set([...body.matchAll(/^\s+([A-Z][A-Z0-9_]+):/gm)].map((m) => m[1]));
+const used = new Set<string>(configRegistry.map((entry) => entry.key));
 for (const file of sources(root)) {
   for (const m of readFileSync(file, "utf8").matchAll(/process\.env\.([A-Z][A-Z0-9_]+)/g)) used.add(m[1]);
 }

@@ -15,7 +15,7 @@ export const POST = subtitleRoute(async (req, userId) => {
   if ("error" in body) return body.error;
   const choice = await readCandidate(body.data.ref, userId);
   if (!choice) return json(400, { message: "This choice expired. Search again." });
-  const engine = engineById(choice.engineId);
+  const engine = (await engineById(choice.engineId));
   if (!engine) return json(503, { message: "This subtitle server is unavailable" });
   try {
     const track = await downloadTrack(choice.target, engine, choice.providerRef, choice.lang, choice.label, "opensubtitles");

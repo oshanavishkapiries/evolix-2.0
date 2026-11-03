@@ -40,7 +40,7 @@ async function check(engine: EngineRef) {
 async function ensureRows() {
   await db
     .insert(evoEngines)
-    .values(engines().map((e) => ({ id: e.id, url: e.url })))
+    .values((await engines()).map((e) => ({ id: e.id, url: e.url })))
     .onConflictDoUpdate({ target: evoEngines.id, set: { url: sql`excluded.url` } });
 }
 
@@ -60,9 +60,9 @@ export function refreshHealth(force = false): Promise<void> {
 
 async function doRefresh(force: boolean) {
   await ensureRows();
-  const rows = await db.select().from(evoEngines).where(inArray(evoEngines.id, engines().map((e) => e.id)));
+  const rows = await db.select().from(evoEngines).where(inArray(evoEngines.id, (await engines()).map((e) => e.id)));
   const now = Date.now();
-  const stale = engines().filter((e) => {
+  const stale = (await engines()).filter((e) => {
     const r = rows.find((x) => x.id === e.id);
     return force || !r?.lastCheckedAt || now - r.lastCheckedAt.getTime() > HEALTH_TTL_MS;
   });
@@ -99,8 +99,8 @@ async function doRefresh(force: boolean) {
 export async function engineRows(fresh = true): Promise<(EngineRow & { ref: EngineRef })[]> {
   if (fresh) await refreshHealth();
   else await ensureRows();
-  const rows = await db.select().from(evoEngines).where(inArray(evoEngines.id, engines().map((e) => e.id)));
-  return engines().flatMap((ref) => {
+  const rows = await db.select().from(evoEngines).where(inArray(evoEngines.id, (await engines()).map((e) => e.id)));
+  return (await engines()).flatMap((ref) => {
     const row = rows.find((r) => r.id === ref.id);
     return row ? [{ ...row, ref }] : [];
   });
@@ -108,12 +108,12 @@ export async function engineRows(fresh = true): Promise<(EngineRow & { ref: Engi
 
 /** A call just failed to reach the engine: stop sending it new jobs now instead of waiting for the next health check. */
 export async function markUnhealthy(engine: EngineRef, reason: string) {
-  if (engines().length === 1) return;
+  if ((await engines()).length === 1) return;
   await db.update(evoEngines).set({ healthy: false, lastError: reason.slice(0, 300), lastCheckedAt: new Date(), updatedAt: new Date() }).where(eq(evoEngines.id, engine.id));
 }
 
 export async function setDraining(id: string, draining: boolean) {
-  if (!engineById(id)) return false;
+  if (!(await engineById(id))) return false;
   await ensureRows();
   await db.update(evoEngines).set({ draining, updatedAt: new Date() }).where(eq(evoEngines.id, id));
   return true;
@@ -150,15 +150,15 @@ const bump = (engine: EngineRef) =>
  * With a single engine there is nothing to decide and no database round trip.
  */
 export async function claimEngine(key: string, opts: { affinityPrefix?: string; avoid?: string } = {}): Promise<EngineRef> {
-  if (engines().length === 1) {
+  if ((await engines()).length === 1) {
     if (opts.avoid) throw new NoEngineAvailableError("There is no other engine to move this job to");
-    return defaultEngine();
+    return (await defaultEngine());
   }
   await refreshHealth();
   for (let attempt = 0; attempt < 4; attempt++) {
     const [claim] = await db.select().from(evoClaims).where(eq(evoClaims.key, key)).limit(1);
     if (claim) {
-      const ref = engineById(claim.engineId);
+      const ref = (await engineById(claim.engineId));
       const [row] = ref ? await db.select().from(evoEngines).where(eq(evoEngines.id, ref.id)).limit(1) : [];
       const asked = opts.avoid !== undefined && claim.engineId === opts.avoid; // an admin wants it off this engine
       if (!asked && ref && row?.healthy && !row.draining) return ref;
@@ -228,15 +228,15 @@ export class EngineGoneError extends Error {
 
 /** Engine that owns a task; tasks from before multi-engine belong to the primary engine. */
 export async function engineForTask(taskId: string): Promise<EngineRef> {
-  if (engines().length === 1) return defaultEngine();
+  if ((await engines()).length === 1) return (await defaultEngine());
   let id = owners.get(taskId);
   if (!id) {
     const [row] = await db.select({ engineId: evoTasks.engineId }).from(evoTasks).where(eq(evoTasks.taskId, taskId)).limit(1);
-    id = row?.engineId ?? defaultEngine().id;
+    id = row?.engineId ?? (await defaultEngine()).id;
     if (owners.size >= MAX_CACHED) owners.clear();
     owners.set(taskId, id);
   }
-  const ref = engineById(id);
+  const ref = (await engineById(id));
   if (!ref) throw new EngineGoneError(id);
   return ref;
 }
@@ -244,7 +244,7 @@ export async function engineForTask(taskId: string): Promise<EngineRef> {
 /** Engine id recorded for a task, or null when unknown (a single-engine deployment, or an old task). */
 export async function engineIdOfTask(taskId: string | undefined): Promise<string | null> {
   if (!taskId) return null;
-  if (engines().length === 1) return defaultEngine().id;
+  if ((await engines()).length === 1) return (await defaultEngine()).id;
   const [row] = await db.select({ engineId: evoTasks.engineId }).from(evoTasks).where(eq(evoTasks.taskId, taskId)).limit(1);
   return row?.engineId ?? null;
 }
@@ -259,21 +259,21 @@ export async function ownersOf(taskIds: string[]): Promise<Map<string, string>> 
 }
 
 export async function recordSubtitleOwners(engine: EngineRef, subs: unknown) {
-  if (engines().length === 1 || !Array.isArray(subs)) return;
+  if ((await engines()).length === 1 || !Array.isArray(subs)) return;
   const ids = subs.map((s) => (s as { id?: unknown })?.id).filter((v): v is string => typeof v === "string");
   if (ids.length) await db.insert(evoSubtitleOwners).values(ids.map((subId) => ({ subId, engineId: engine.id }))).onConflictDoNothing();
 }
 
 /** Engine holding a subtitle id; unknown ids are looked up on each engine in turn by the caller. */
 export async function subtitleOwner(subId: string): Promise<EngineRef | null> {
-  if (engines().length === 1) return defaultEngine();
+  if ((await engines()).length === 1) return (await defaultEngine());
   const [row] = await db.select({ engineId: evoSubtitleOwners.engineId }).from(evoSubtitleOwners).where(eq(evoSubtitleOwners.subId, subId)).limit(1);
-  return (row && engineById(row.engineId)) || null;
+  return (row && (await engineById(row.engineId))) || null;
 }
 
 /** Engine behind a claim key (Sinhala polling), or null when nothing claimed it. */
 export async function claimedEngine(key: string): Promise<EngineRef | null> {
-  if (engines().length === 1) return defaultEngine();
+  if ((await engines()).length === 1) return (await defaultEngine());
   const [row] = await db.select({ engineId: evoClaims.engineId }).from(evoClaims).where(eq(evoClaims.key, key)).limit(1);
-  return (row && engineById(row.engineId)) || null;
+  return (row && (await engineById(row.engineId))) || null;
 }
