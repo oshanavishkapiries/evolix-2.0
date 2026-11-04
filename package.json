@@ -32,7 +32,10 @@
     "test:stream-worker": "vitest run --config tests/stream-worker/vitest.config.ts",
     "test:openrouter": "vitest run --config tests/openrouter/vitest.config.ts",
     "test:support": "vitest run --config tests/support/vitest.config.ts",
-    "test:support:e2e": "playwright test --config tests/support/playwright.config.ts"
+    "test:support:e2e": "playwright test --config tests/support/playwright.config.ts",
+    "fallow": "fallow",
+    "fallow:dead-code": "fallow dead-code",
+    "fallow:audit": "fallow audit --base main"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
@@ -61,6 +64,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "fallow": "^3.38.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

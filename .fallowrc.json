@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  // Main Next.js application only. The Evo engine is Python, which fallow does not analyze.
+  "entry": [
+    // Registered at runtime by app/_components/pwa-gate.tsx.
+    "public/sw.js",
+    // Run directly by tests/e2e/*.sh (node / tsx), not imported.
+    "tests/e2e/*.{ts,mjs}",
+    // CLI: pnpm tsx tools/stream-worker/keys.ts '<EVO_ENGINES>'
+    "tools/stream-worker/keys.ts"
+  ],
+  "ignorePatterns": ["evo-engine/**", "drizzle/**", "test-results/**"],
+  "ignoreDependencies": [
+    // Referenced by name as a Turbopack loader in next.config.ts.
+    "@tailwindcss/turbopack",
+    // This tool's own CLI.
+    "fallow"
+  ]
+}
