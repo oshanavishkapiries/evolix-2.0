@@ -19,6 +19,7 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="set-shell">
       <nav aria-label="Settings sections" className="set-side">
+        <p className="set-side-title">Settings</p>
         <ul>
           {SETTINGS_TABS.map((t) => {
             const active = pathname === t.href || (!t.exact && pathname.startsWith(`${t.href}/`));
