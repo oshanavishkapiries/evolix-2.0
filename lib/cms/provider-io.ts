@@ -5,8 +5,8 @@ import { episodes, movies, seasons, shows, sources, subtitles } from "@/db/schem
 import { fail } from "@/lib/auth/http";
 import { sourceCreate, subtitleCreate } from "@/lib/cms/schemas";
 
-export const MAX_FILE_BYTES = 2 * 1024 * 1024;
-export const MAX_ENTRIES = 5000;
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_ENTRIES = 5000;
 export const MAX_PREVIEW_ROWS = 1000;
 const INSERT_CHUNK = 500;
 
@@ -22,7 +22,7 @@ const SUBTITLE_COLUMNS = ["label", "language", "url", "format", "sortOrder"] as 
  * One flat shape for movies and shows. Movies leave the structure columns empty. The structure columns
  * (names, isVisible) are read-only context: the importer ignores them.
  */
-export const CSV_COLUMNS = [
+const CSV_COLUMNS = [
   "entry",
   "seasonNumber",
   "seasonName",
@@ -162,7 +162,7 @@ export async function loadShowTemplate(id: string): Promise<Template | null> {
 }
 
 /** `evolix-{slug}-providers.{ext}`, falling back to the TMDB id when the title has no usable characters. */
-export function templateFilename(t: Template, format: FileFormat) {
+function templateFilename(t: Template, format: FileFormat) {
   const slug = t.title
     .normalize("NFKD")
     .toLowerCase()
@@ -186,11 +186,11 @@ function csvCell(v: unknown): string {
   return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 }
 
-export function buildJson(t: Template): string {
+function buildJson(t: Template): string {
   return JSON.stringify(t, null, 2) + "\n";
 }
 
-export function buildCsv(t: Template): string {
+function buildCsv(t: Template): string {
   const lines = [CSV_COLUMNS.join(",")];
   const push = (cells: Record<string, unknown>) =>
     lines.push(CSV_COLUMNS.map((c) => csvCell(cells[c])).join(","));
@@ -234,7 +234,7 @@ type RawEntry = {
   parseError?: string;
 };
 
-export class ImportFileError extends Error {
+class ImportFileError extends Error {
   constructor(
     message: string,
     readonly status = 400,
@@ -244,7 +244,7 @@ export class ImportFileError extends Error {
 }
 
 /** Minimal RFC 4180 reader: quotes, escaped quotes, commas/newlines in cells, CRLF/LF/CR. */
-export function parseCsv(input: string): { line: number; cells: string[] }[] {
+function parseCsv(input: string): { line: number; cells: string[] }[] {
   const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
   const records: { line: number; cells: string[] }[] = [];
   let cells: string[] = [];

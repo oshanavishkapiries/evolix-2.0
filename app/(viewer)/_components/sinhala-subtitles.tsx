@@ -11,7 +11,7 @@ export type SinhalaTarget = { tmdbId: number; mediaType: "movie" | "tv"; season?
 
 /** Id of the "Sinhala (AI)" entry shown before a track exists; picking it starts the translation. */
 export const PENDING_ID = "si-ai-pending";
-export const pendingTrack: WatchSubtitle = { id: PENDING_ID, label: "Sinhala (AI)", language: "si", format: "vtt", url: "" };
+const pendingTrack: WatchSubtitle = { id: PENDING_ID, label: "Sinhala (AI)", language: "si", format: "vtt", url: "" };
 
 const POLL_MS = 3000;
 const GIVE_UP_MS = 15 * 60_000;

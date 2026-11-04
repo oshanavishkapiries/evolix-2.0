@@ -36,7 +36,7 @@ export function PlayerBanner({
 const SAMPLE_MS = 4000;
 const MIN_PLAYED_MS = 20_000;
 /** Sustained throughput (Mbit/s) at which 1080p (~5 Mbit/s) has plenty of headroom. */
-export const FAST_MBPS = 16;
+const FAST_MBPS = 16;
 const FAST_SAMPLES = 3;
 const STALLS = 3;
 const STALL_WINDOW_MS = 120_000;
@@ -51,7 +51,7 @@ const neverAsk = () => {
   }
 };
 
-export type Advice = { dir: "up" | "down"; to: string };
+type Advice = { dir: "up" | "down"; to: string };
 
 /**
  * Watches the connection and suggests a better-fitting quality once: up when throughput is far above what the

@@ -28,7 +28,7 @@ const plays = (days: number) => sql`
 
 const since = (days: number) => sql`date_trunc('day', now() at time zone 'Asia/Colombo') at time zone 'Asia/Colombo' - make_interval(days => ${days - 1})`;
 
-export type Kpis = { plays: number; viewers: number; hours: number; completed: number; signups: number; bookmarks: number };
+type Kpis = { plays: number; viewers: number; hours: number; completed: number; signups: number; bookmarks: number };
 
 export async function analytics(days: Range) {
   const [kpiRows, signupRows, bookmarkRows, daily, heat, top, genres, funnel, devices, viewers, coverage, reports] = await Promise.all([

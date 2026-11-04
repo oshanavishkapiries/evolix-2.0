@@ -56,7 +56,7 @@ function VideoSummary({ v, hidden, link = true }: { v: Meta; hidden?: boolean; l
   );
 }
 
-export const videoId = (v: { site: string; key: string }) => `${v.site}:${v.key}`;
+const videoId = (v: { site: string; key: string }) => `${v.site}:${v.key}`;
 
 /** Ids of the default selection (top 5 by rank). */
 export const defaultPicks = (videos: VideoPrefill[]) => new Set(rankVideos(videos).map(videoId));

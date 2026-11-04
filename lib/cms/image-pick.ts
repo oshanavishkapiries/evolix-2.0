@@ -10,7 +10,7 @@ const POSTER_MIN_WIDTH = 1000;
 const BACKDROP_MIN_WIDTH = 1920;
 
 /** Higher vote average first, then wider, then path for a stable order. */
-export const byScore = (a: ImageCandidate, b: ImageCandidate) =>
+const byScore = (a: ImageCandidate, b: ImageCandidate) =>
   b.voteAverage - a.voteAverage || b.width - a.width || a.filePath.localeCompare(b.filePath);
 
 const best = (list: ImageCandidate[]) => [...list].sort(byScore)[0] ?? null;
@@ -22,7 +22,7 @@ function firstTier(tiers: ImageCandidate[][]): ImageCandidate | null {
   return null;
 }
 
-export function pickPoster(posters: ImageCandidate[]): ImageCandidate | null {
+function pickPoster(posters: ImageCandidate[]): ImageCandidate | null {
   const pool = posters.filter(isEnOrNull);
   return firstTier([
     pool.filter((c) => c.width >= POSTER_MIN_WIDTH),
@@ -31,14 +31,14 @@ export function pickPoster(posters: ImageCandidate[]): ImageCandidate | null {
   ]);
 }
 
-export function pickBackdrop(backdrops: ImageCandidate[]): ImageCandidate | null {
+function pickBackdrop(backdrops: ImageCandidate[]): ImageCandidate | null {
   const clean = backdrops.filter((c) => c.language === null);
   const en = backdrops.filter((c) => c.language === "en");
   const big = (l: ImageCandidate[]) => l.filter((c) => c.width >= BACKDROP_MIN_WIDTH);
   return firstTier([big(clean), big(en), clean, en, backdrops]);
 }
 
-export function pickLogo(logos: ImageCandidate[]): ImageCandidate | null {
+function pickLogo(logos: ImageCandidate[]): ImageCandidate | null {
   return firstTier([
     logos.filter((c) => c.language === "en"),
     logos.filter((c) => c.language === null),
@@ -46,7 +46,7 @@ export function pickLogo(logos: ImageCandidate[]): ImageCandidate | null {
   ]);
 }
 
-export function pickGallery(
+function pickGallery(
   backdrops: ImageCandidate[],
   mainPath: string | null,
   count = GALLERY_MAX,

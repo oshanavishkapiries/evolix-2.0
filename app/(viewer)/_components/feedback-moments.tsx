@@ -35,7 +35,7 @@ const write = (key: string, value: string) => {
 };
 export const testMode = () => read(TEST_KEY) === "1";
 /** Mirrors the server's gap so most viewings never make a request at all. */
-export const recentlyAsked = () => Date.now() - Number(read(LAST_KEY) ?? 0) < BUDGET.gapDays * 86_400_000;
+const recentlyAsked = () => Date.now() - Number(read(LAST_KEY) ?? 0) < BUDGET.gapDays * 86_400_000;
 const markAsked = () => write(LAST_KEY, String(Date.now()));
 const optedOut = () => read(OUT_KEY) === "1";
 
@@ -148,7 +148,7 @@ export function useFeedbackMoments({ mediaKey, title, viewing, calm, context }: 
 }
 
 /** One tap to answer; a 👎 (or a low face) opens a few reasons. Never takes focus from the video. */
-export function QuickQuestion({ ask, onDone }: { ask: Ask; onDone: () => void }) {
+function QuickQuestion({ ask, onDone }: { ask: Ask; onDone: () => void }) {
   const [step, setStep] = useState<"ask" | "why" | "thanks">("ask");
   const [reasons, setReasons] = useState<string[]>([]);
   const [comment, setComment] = useState("");

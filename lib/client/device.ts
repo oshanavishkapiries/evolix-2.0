@@ -37,7 +37,7 @@ export function isInstalled(): boolean {
 }
 
 /** Pages that stay usable in a normal browser tab. */
-export const GATE_EXEMPT = ["/admin"];
+const GATE_EXEMPT = ["/admin"];
 export const gateExempt = (path: string) => GATE_EXEMPT.some((p) => path === p || path.startsWith(`${p}/`));
 
 export const GATE_ATTR = "data-install-gate";

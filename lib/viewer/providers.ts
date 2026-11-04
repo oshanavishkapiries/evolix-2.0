@@ -19,7 +19,7 @@ export function pixeldrainId(url: string): string | null {
   }
 }
 
-export const pixeldrainFileUrl = (id: string) => `https://pixeldrain.com/api/file/${id}?download`;
+const pixeldrainFileUrl = (id: string) => `https://pixeldrain.com/api/file/${id}?download`;
 export const pixeldrainInfoUrl = (id: string) => `https://pixeldrain.com/api/file/${id}/info`;
 
 /** Rewrites provider links to their playable form; other sources pass through unchanged. */

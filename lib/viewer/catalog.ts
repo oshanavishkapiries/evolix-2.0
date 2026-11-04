@@ -115,7 +115,7 @@ export type BrowseParams = Filters & {
   withTotal?: boolean;
 };
 
-export const TMDB_GENRES: Record<string, number> = {
+const TMDB_GENRES: Record<string, number> = {
   Action: 28,
   Adventure: 12,
   Animation: 16,

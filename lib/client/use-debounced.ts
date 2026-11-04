@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const SEARCH_DELAY_MS = 400;
+const SEARCH_DELAY_MS = 400;
 export const SEARCH_MIN_CHARS = 2;
 
 /** Value that follows `value` after `delay` ms of quiet; `flush` applies a value immediately. */

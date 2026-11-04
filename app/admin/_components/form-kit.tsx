@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormValues } from "./fields";
 
 /** Warns before closing/reloading the tab while there are unsaved changes. */
-export function useUnsavedWarning(dirty: boolean) {
+function useUnsavedWarning(dirty: boolean) {
   useEffect(() => {
     if (!dirty) return;
     const handler = (e: BeforeUnloadEvent) => {

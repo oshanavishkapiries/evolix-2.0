@@ -20,7 +20,7 @@ const withMainDistinct = <T extends { backdropPath?: string | null; galleryBackd
 const MAIN_MSG = "Gallery must not contain the main backdrop";
 const intNull = z.number().int().min(0).max(10_000_000).nullable();
 
-export const castSchema = z
+const castSchema = z
   .array(
     z.object({
       name: text(200),
@@ -153,14 +153,14 @@ export const episodePatch = z
 // ---- sources / subtitles
 
 /** Absolute http(s) URL only; never fetched server-side. */
-export const urlSchema = z
+const urlSchema = z
   .string()
   .trim()
   .min(1)
   .max(2048)
   .refine((v) => /^https?:\/\/[^\s]+$/i.test(v) && URL.canParse(v), "Must be an absolute http(s) URL");
 
-export const KINDS = ["direct", "hls", "embed"] as const;
+const KINDS = ["direct", "hls", "embed"] as const;
 export type Kind = (typeof KINDS)[number];
 
 /** Embeds are rendered in an iframe on the site, so they must be https. */
@@ -191,7 +191,7 @@ export const sourceCreate = z
   .refine((v) => embedIsHttps(v.kind, v.url), { message: EMBED_MSG, path: ["url"] });
 export const sourcePatch = z.object(sourceFields).partial().strict();
 
-export const FORMATS = ["vtt", "srt"] as const;
+const FORMATS = ["vtt", "srt"] as const;
 const subtitleFields = {
   label: text(200).min(1),
   language: text(35).min(1),

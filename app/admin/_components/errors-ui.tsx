@@ -31,7 +31,7 @@ const ago = (iso: string) => {
   return m < 1 ? "just now" : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`;
 };
 
-export function Sparkline({ values, width = 96, height = 24 }: { values: number[]; width?: number; height?: number }) {
+function Sparkline({ values, width = 96, height = 24 }: { values: number[]; width?: number; height?: number }) {
   const max = Math.max(...values, 0) || 1;
   const w = width / Math.max(values.length, 1);
   return (

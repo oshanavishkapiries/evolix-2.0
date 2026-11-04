@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /** Sections that live under Settings. */
-export const SETTINGS_TABS = [
+const SETTINGS_TABS = [
   { href: "/admin/settings", label: "General", exact: true },
   { href: "/admin/config", label: "Configuration", exact: false },
   { href: "/admin/errors", label: "Errors", exact: false },

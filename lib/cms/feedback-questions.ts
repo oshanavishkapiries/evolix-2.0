@@ -14,7 +14,7 @@ export type QuestionStats = {
   score: number | null;
   reasons: { reason: string; n: number }[];
 };
-export type RecentAnswer = {
+type RecentAnswer = {
   id: string;
   question_key: string;
   title: string;

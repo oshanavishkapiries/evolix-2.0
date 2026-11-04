@@ -1,6 +1,6 @@
 "use client";
 
-export const STEPS = ["Search", "Review", "Save"] as const;
+const STEPS = ["Search", "Review", "Save"] as const;
 
 /** 1 Search - 2 Review - 3 Save. `current` is 1-based. */
 export function StepIndicator({ current }: { current: 1 | 2 | 3 }) {

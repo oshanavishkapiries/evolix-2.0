@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { episodes, movies, reports, seasons, shows, users } from "@/db/schema";
 import type { ReportKind, ReportStatus } from "@/lib/reports";
 
-export type ReportRow = {
+type ReportRow = {
   id: string;
   kind: ReportKind;
   /** Admin-page id: the movie id, or the show id for shows and episodes. */

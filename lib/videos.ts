@@ -16,7 +16,7 @@ export const VIDEO_TYPES = [
 ] as const;
 export type VideoType = (typeof VIDEO_TYPES)[number];
 
-export const KEY_PATTERNS: Record<VideoSite, RegExp> = {
+const KEY_PATTERNS: Record<VideoSite, RegExp> = {
   youtube: /^[A-Za-z0-9_-]{6,20}$/,
   vimeo: /^\d{5,15}$/,
 };

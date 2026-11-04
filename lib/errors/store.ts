@@ -7,7 +7,7 @@ import { sendAlert } from "./alert";
 import { scrubText } from "./scrub";
 import { culpritFrame, frameLabel } from "./stack";
 
-export const KEEP_EVENTS = 100;
+const KEEP_EVENTS = 100;
 const EVENTS_PER_MINUTE = 10;
 const ALERT_EVERY_MS = 60 * 60 * 1000;
 
@@ -30,7 +30,7 @@ export type ErrorInput = {
   fingerprint?: string;
 };
 
-export const RELEASE = process.env.NEXT_PUBLIC_RELEASE || null;
+const RELEASE = process.env.NEXT_PUBLIC_RELEASE || null;
 const ENVIRONMENT = process.env.NODE_ENV ?? "development";
 
 /** Numbers, ids, hashes and quoted values vary between occurrences of the same bug; strip them before grouping. */
@@ -44,7 +44,7 @@ function normalizeMessage(m: string) {
     .slice(0, 300);
 }
 
-export function fingerprintOf(e: Pick<ErrorInput, "source" | "type" | "message" | "frames" | "route">) {
+function fingerprintOf(e: Pick<ErrorInput, "source" | "type" | "message" | "frames" | "route">) {
   const top = culpritFrame(e.frames);
   // Without an in-app frame, the route keeps unrelated framework errors apart.
   const where = top?.inApp ? `${top.file}:${top.fn}` : `${top?.file ?? ""}|${e.route ?? ""}`;

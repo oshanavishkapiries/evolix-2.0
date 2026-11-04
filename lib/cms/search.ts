@@ -4,8 +4,8 @@ import { z } from "zod";
 /** Escapes LIKE wildcards so user input matches literally (Postgres default escape is backslash). */
 export const escapeLike = (s: string) => s.replace(/[\\%_]/g, "\\$&");
 
-export const MAX_PAGE_SIZE = 100;
-export const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 20;
 
 /** Query string of the admin list endpoints. Without page/pageSize the whole list is returned. */
 export const listQuery = z.object({

@@ -11,7 +11,7 @@ import type { SubtitleTarget } from "./schema";
 const published = z.object({ id: z.string(), url: z.string().refine((u) => pixeldrainId(u) !== null), originRef: z.string(), release: z.string().nullish() });
 export class HiddenSubtitleError extends Error {}
 /** The provider could not supply a usable subtitle. `message` is engine text for logs, never for viewers. */
-export class SubtitleDownloadError extends Error {}
+class SubtitleDownloadError extends Error {}
 export async function downloadTrack(target: SubtitleTarget, engine: EngineRef, ref: string, language: string, label: string, source: "auto" | "opensubtitles") {
   const parent = await resolveParent(target);
   const [blocked] = await db.select({ id: subtitles.id }).from(subtitles).where(and(inParent(parent), eq(subtitles.language, language), eq(subtitles.originRef, ref.split("_").at(-1) ?? ref), eq(subtitles.hidden, true), inArray(subtitles.source, ["auto", "opensubtitles"]))).limit(1);

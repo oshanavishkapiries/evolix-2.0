@@ -8,7 +8,7 @@ import { PlayerBanner } from "./player-banner";
 import { CaptionsIcon, CheckIcon, CloseIcon, UploadIcon } from "./icons";
 
 export const libraryId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
-export const sourceLabel = (s: WatchSubtitle) => ({ auto: "Auto", opensubtitles: "OpenSubtitles", upload: "Uploaded", translation: "Translation" }[s.source ?? "auto"]);
+const sourceLabel = (s: WatchSubtitle) => ({ auto: "Auto", opensubtitles: "OpenSubtitles", upload: "Uploaded", translation: "Translation" }[s.source ?? "auto"]);
 export const rankTracks = (tracks: WatchSubtitle[]) => [...tracks].sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime() || a.id.localeCompare(b.id));
 
 export function useSubtitleLibrary({ target, initial }: { target?: SinhalaTarget; initial: WatchSubtitle[] }) {

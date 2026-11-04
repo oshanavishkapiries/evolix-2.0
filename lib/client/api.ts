@@ -48,7 +48,7 @@ export function navigate(path: string) {
   window.location.assign(path);
 }
 
-export function redirectToLogin() {
+function redirectToLogin() {
   const here = window.location.pathname + window.location.search;
   navigate(`/login?next=${encodeURIComponent(here)}`);
 }

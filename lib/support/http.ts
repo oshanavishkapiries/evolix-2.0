@@ -10,7 +10,7 @@ export function privateJson(status: number, body: Parameters<typeof responseJson
   return res;
 }
 
-export const messageInput = z.object({ text: z.string().trim().min(1).max(2000), clientId: z.uuid() });
+const messageInput = z.object({ text: z.string().trim().min(1).max(2000), clientId: z.uuid() });
 const cursor = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 const readInput = z.object({ through: cursor });
 export const uuid = (id: string) => z.uuid().safeParse(id).success;

@@ -6,7 +6,7 @@ import { defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
 const { PlayButton: PlayIcons, SeekButton: SeekIcons } = defaultLayoutIcons;
 
 /** Seconds the centre skip buttons move. */
-export const SKIP_SECONDS = 10;
+const SKIP_SECONDS = 10;
 
 /** Large play/pause for the middle of the video. Shown and hidden with the player controls. */
 export function CenterPlayButton() {
