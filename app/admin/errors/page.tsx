@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ISSUE_SORTS, ISSUE_STATUSES, listIssues, type IssueSort, type IssueStatus } from "@/lib/errors/queries";
 import { AutoRefresh } from "../_components/auto-refresh";
 import { IssueTable, TestErrorButtons } from "../_components/errors-ui";
-import { SettingsTabs } from "../_components/settings-tabs";
+import { SettingsShell } from "../_components/settings-tabs";
 import { PageHeader } from "../_components/page-header";
 
 const PAGE_SIZE = 25;
@@ -12,14 +12,13 @@ type SP = { status?: string; source?: string; q?: string; sort?: string; page?: 
 
 export default function ErrorsPage({ searchParams }: { searchParams: Promise<SP> }) {
   return (
-    <>
+    <SettingsShell>
       <AutoRefresh seconds={20} />
-      <SettingsTabs />
       <PageHeader title="Errors" actions={<TestErrorButtons />} />
       <Suspense fallback={<div className="skeleton mt-4 h-64" aria-busy="true" />}>
         <Issues searchParams={searchParams} />
       </Suspense>
-    </>
+    </SettingsShell>
   );
 }
 
