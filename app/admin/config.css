@@ -17,3 +17,17 @@
 .adm .config-history th, .adm .config-history td { padding: 12px; border-bottom: 1px solid #303033; vertical-align: top; overflow-wrap: anywhere; }
 .adm .config-card dl > div { padding: 8px 0; }.adm .config-card dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 @media (max-width: 800px) { .adm .config-row { grid-template-columns: 1fr; gap: 12px; }.adm .config-card { padding: 16px; } }
+.adm .cfg-lead { color: #a1a1aa; font-size: 14px; margin: 0 0 20px; }
+.adm .cfg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 16px; list-style: none; margin: 0; padding: 0; }
+.adm .cfg-card { display: grid; align-content: start; gap: 8px; height: 100%; padding: 20px; border: 1px solid #3a3a3a; border-radius: 12px; background: #171719; color: inherit; text-decoration: none; transition: border-color .15s, background .15s; }
+.adm .cfg-card:hover, .adm .cfg-card:focus-visible { border-color: var(--a-gold); background: #1d1d20; }
+.adm .cfg-card strong { font-size: 16px; }
+.adm .cfg-card span { color: #a1a1aa; font-size: 13px; overflow-wrap: anywhere; }
+.adm .config-card .config-row:first-of-type { border-top: 0; }
+.adm .config-row > div:first-child p { margin: 4px 0; }
+.adm .config-row > div:first-child code { color: #71717a; }
+.adm .config-control > small, .adm .config-control > .btn-secondary { justify-self: start; }
+.adm .config-control > small { color: #a1a1aa; font-size: 12px; }
+.adm .engine-config-panel .config-control { display: grid; align-items: initial; }
+.adm .engine-config-panel .config-control input, .adm .engine-config-panel .config-control select { width: 100%; }
+.adm .engine-config-panel .config-source { text-transform: lowercase; }

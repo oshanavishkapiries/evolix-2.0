@@ -20,7 +20,7 @@ export function EngineConfigSyncChip({engine}:{engine:string}) {
   },[engine]);
   return sync ? <span className="engine-config-sync" data-state={sync.state} role="status">{syncLabel(sync)}{sync.restartNeeded.length > 0 && <span> · Restart needed: {sync.restartNeeded.join(", ")}</span>}</span> : null;
 }
-export function EngineConfigPanel({engine}:{engine?:string}) {
+export function EngineConfigPanel({engine,locked=false,view="all"}:{engine?:string;locked?:boolean;view?:"all"|"settings"|"history"}) {
   const [scope,setScope]=useState(engine ? `engine:${engine}` : "global");
   const [engines,setEngines]=useState<{id:string;name:string}[]>([]);
   const [snapshot,setSnapshot]=useState<Snapshot>();
@@ -80,31 +80,31 @@ export function EngineConfigPanel({engine}:{engine?:string}) {
     setBusy(true);const r=await adminApi<{sync:ConfigSyncStatus}>("POST",`/api/admin/evo/engines/${encodeURIComponent(scope.slice(7))}/push`);setBusy(false);
     if(!r.ok) return toast.error(errorText(r));setSnapshot(old=>old ? {...old,sync:r.sync} : old);
   };
-  return <div className="engine-config-panel evo-stack">
-    <div className="toolbar"><label htmlFor="engine-config-scope">Configuration for</label><select id="engine-config-scope" value={scope} disabled={busy} onChange={async e=>{
+  return <div className="engine-config-panel config-panel">
+    {!locked && <div className="toolbar"><label htmlFor="engine-config-scope">Configuration for</label><select id="engine-config-scope" value={scope} disabled={busy} onChange={async e=>{
       const next=e.target.value;
       if(form.dirty && !await confirm({title:"Discard unsaved changes?",body:"Switching scope discards your unsaved edits.",confirmLabel:"Discard and switch"})) return;
       markSaved({});setSnapshot(undefined);setHistory([]);setCursor("");setNext(null);setScope(next);
-    }}><option value="global">Global defaults</option>{engines.map(e=><option key={e.id} value={`engine:${e.id}`}>{e.name}</option>)}</select></div>
-    <p>Global defaults apply to every engine. Engine overrides take precedence. Unset keys use each engine’s .env default; that value is only known to the engine.</p>
+    }}><option value="global">Global defaults</option>{engines.map(e=><option key={e.id} value={`engine:${e.id}`}>{e.name}</option>)}</select></div>}
+    {view !== "history" && <><p className="cfg-lead">{scope === "global" ? "These values apply to every engine unless an engine overrides them." : "Overrides for this engine take precedence over engine defaults."} Unset keys use each engine’s .env default; that value is only known to the engine.</p>
     {snapshot?.sync && <div className="toolbar"><span className="engine-config-sync" data-state={snapshot.sync.state} role="status">{syncLabel(snapshot.sync)}</span><button type="button" disabled={busy || !snapshot.sync.managed} onClick={push}>Push now</button>{snapshot.sync.restartNeeded.length > 0 && <span className="warn-text">Restart needed: {snapshot.sync.restartNeeded.join(", ")}</span>}</div>}
     {error && <p role="alert">{error}</p>}
     {!snapshot ? <p aria-busy="true">Loading configuration…</p> : <form onSubmit={save}><fieldset disabled={busy}>
-      {[...new Set(ENGINE_CONFIG_SPECS.map(s=>s.group))].map(group=><section className="evo-section" key={group}><h2>{group}</h2><ul className="set-list">
+      {[...new Set(ENGINE_CONFIG_SPECS.map(s=>s.group))].map(group=><section className="config-card" key={group}><h2>{group}</h2>
         {ENGINE_CONFIG_SPECS.filter(s=>s.group === group).map(s=>{
           const row=snapshot.data.find(r=>r.key === s.key)!, value=String(form.values[s.key] ?? "");
           const props={id:`engine-config-${s.key}`,value,onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLSelectElement>)=>form.setValues(old=>({...old,[s.key]:e.target.value})),"aria-invalid":Boolean(errors[s.key] || invalid[s.key]),"aria-describedby":`${s.key}-help`};
-          return <li key={s.key}><div className="set-text"><label htmlFor={props.id}>{s.label}{s.secret ? " · Replace" : ""}</label><p id={`${s.key}-help`}>{s.description}</p><code>{s.key}</code>{s.restartNeeded && <p>Requires restart</p>}</div><div className="set-control">
-            <span>Effective: {row.value === null ? "Engine .env default" : row.value === "" ? "(empty)" : String(row.value)} <span className="tag">{row.source}</span></span>
+          return <div className="config-row" key={s.key} data-dirty={s.key in changes}><div><label htmlFor={props.id}>{s.label}{s.secret ? " · Replace" : ""}</label><p id={`${s.key}-help`}>{s.description}</p><code>{s.key}</code>{s.restartNeeded && <p>Requires restart</p>}</div><div className="config-control">
+            <div className="config-effective"><span className="config-source">{row.source}</span><span>Effective: <code>{row.value === null ? "Engine .env default" : row.value === "" ? "(empty)" : String(row.value)}</code></span></div>
             {s.kind === "choice" || s.kind === "bool" ? <select {...props}><option value="" disabled>Engine default</option>{(s.kind === "bool" ? [{value:"true",label:"Enabled"},{value:"false",label:"Disabled"}] : s.choices).map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</select> : <input {...props} type={s.secret ? "password" : s.kind === "int" || s.kind === "float" ? "number" : "text"} min={s.min} max={s.max} step={s.kind === "int" ? 1 : "any"} autoComplete={s.secret ? "new-password" : "off"} placeholder={s.secret ? "Blank keeps current secret" : "Engine default"} />}
             {s.secret && <small>Blank keeps the existing secret.</small>}
             {s.kind === "url" && row.value === null && <button type="button" className="btn-secondary" onClick={()=>form.setValues(old=>({...old,[s.key]:"",[`__empty:${s.key}`]:true}))}>Use empty value ({s.key === "EVO_WEBHOOK_URL" ? "disable callbacks" : "derive from completion webhook"})</button>}
             {(errors[s.key] || invalid[s.key]) && <span role="alert">{errors[s.key] || invalid[s.key]}</span>}
             {row.overridden && <button type="button" className="btn-secondary" onClick={()=>mutate(`${base}/${s.key}${query}`,"DELETE",s.key)}>Reset override</button>}
-          </div></li>;
+          </div></div>;
         })}
-      </ul></section>)}
-    </fieldset><SaveBar dirty={form.dirty} saving={busy} onDiscard={form.discard}/></form>}
-    <section className="evo-section"><h2>Configuration history</h2><p>Only engine configuration history is shown. Secrets cannot be restored from masked history.</p><label htmlFor="engine-config-history-filter">Filter key</label><select id="engine-config-history-filter" value={filter} onChange={e=>{setFilter(e.target.value);setCursor("");}}><option value="">All keys</option>{ENGINE_CONFIG_SPECS.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}</select>{historyError && <p role="alert">{historyError}</p>}<div className="table-wrap"><table className="data-table"><thead><tr><th>Time / actor</th><th>Key</th><th>Before → after</th><th>Action</th></tr></thead><tbody>{history.map(h=><tr key={h.id}><td>{new Date(h.at).toLocaleString()}<br/>{h.actor}</td><td>{h.key}</td><td>{h.oldValue ?? "Engine default"} → {h.newValue ?? "Engine default"}</td><td><button type="button" disabled={busy || !h.canRollback} title={h.canRollback ? "Restore previous override" : "Secrets cannot be rolled back"} onClick={()=>mutate(`${base}/audit/${h.id}/rollback`,"POST",h.key)}>Rollback</button></td></tr>)}</tbody></table></div>{!history.length && <p>No changes yet.</p>}<div className="toolbar">{cursor && <button type="button" onClick={()=>setCursor("")}>Newest</button>}{next && <button type="button" onClick={()=>setCursor(next)}>Older</button>}</div></section>
+      </section>)}
+    </fieldset><SaveBar dirty={form.dirty} saving={busy} onDiscard={form.discard} label="Apply changes"/></form>}</>}
+    {view !== "settings" && <section className="config-card"><h2>History</h2><p>Only engine configuration history is shown. Secrets cannot be restored from masked history.</p><label htmlFor="config-history-filter">Filter by key</label><select id="config-history-filter" value={filter} onChange={e=>{setFilter(e.target.value);setCursor("");}}><option value="">All keys</option>{ENGINE_CONFIG_SPECS.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}</select>{historyError && <p role="alert">{historyError}</p>}<div className="config-history"><table><thead><tr><th>Time / actor</th><th>Key</th><th>Before → after</th><th>Action</th></tr></thead><tbody>{history.map(h=><tr key={h.id}><td>{new Date(h.at).toLocaleString()}<br/>{h.actor}</td><td>{h.key}</td><td>{h.oldValue ?? "Engine default"} → {h.newValue ?? "Engine default"}</td><td><button type="button" disabled={busy || !h.canRollback} title={h.canRollback ? "Restore previous override" : "Secrets cannot be rolled back"} onClick={()=>mutate(`${base}/audit/${h.id}/rollback`,"POST",h.key)}>Rollback</button></td></tr>)}</tbody></table></div>{!history.length && <p>No changes yet.</p>}<div className="toolbar">{cursor && <button type="button" onClick={()=>setCursor("")}>Newest</button>}{next && <button type="button" onClick={()=>setCursor(next)}>Older</button>}</div></section>}
   </div>;
 }

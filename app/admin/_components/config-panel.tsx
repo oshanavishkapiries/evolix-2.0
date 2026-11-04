@@ -10,7 +10,7 @@ import { useToast } from "./toast";
 type Snapshot = { data: AdminConfigRow[]; bootstrap: Record<string, string> };
 type Audit = { id: string; key: string; at: string; actor: string; action: string; oldValue: string | null; newValue: string | null; canRollback: boolean; reason?: string };
 const jwt = (key: string) => key === "JWT_ACCESS_SECRET" || key === "JWT_REFRESH_SECRET";
-export function ConfigPanel() {
+export function ConfigPanel({ view = "all" }: { view?: "all" | "settings" | "history" }) {
   const [snapshot, setSnapshot] = useState<Snapshot>();
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -70,7 +70,7 @@ export function ConfigPanel() {
   if (error) return <p role="alert">{error} <button onClick={() => { setError(""); void load(); }}>Retry</button></p>;
   if (!snapshot) return <p aria-busy="true">Loading configuration…</p>;
   return <div className="config-panel">
-    <form onSubmit={save}>
+    {view !== "history" && <><form onSubmit={save}>
       <fieldset disabled={busy}>
         {groupConfig(snapshot.data).map(({ group, items }) => <section className="config-card" key={group} aria-labelledby={`config-${group}`}>
           <h2 id={`config-${group}`}>{group}</h2>
@@ -95,11 +95,12 @@ export function ConfigPanel() {
       <SaveBar dirty={Object.keys(changes).length > 0} saving={busy} onDiscard={() => { form.discard(); setErrors({}); }} label="Apply changes" />
     </form>
     <section className="config-card"><h2>Bootstrap</h2><p>These values live in .env only. NEXT_PUBLIC_* values are fixed at build time. Database credentials and the encryption key are never displayed.</p><dl>{Object.entries(snapshot.bootstrap).map(([key, value]) => <div key={key}><dt><code>{key}</code></dt><dd>{value}</dd></div>)}</dl></section>
-    <section className="config-card"><h2>History</h2><label htmlFor="config-history-filter">Filter by key</label><select id="config-history-filter" value={filter} onChange={(e) => { setFilter(e.target.value); setCursor(""); }}><option value="">All keys</option>{configRegistry.map((e) => <option key={e.key}>{e.key}</option>)}</select>
+    </>}
+    {view !== "settings" && <section className="config-card"><h2>History</h2><label htmlFor="config-history-filter">Filter by key</label><select id="config-history-filter" value={filter} onChange={(e) => { setFilter(e.target.value); setCursor(""); }}><option value="">All keys</option>{configRegistry.map((e) => <option key={e.key}>{e.key}</option>)}</select>
       {historyError && <p role="alert">{historyError}</p>}
       <div className="config-history"><table><thead><tr><th>Time / actor</th><th>Key / action</th><th>Old → new</th><th>Restore</th></tr></thead><tbody>{history.map((row) => <tr key={row.id}><td><time dateTime={row.at}>{new Date(row.at).toLocaleString()}</time><br />{row.actor}</td><td><code>{row.key}</code><br />{row.action}</td><td><code>{row.oldValue ?? "(unset)"} → {row.newValue ?? "(unset)"}</code></td><td><button type="button" className="btn-secondary" disabled={busy || !row.canRollback} title={row.reason} onClick={() => void mutate(`/api/admin/config/audit/${row.id}/rollback`, "POST", `Roll back ${row.key}?`, "Restore the effective value from before this change.")}>Roll back</button>{row.reason && <p>{row.reason}</p>}</td></tr>)}</tbody></table></div>
       {!history.length && !historyError && <p>No history yet.</p>}
       <div className="toolbar"><button type="button" disabled={!cursor} onClick={() => setCursor("")}>Newest</button><button type="button" disabled={!next} onClick={() => setCursor(next ?? "")}>Older</button></div>
-    </section>
+    </section>}
   </div>;
 }
