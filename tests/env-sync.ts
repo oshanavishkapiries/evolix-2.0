@@ -1,4 +1,4 @@
-/** Fails when `.env.example` and the variables the app reads drift apart. Run: pnpm test:env */
+/** Fails when `.env.example` drifts from the bootstrap set or lists a variable the app never reads. Run: pnpm test:env */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { configRegistry } from "../lib/config/registry";
@@ -28,9 +28,14 @@ const documented = new Set(
   [...readFileSync(join(root, ".env.example"), "utf8").matchAll(/^#?\s*([A-Z][A-Z0-9_]+)=/gm)].map((m) => m[1]),
 );
 
-const undocumented = [...used].filter((k) => !documented.has(k));
+// The example lists bootstrap variables only; every registry key is managed in the admin panel.
+const BOOTSTRAP = ["DATABASE_URL", "CONFIG_ENCRYPTION_KEY"];
+const FIRST_DEPLOY = ["ADMIN_EMAILS", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "TMDB_API_KEY"];
+const missing = [...BOOTSTRAP, ...FIRST_DEPLOY].filter((k) => !documented.has(k));
+const extra = [...documented].filter((k) => !BOOTSTRAP.includes(k) && !FIRST_DEPLOY.includes(k));
 const unused = [...documented].filter((k) => !used.has(k));
-if (undocumented.length) console.error("Read by the app but missing from .env.example:", undocumented.join(", "));
+if (missing.length) console.error("Bootstrap variables missing from .env.example:", missing.join(", "));
+if (extra.length) console.error("Non-bootstrap variables in .env.example (manage in admin):", extra.join(", "));
 if (unused.length) console.error("In .env.example but never read by the app:", unused.join(", "));
-if (undocumented.length || unused.length) process.exit(1);
-console.log(`ok: ${used.size} variables, .env.example in sync`);
+if (missing.length || extra.length || unused.length) process.exit(1);
+console.log(`ok: ${documented.size} bootstrap variables, .env.example in sync`);

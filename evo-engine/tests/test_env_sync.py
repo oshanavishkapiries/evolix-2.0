@@ -1,4 +1,4 @@
-"""`.env.example` and `Settings` must list the same variables."""
+"""`.env.example` lists only bootstrap variables, and each must be a real engine setting."""
 import re
 import unittest
 from pathlib import Path
@@ -6,8 +6,8 @@ from pathlib import Path
 from app.core.config import Settings
 
 EXAMPLE = Path(__file__).resolve().parent.parent / ".env.example"
-# Read by docker compose, not by the engine.
-COMPOSE_ONLY = {"EVO_BIND_ADDRESS", "EVO_PORT"}
+# Everything else is pushed from the app's admin configuration.
+BOOTSTRAP = {"EVO_SECRET_TOKEN", "EVO_WEBHOOK_URL"}
 
 
 def example_keys() -> set[str]:
@@ -15,13 +15,12 @@ def example_keys() -> set[str]:
 
 
 class EnvSync(unittest.TestCase):
-    def test_every_setting_is_documented(self):
-        missing = set(Settings.model_fields) - example_keys()
-        self.assertFalse(missing, f"add to evo-engine/.env.example: {sorted(missing)}")
+    def test_example_is_exactly_the_bootstrap_set(self):
+        self.assertEqual(example_keys(), BOOTSTRAP)
 
-    def test_example_has_no_unused_variable(self):
-        stale = example_keys() - set(Settings.model_fields) - COMPOSE_ONLY
-        self.assertFalse(stale, f"not read by the engine, remove from evo-engine/.env.example: {sorted(stale)}")
+    def test_bootstrap_variables_are_engine_settings(self):
+        stale = BOOTSTRAP - set(Settings.model_fields)
+        self.assertFalse(stale, f"not read by the engine: {sorted(stale)}")
 
 
 if __name__ == "__main__":
