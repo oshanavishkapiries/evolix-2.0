@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { listReports, reportCounts } from "@/lib/cms/reports";
 import { REPORT_STATUSES, reasonLabel, type ReportStatus } from "@/lib/reports";
+import { SettingsTabs } from "../_components/settings-tabs";
 import { PageHeader } from "../_components/page-header";
 import { ReportActions } from "../_components/report-actions";
 import { TZ } from "@/lib/tz";
@@ -16,6 +17,7 @@ export default function ReportsPage({ searchParams }: Props) {
   return (
     <>
       <AutoRefresh seconds={30} />
+      <SettingsTabs />
       <PageHeader title="Reports" />
       <Suspense fallback={<div className="skeleton mt-4 h-32" aria-busy="true" />}>
         <ReportsList searchParams={searchParams} />

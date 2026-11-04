@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BellIcon, FilmIcon, FlagIcon, MenuIcon, SupportIcon, TvIcon } from "@/app/(viewer)/_components/icons";
-import { ActivityIcon, AnalyticsIcon, BugIcon, CdnIcon, FeedbackIcon, DashboardIcon, ModelIcon, PipelineIcon, SettingsIcon, UsersIcon } from "./admin-icons";
+import { BellIcon, FilmIcon, MenuIcon, SupportIcon, TvIcon } from "@/app/(viewer)/_components/icons";
+import { ActivityIcon, AnalyticsIcon, CdnIcon, FeedbackIcon, DashboardIcon, ModelIcon, PipelineIcon, SettingsIcon, UsersIcon } from "./admin-icons";
+import { isSettingsPath } from "./settings-tabs";
 import { SupportBadge } from "@/app/_components/support/unread";
 
 const LINKS = [
@@ -17,13 +18,10 @@ const LINKS = [
   { href: "/admin/cdn", label: "CDN files", icon: CdnIcon, match: (p: string) => p.startsWith("/admin/cdn") },
   { href: "/admin/activity", label: "Activity", icon: ActivityIcon, match: (p: string) => p.startsWith("/admin/activity") },
   { href: "/admin/feedback", label: "Feedback", icon: FeedbackIcon, match: (p: string) => p.startsWith("/admin/feedback") },
-  { href: "/admin/errors", label: "Errors", icon: BugIcon, match: (p: string) => p.startsWith("/admin/errors") },
   { href: "/admin/users", label: "Users", icon: UsersIcon, match: (p: string) => p.startsWith("/admin/users") },
-  { href: "/admin/reports", label: "Reports", icon: FlagIcon, match: (p: string) => p.startsWith("/admin/reports") },
   { href: "/admin/announcements", label: "Announcements", icon: BellIcon, match: (p: string) => p.startsWith("/admin/announcements") },
   { href: "/admin/support", label: "Support", icon: SupportIcon, match: (p: string) => p.startsWith("/admin/support") },
-  { href: "/admin/settings", label: "Settings", icon: SettingsIcon, match: (p: string) => p === "/admin/settings" },
-  { href: "/admin/config", label: "Configuration", icon: SettingsIcon, match: (p: string) => p === "/admin/config" },
+  { href: "/admin/settings", label: "Settings", icon: SettingsIcon, match: isSettingsPath },
 ];
 
 /** Sidebar on desktop (sticky, full height); collapsible top bar below 768px. */
