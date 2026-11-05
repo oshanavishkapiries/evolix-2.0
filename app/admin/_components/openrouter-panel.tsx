@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { openRouterStats } from "@/lib/openrouter";
 import { StackChart } from "./stack-chart";
 
@@ -7,6 +8,7 @@ const PALETTE = ["#1a8cff", "#f5a623", "#8bc34a", "#ec4899", "#ff5a43", "#9a9a9a
 
 /** OpenRouter spend, request volume by model and token use (needs a management key for the daily charts). Server-rendered. */
 export async function OpenRouterPanel() {
+  await connection();
   const or = await openRouterStats();
   return (
       <section>
