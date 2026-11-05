@@ -3,7 +3,7 @@
     python -m tests.benchmark                       # synthetic: a local page, no external network
     python -m tests.benchmark --live 680 603 550    # real providers for the given TMDB ids (needs internet)
 
-Writes a Markdown report (default docs/benchmark-<mode>.md). Concurrency is 1 so figures are per job.
+Writes a Markdown report (default docs/evo-engine/benchmarks/benchmark-<mode>.md in the repository root). Concurrency is 1 so figures are per job.
 Settings are toggled in-process through the same runtime settings admins use:
 BROWSER_POOL_SIZE=0 / BLOCK_ASSETS=0 / EXTRACTION_REUSE_TTL_S=0 is the "before" behaviour.
 """
@@ -153,8 +153,8 @@ def main():
     ]
     if lines2:
         report += ["", "## Several qualities of one title", "", *lines2]
-    out = args.out or Path(__file__).resolve().parent.parent / "docs" / f"benchmark-{mode}.md"
-    out.parent.mkdir(exist_ok=True)
+    out = args.out or Path(__file__).resolve().parents[2] / "docs" / "evo-engine" / "benchmarks" / f"benchmark-{mode}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(report) + "\n")
     print("\n".join(report))
     print(f"\nWritten to {out}")

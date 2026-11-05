@@ -131,4 +131,4 @@ continue to work. Afterwards, legacy `PUT /api/v1/media/config` and
 `DELETE /api/v1/media/config/{key}` return 409 (`Managed by the app`).
 `GET /api/v1/media/config` continues to expose a masked snapshot with per-key
 `source` (`push` or `env`), `live`, and `restart_needed`. See
-[the configuration pipeline](docs/config-push.md).
+[the configuration pipeline](../configuration/engine-configuration.md).

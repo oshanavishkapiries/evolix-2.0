@@ -1,5 +1,7 @@
 # Implementation Plan: Hybrid Media Architecture with Evolix 2.0 Design System
 
+This historical implementation plan preserves the original design and proposed paths; some files have since moved or been removed.
+
 ## Goal Description
 Integrate the newly built, SOLID-compliant **Evo-Engine** into the **Evolix 2.0** application while strictly following the **Plex-inspired Charcoal & Evolix Gold (`#f5a623`)** design system and token rules.
 This implementation provides:
@@ -34,7 +36,7 @@ Separated by component layer:
 
 ### 1. Environment & Next.js Reverse Proxy (`lib/env.ts`, `app/api/evo/`)
 
-#### [MODIFY] [`lib/env.ts`](file:///home/ubuntu/PROJECTS/evolix-2.0/lib/env.ts)
+#### [MODIFY] [`lib/env.ts`](../../lib/env.ts)
 - Add optional `EVO_ENGINE_URL` (defaulting to `http://127.0.0.1:8000`) and `EVO_SECRET_TOKEN` (defaulting to empty string).
 
 #### [NEW] `app/api/evo/ingest/route.ts`
@@ -55,17 +57,17 @@ Separated by component layer:
 
 ### 2. Microservice Auth Hardening (`tools/evo-engine/`)
 
-#### [MODIFY] [`tools/evo-engine/app/core/config.py`](file:///home/ubuntu/PROJECTS/evolix-2.0/tools/evo-engine/app/core/config.py)
+#### [MODIFY] [`tools/evo-engine/app/core/config.py`](../../evo-engine/app/core/config.py)
 - Add `EVO_SECRET_TOKEN: str = ""` setting.
 
-#### [MODIFY] [`tools/evo-engine/app/api/routes.py`](file:///home/ubuntu/PROJECTS/evolix-2.0/tools/evo-engine/app/api/routes.py)
+#### [MODIFY] [`tools/evo-engine/app/api/routes.py`](../../evo-engine/app/api/routes.py)
 - Add header validation dependency: if `EVO_SECRET_TOKEN` is set, incoming requests must provide matching `X-Evo-Secret`.
 
 ---
 
 ### 3. Viewer Design System & Badging (`app/(viewer)/`)
 
-#### [MODIFY] [`app/(viewer)/styles/cards.css`](file:///home/ubuntu/PROJECTS/evolix-2.0/app/%28viewer%29/styles/cards.css)
+#### [MODIFY] [`app/(viewer)/styles/cards.css`](../../app/%28viewer%29/styles/cards.css)
 - Add styling for the Evo Engine On-Demand badge:
   ```css
   .v-card-badge-evo {
@@ -85,7 +87,7 @@ Separated by component layer:
   }
   ```
 
-#### [MODIFY] [`app/(viewer)/_components/media-card.tsx`](file:///home/ubuntu/PROJECTS/evolix-2.0/app/%28viewer%29/_components/media-card.tsx)
+#### [MODIFY] [`app/(viewer)/_components/media-card.tsx`](../../app/%28viewer%29/_components/media-card.tsx)
 - Support `isEvo?: boolean` on `Card`.
 - Render `<span className="v-card-badge-evo">Evo Engine</span>` on Evo-marked cards.
 
@@ -113,7 +115,7 @@ Separated by component layer:
   - Continuously polls `/api/evo/status/[taskId]` every 1500ms.
   - When status hits `COMPLETED`, updates source to `result_url` and seamlessly switches to the Vidstack player.
 
-#### [MODIFY] [`app/(viewer)/watch/movie/[id]/page.tsx`](file:///home/ubuntu/PROJECTS/evolix-2.0/app/%28viewer%29/watch/movie/%5Bid%5D/page.tsx)
+#### [MODIFY] [`app/(viewer)/watch/movie/[id]/page.tsx`](../../app/%28viewer%29/watch/movie/%5Bid%5D/page.tsx)
 - Check if movie has active sources in DB.
 - If no active source or if marked with Evo Engine, render `<EvoPlayer />` with fallback support.
 

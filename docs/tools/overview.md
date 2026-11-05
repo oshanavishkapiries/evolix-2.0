@@ -8,11 +8,11 @@ A collection of high-performance Python scripts for downloading media from Teleg
 
 | Script | Purpose | Documentation |
 |---|---|---|
-| [`tg_downloader.py`](tg_downloader.py) | Resumable Telegram channel media downloader with regex, search, and message ID filters. | [Usage Guide](docs/usage.md) |
-| [`upload_pixeldrain.py`](upload_pixeldrain.py) | Full CRUD CLI for Pixeldrain: upload, search, inspect, download, update, and delete files & albums. | [Pixeldrain Guide](docs/pixeldrain.md) |
-| [`extract_subtitles.py`](extract_subtitles.py) | Extract embedded subtitles (`.srt`, `.vtt`, `.ass`) from video files using `ffmpeg`. | [Subtitles Guide](docs/subtitles.md) |
-| [`select_clean_50.py`](select_clean_50.py) | Curates and validates feature films from raw channel dumps using TMDB and Evolix API. | [Pipeline Guide](docs/pipeline.md) |
-| [`run_50_pipeline.py`](run_50_pipeline.py) | Fully automated end-to-end ingestion pipeline with transient local disk garbage collection. | [Pipeline Guide](docs/pipeline.md) |
+| [`tg_downloader.py`](../../tools/tg_downloader.py) | Resumable Telegram channel media downloader with regex, search, and message ID filters. | [Usage Guide](usage.md) |
+| [`upload_pixeldrain.py`](../../tools/upload_pixeldrain.py) | Full CRUD CLI for Pixeldrain: upload, search, inspect, download, update, and delete files & albums. | [Pixeldrain Guide](pixeldrain.md) |
+| [`extract_subtitles.py`](../../tools/extract_subtitles.py) | Extract embedded subtitles (`.srt`, `.vtt`, `.ass`) from video files using `ffmpeg`. | [Subtitles Guide](subtitles.md) |
+| `select_clean_50.py` (historical script) | Curates and validates feature films from raw channel dumps using TMDB and Evolix API. | [Pipeline Guide](pipeline.md) |
+| `run_50_pipeline.py` (historical script) | Fully automated end-to-end ingestion pipeline with transient local disk garbage collection. | [Pipeline Guide](pipeline.md) |
 
 ---
 
@@ -85,12 +85,12 @@ python run_50_pipeline.py
 
 ## Detailed Documentation
 
-For in-depth architecture explanations, CLI flags, configuration parameters, and fault-tolerance details, consult the [`docs/`](docs/) directory:
+For in-depth architecture explanations, CLI flags, configuration parameters, and fault-tolerance details, consult the [tooling documentation](index.md):
 
-- [Documentation Index](docs/index.md)
-- [Setup and Configuration](docs/setup.md)
-- [Usage & Commands Reference](docs/usage.md)
-- [Architecture & Technical Reference](docs/architecture.md)
-- [Pixeldrain CRUD & Upload Suite](docs/pixeldrain.md)
-- [Subtitle Extraction](docs/subtitles.md)
-- [Automated Ingestion Pipeline](docs/pipeline.md)
+- [Documentation Index](index.md)
+- [Setup and Configuration](setup.md)
+- [Usage & Commands Reference](usage.md)
+- [Architecture & Technical Reference](architecture.md)
+- [Pixeldrain CRUD & Upload Suite](pixeldrain.md)
+- [Subtitle Extraction](subtitles.md)
+- [Automated Ingestion Pipeline](pipeline.md)

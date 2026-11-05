@@ -16,7 +16,7 @@ which itself was a fork of
 
 The original Python version became inactive after EverythingSuckz rewrote the project in Golang. Instead of continuing from the older Python codebase, this project is a fresh rewrite using [Telethon](https://github.com/LonamiWebs/Telethon) with a minimal approach.
 
-> 📌 Check out [TODO.md](./TODO.md) for the latest development progress and planned features.
+> 📌 Check out [TODO.md](roadmap.md) for the latest development progress and planned features.
 
 ---
 

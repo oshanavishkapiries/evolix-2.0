@@ -60,7 +60,7 @@ Sinhala is translated **on demand**, the first time a viewer picks it, not by th
 - **"Title not found" is not a failure**: a provider that answers normally but has no copy of the title raises `TitleNotFound`. It never counts towards the cool-down below, so one missing title (retried a few times) cannot lock every provider out for everyone else. Only `PROVIDER_MISS_THRESHOLD` (default 10) such answers in a row, with no title found in between, cool a provider down (it is probably broken). CineSrc: the embed page opened but no playlist came. YtHD: no `vs_src`, 404, or no stream data after a fresh decryptor. Anything else (timeouts, 5xx, a page that never opened) is a real failure.
 - **Provider cool-down** (`app/services/provider_health.py`): `PROVIDER_FAIL_THRESHOLD` consecutive failures within `PROVIDER_FAIL_WINDOW_S` put a provider on cool-down for `PROVIDER_COOLDOWN_S`; afterwards one trial request decides. If every provider is cooling down the job fails immediately with the reason. State is in memory; the engine page shows it with a Reset button.
 - **YtHD decryptor cache** (`app/services/decryptor_cache.py`): `vsdec.js` is stored in `data/decryptors/` by the version the player page names, three versions kept; a failed decryption with a cached copy refreshes it once and retries. `YTHD_DECRYPTOR_CACHE=0` disables it.
-- Benchmark: `python -m tests.benchmark` (synthetic, offline) or `python -m tests.benchmark --live <tmdb ids>`; reports land in `evo-engine/docs/`.
+- Benchmark: `python -m tests.benchmark` (synthetic, offline) or `python -m tests.benchmark --live <tmdb ids>`; reports land in `docs/evo-engine/benchmarks/`.
 
 ## Several engines
 
@@ -84,5 +84,5 @@ The engine records one event per step transition (`task_events` in its SQLite; s
 
 ## Tests
 
-- Engine (stdlib `unittest`, fakes for the extractor, CDN, subtitles and model; no network, no spend): from `tools/evo-engine`, `test/.venv/bin/python -m unittest discover -s tests -t .`. Covers the on-demand Sinhala job (dedup, budget cap, retry, subtitles-only webhook, HTTP validation) and that ingest no longer translates.
+- Engine (stdlib `unittest`, fakes for the extractor, CDN, subtitles and model; no network, no spend): from `evo-engine`, `test/.venv/bin/python -m unittest discover -s tests -t .`. Covers the on-demand Sinhala job (dedup, budget cap, retry, subtitles-only webhook, HTTP validation) and that ingest no longer translates.
 - Player (Playwright, all `/api/evo/*` calls and the CDN mocked): `pnpm build && pnpm start`, then `tests/e2e/run.sh`. It mints a throwaway session and removes it (and the source-less catalog row for TMDB 680) afterwards.

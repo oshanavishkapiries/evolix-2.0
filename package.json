@@ -15,7 +15,7 @@
     "dev:local:check": "tsx scripts/check-local-db.ts",
     "test:db-url": "vitest run tests/db-url.test.ts",
     "test:env": "tsx tests/env-sync.ts && (cd evo-engine && test/.venv/bin/python -m unittest tests.test_env_sync)",
-    "evo:start": "pm2 start tools/evo-engine/ecosystem.config.cjs",
+    "evo:start": "pm2 start evo-engine/ecosystem.config.cjs",
     "evo:stop": "pm2 stop evo-engine",
     "evo:restart": "pm2 restart evo-engine",
     "evo:status": "pm2 status evo-engine",

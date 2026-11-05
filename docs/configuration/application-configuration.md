@@ -1,3 +1,7 @@
+# Application configuration
+
+Source files are in `lib/config/`; file names below refer to that directory unless stated otherwise.
+
 Application configuration is declared in `registry.ts`. Server consumers must `await getConfig()`;
 there is no synchronous accessor for database settings. Effective precedence per key is DB, environment,
 then registry default. Required values without a default throw an error naming the key. DB read failures
