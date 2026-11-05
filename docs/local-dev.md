@@ -45,9 +45,9 @@ Use `scripts/dev-local.sh` or npm scripts:
 
 ## How to Switch Next.js Dev Server to Local
 
-Next.js automatically layers `.env.local` on top of `.env`:
+Use a single root `.env` file for the main application. Copy `.env.example` to `.env` on first setup, fill the required bootstrap credentials, and set the local connection values below. Admin-managed database values override these environment fallbacks. Do not create `.env.local`, which would silently override `.env`.
 
-1. Ensure `.env.local` exists with the local database URL and engine endpoints:
+1. Update `.env` with the local database URL and engine endpoints:
    - `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/evolix_local`
    - `EVO_ENGINES=["http://127.0.0.1:8000"]`
    - `DEV_LOG_OTP=true`
@@ -57,9 +57,9 @@ Next.js automatically layers `.env.local` on top of `.env`:
    ```bash
    npm run dev
    ```
-   Next.js will output `Environments: .env.local, .env`. The application's `db` module detects the local `DATABASE_URL` host (`127.0.0.1`) and automatically routes `@neondatabase/serverless` HTTP requests through `http://127.0.0.1:4444/sql`.
+   Next.js will output `Environments: .env`. The application's `db` module detects the local `DATABASE_URL` host (`127.0.0.1`) and automatically routes `@neondatabase/serverless` HTTP requests through `http://127.0.0.1:4444/sql`.
 4. **To switch back to production Neon**:
-   Rename or move `.env.local` (e.g. `mv .env.local .env.local.bak`) and restart `npm run dev`. When `DATABASE_URL` targets remote Neon cloud, driver behavior remains byte-for-byte untouched.
+   Change `DATABASE_URL` in `.env` to the intended Neon connection string, update engine endpoints as needed, and restart `npm run dev`. When `DATABASE_URL` targets remote Neon cloud, driver behavior remains byte-for-byte untouched.
 
 ## Database Migrations
 

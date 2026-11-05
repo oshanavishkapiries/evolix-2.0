@@ -11,24 +11,13 @@ get_target_database_url() {
     echo "$DATABASE_URL"
     return 0
   fi
-  if [ -f ".env.local" ]; then
+  if [ -f ".env" ]; then
     node -e '
       const fs = require("fs");
-      const content = fs.readFileSync(".env.local", "utf8");
-      for (const line of content.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const idx = trimmed.indexOf("=");
-        if (idx !== -1 && trimmed.slice(0, idx).trim() === "DATABASE_URL") {
-          let val = trimmed.slice(idx + 1).trim();
-          if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("\x27") && val.endsWith("\x27"))) {
-            val = val.slice(1, -1);
-          }
-          console.log(val);
-          process.exit(0);
-        }
-      }
-      process.exit(1);
+      const { parse } = require("dotenv");
+      const url = parse(fs.readFileSync(".env")).DATABASE_URL;
+      if (!url) process.exit(1);
+      console.log(url);
     '
     return $?
   fi
@@ -76,7 +65,7 @@ cmd_down() {
 cmd_migrate() {
   local target_url
   target_url=$(get_target_database_url) || {
-    echo "ERROR: DATABASE_URL not found in environment or .env.local" >&2
+    echo "ERROR: DATABASE_URL not found in environment or .env" >&2
     exit 1
   }
 
