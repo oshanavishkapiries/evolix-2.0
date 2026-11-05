@@ -39,8 +39,10 @@ services:
     image: evo-engine:local
     restart: unless-stopped
     env_file:
-      - evo-engine/.env.docker-local
+      - evo-engine/.env
     environment:
+      EVO_WEBHOOK_URL: http://host.docker.internal:3000/api/evo/complete
+      ERROR_REPORT_URL: http://host.docker.internal:3000/api/errors
       DOWNLOAD_DIR: /app/downloads
       TEMP_DIR: /app/temp
       SQLITE_DB_PATH: /app/data/evo_engine.sqlite3
