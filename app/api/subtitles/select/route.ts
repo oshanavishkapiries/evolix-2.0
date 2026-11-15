@@ -19,7 +19,7 @@ export const POST = subtitleRoute(async (req, userId) => {
   try {
     const track = await downloadTrack(choice.target, engine, choice.providerRef, choice.lang, choice.label, "opensubtitles");
     await invalidateCatalogParent(track);
-    return json(200, { track: publicTrack(track, userId) });
+    return json(200, { track: await publicTrack(track, userId) });
   } catch (e) {
     // A hidden release already has a plain message; anything else is provider trouble the viewer cannot act on.
     if (e instanceof HiddenSubtitleError) return json(422, { code: "SUBTITLES", message: e.message });

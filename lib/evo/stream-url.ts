@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { localFileId } from "./local-file";
 import { getConfig } from "@/lib/config";
 
 /** Short public id of an engine; the stream Worker derives the same one (tools/stream-worker/src/core.ts). */
@@ -17,4 +18,23 @@ export async function viewerStreamUrl(streamUrl: unknown, engineId: string, base
   const m = ENGINE_STREAM.exec(streamUrl);
   if (!m) return streamUrl;
   return `${base}/${engineKey(engineId)}/${m[1].toLowerCase()}/${streamUrl.slice(m[0].length)}`;
+}
+
+/** Resolve a persisted CDN URL using the engine that owns its bytes. */
+export async function viewerFileUrl(url: string, engineId?: string | null, base?: string): Promise<string> {
+  const id = localFileId(url);
+  if (!id) return url;
+  if (!engineId) throw new Error("Local CDN file has no owning engine");
+  base ??= (await getConfig()).STREAM_BASE;
+  return base ? `${base.replace(/\/+$/, "")}/${engineKey(engineId)}/file/${id}`
+    : `/api/evo/file/${engineKey(engineId)}/${id}`;
+}
+
+/** Resolve URLs returned directly by ingest/status before the player consumes them. */
+export async function viewerTaskUrls(data: Record<string, unknown>, engineId: string) {
+  const out: Record<string, unknown> = { ...data, stream_url: await viewerStreamUrl(data.stream_url, engineId) };
+  if (typeof data.result_url === "string") out.result_url = await viewerFileUrl(data.result_url, engineId);
+  if (Array.isArray(data.cdn_subtitles)) out.cdn_subtitles = await Promise.all(data.cdn_subtitles.map(async (s) =>
+    s && typeof s.url === "string" ? { ...s, url: await viewerFileUrl(s.url, engineId) } : s));
+  return out;
 }

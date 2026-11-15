@@ -13,7 +13,7 @@ class Spec:
     key: str
     label: str
     description: str
-    kind: str  # int | float | choice | text | bool | url | secret
+    kind: str  # int | float | choice | text | path | bool | url | secret
     min: float
     max: float
     live: bool = True
@@ -27,6 +27,10 @@ EXTRACTOR_ORDERS = (
 )
 
 SPECS = [
+    Spec("CDN_PROVIDER", "CDN provider", "Storage used on the next upload.", "choice", 0, 0, choices=(("pixeldrain", "Pixeldrain"), ("local", "Local disk"))),
+    Spec("LOCAL_CDN_DIR", "Local CDN directory", "Storage directory; existing files stay in the previous directory when changed.", "path", 0, 0),
+    Spec("LOCAL_CDN_VIDEO_GB", "Local video quota (GB)", "LRU video quota enforced before uploads.", "float", 0, 1000000),
+    Spec("LOCAL_CDN_SUBTITLE_GB", "Local subtitle quota (GB)", "Independent LRU subtitle quota.", "float", 0, 1000000),
     Spec("MAX_CONCURRENT_EXTRACTIONS", "Parallel extractions", "Headless-browser extractions running at once.", "int", 1, 8),
     Spec("MAX_CONCURRENT_DOWNLOADS", "Parallel CDN caches", "Downloads/uploads to the CDN running at once.", "int", 1, 8),
     Spec("MAX_QUEUED_TASKS", "Queue limit", "Jobs waiting for extraction beyond this are refused with 503.", "int", 1, 5000),
@@ -58,7 +62,7 @@ SPECS += [
     Spec("OPENROUTER_API_KEY", "OpenRouter API key", "Used on the next translation call.", "secret", 0, 0),
 ]
 BY_KEY = {s.key: s for s in SPECS}
-DEFAULTS = {s.key: getattr(settings, s.key) for s in SPECS}
+DEFAULTS = {s.key: str(getattr(settings, s.key)) if s.kind == "path" else getattr(settings, s.key) for s in SPECS}
 
 
 # OpenRouter model ids look like "vendor/name" with optional ":variant" (":free", ":nitro").
@@ -93,6 +97,10 @@ def coerce(key: str, value: Any):
         if isinstance(value, (int, str)) and value in (0, 1, "0", "1", "true", "false"):
             return value in (1, "1", "true")
         raise ValueError(f"{key} must be a boolean")
+    if spec.kind == "path":
+        if not isinstance(value, str) or not value.strip() or len(value) > 4096 or any(ord(c) < 32 for c in value):
+            raise ValueError(f"{key} must be a nonempty filesystem path")
+        return value.strip()
     if spec.kind == "text":
         text = value.strip() if isinstance(value, str) else ""
         if len(text) > 120 or not MODEL_ID.match(text):
@@ -133,7 +141,7 @@ def snapshot(overrides: dict, *, managed=False, restart_needed=(), desired=None)
         {
             "key": s.key, "label": s.label, "description": s.description, "kind": s.kind, "min": s.min, "max": s.max,
             "choices": [{"value": v, "label": l} for v, l in s.choices],
-            "value": mask(desired.get(s.key, getattr(settings, s.key))) if s.kind == "secret" else desired.get(s.key, getattr(settings, s.key)),
+            "value": mask(desired.get(s.key, getattr(settings, s.key))) if s.kind == "secret" else str(desired.get(s.key, getattr(settings, s.key))) if s.kind == "path" else desired.get(s.key, getattr(settings, s.key)),
             "default": mask(DEFAULTS[s.key]) if s.kind == "secret" else DEFAULTS[s.key],
             "overridden": s.key in overrides, "source": "push" if managed and s.key in overrides else "env",
             "live": s.live, "restart_needed": s.key in restart_needed,

@@ -46,12 +46,14 @@ services:
       DOWNLOAD_DIR: /app/downloads
       TEMP_DIR: /app/temp
       SQLITE_DB_PATH: /app/data/evo_engine.sqlite3
+      LOCAL_CDN_DIR: /app/cdn
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - engine-data:/app/data
       - engine-downloads:/app/downloads
       - engine-temp:/app/temp
+      - engine-cdn:/app/cdn
     shm_size: "1gb"
     stop_grace_period: 2m
     extra_hosts:
@@ -68,3 +70,4 @@ volumes:
   engine-data:
   engine-downloads:
   engine-temp:
+  engine-cdn:

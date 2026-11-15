@@ -1,5 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
+from typing import Literal
 
 
 APP_NAME = "Evo-Engine Media Service"
@@ -14,6 +15,10 @@ class Settings(BaseSettings):
 
     # External Storage / CDN
     PIXELDRAIN_API_KEY: str = ""
+    CDN_PROVIDER: Literal["pixeldrain", "local"] = "pixeldrain"
+    LOCAL_CDN_DIR: Path = BASE_DIR / "cdn"
+    LOCAL_CDN_VIDEO_GB: float = 20
+    LOCAL_CDN_SUBTITLE_GB: float = 5
 
     # Security: Shared token for Next.js / Vercel proxy
     EVO_SECRET_TOKEN: str = ""

@@ -132,3 +132,28 @@ continue to work. Afterwards, legacy `PUT /api/v1/media/config` and
 `GET /api/v1/media/config` continues to expose a masked snapshot with per-key
 `source` (`push` or `env`), `live`, and `restart_needed`. See
 [the configuration pipeline](../configuration/engine-configuration.md).
+
+## Local disk CDN
+
+In admin Settings > Configuration, under “Callbacks and storage”, select
+`CDN_PROVIDER=local`. Set `LOCAL_CDN_DIR` to a persistent writable directory
+(native default: `evo-engine/cdn`; Compose: `/app/cdn` on the `engine-cdn` volume).
+The defaults are `LOCAL_CDN_VIDEO_GB=20` and `LOCAL_CDN_SUBTITLE_GB=5`: separate
+video and subtitle pools, totaling 25 GB. These settings can also be supplied
+in `evo-engine/.env` before the engine is managed by the app. No restart is needed.
+Changing the directory does not migrate existing files. Run one engine process
+per directory; playback pins are process-local.
+
+Before each upload, the engine evicts least recently accessed files from that
+pool to fit its quota, retaining files currently playing. Oversized uploads are
+rejected. Lower quotas apply on the next upload. Quotas cover indexed media,
+not the SQLite index, temporary downloads, or other volume contents; provision
+additional disk space. Missing or evicted media is cached again on next play.
+The CDN admin page shows each engine’s usage, quotas, file counts and oldest
+access, and offers a confirmed purge that retains playing files. Provider and
+quota changes use the Configuration screen; albums require Pixeldrain.
+
+Redeploy `tools/stream-worker` before using local storage with `STREAM_BASE`: the
+Worker needs the new `/<engineKey>/file/<file_id>` streaming route for videos and
+VTT subtitles. Keep its engine registry and tokens synchronized with the app.
+With `STREAM_BASE` empty, the app’s `/api/evo/file/...` proxy serves local files.

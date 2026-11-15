@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { catalogCache, titleTag, tmdbTag } from "./cache";
 import { episodeNeighbors, isUpcoming } from "./availability";
 import { airedEpisode } from "./availability-query";
+import { viewerFileUrl } from "@/lib/evo/stream-url";
 import { normalizeSource } from "@/lib/viewer/providers";
 import { episodes, movies, seasons, shows, sources, subtitles } from "@/db/schema";
 import { parseMediaId } from "./ids";
@@ -36,15 +37,16 @@ export type WatchSubtitle = {
 };
 
 const activeSources = async (where: ReturnType<typeof eq>): Promise<WatchSource[]> =>
-  (await db
-    .select({ id: sources.id, label: sources.label, kind: sources.kind, quality: sources.quality, url: sources.url, audioLanguage: sources.audioLanguage })
+  Promise.all((await db
+    .select({ id: sources.id, label: sources.label, kind: sources.kind, quality: sources.quality, url: sources.url, engineId: sources.engineId, audioLanguage: sources.audioLanguage })
     .from(sources)
     .where(and(where, eq(sources.isActive, true)))
-    .orderBy(asc(sources.sortOrder), asc(sources.createdAt))).map(normalizeSource);
+    .orderBy(asc(sources.sortOrder), asc(sources.createdAt))).map(async ({ engineId, ...s }) => normalizeSource({ ...s, url: await viewerFileUrl(s.url, engineId) })));
 
-const subtitleRows = (where: ReturnType<typeof eq>): Promise<WatchSubtitle[]> =>
-  db
+const subtitleRows = async (where: ReturnType<typeof eq>): Promise<WatchSubtitle[]> =>
+  Promise.all((await db
     .select({
+      engineId: subtitles.engineId,
       id: subtitles.id,
       label: subtitles.label,
       language: subtitles.language,
@@ -56,7 +58,7 @@ const subtitleRows = (where: ReturnType<typeof eq>): Promise<WatchSubtitle[]> =>
     })
     .from(subtitles)
     .where(and(where, eq(subtitles.visibility, "shared"), eq(subtitles.hidden, false)))
-    .orderBy(desc(subtitles.score), sql`${subtitles.lastUsedAt} desc nulls last`, asc(subtitles.id));
+    .orderBy(desc(subtitles.score), sql`${subtitles.lastUsedAt} desc nulls last`, asc(subtitles.id))).map(async ({ engineId, ...s }) => ({ ...s, url: await viewerFileUrl(s.url, engineId) })));
 
 async function getDbMovieWatch(id: string) {
   cacheTag(titleTag("movie", id));

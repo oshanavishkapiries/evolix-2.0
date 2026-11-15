@@ -26,5 +26,5 @@ export const POST = subtitleRoute(async (req, userId) => {
   const [track] = await db.select().from(subtitles).where(eq(subtitles.id, trackId)).limit(1);
   if (!track || track.uploadedBy !== owner || track.hidden) return json(404, { message: "Subtitle is no longer available" });
   await db.insert(subtitleGrants).values({ trackId, userId }).onConflictDoNothing();
-  return json(200, { track: publicTrack(track, userId) });
+  return json(200, { track: await publicTrack(track, userId) });
 }, 20);

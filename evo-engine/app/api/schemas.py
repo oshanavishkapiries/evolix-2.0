@@ -28,7 +28,7 @@ class SinhalaSubtitleRequest(BaseModel):
     synopsis: Optional[str] = Field(default=None, max_length=1500)
     characters: List[str] = Field(default_factory=list, max_length=20)
     source_track_id: Optional[str] = Field(default=None, pattern=r"^[0-9a-f-]{36}$")
-    source_url: Optional[str] = Field(default=None, pattern=r"^https://pixeldrain\.com/api/file/[A-Za-z0-9_-]+$")
+    source_url: Optional[str] = Field(default=None, pattern=r"^(?:https://pixeldrain\.com/api/file/[A-Za-z0-9_-]+|evo-local://[a-f0-9]{32,64}\.vtt)$")
 
     @model_validator(mode="after")
     def _source_pair(self):

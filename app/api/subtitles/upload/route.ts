@@ -44,5 +44,5 @@ export const POST = subtitleRoute(async (req, userId) => {
   await recordSubtitleOwners(engine, [{ id: data.id }]);
   const track = await saveTrack(await resolveParent(t), { language: lang.data, label: file.name.slice(0, 100), url: data.url, format: "vtt", source: "upload", originRef: `${userId}:${data.id}`, uploadedBy: userId, visibility: "private", engineId: engine.id });
   if (track.hidden) return json(422, { message: "This upload was hidden after problem reports. Choose a corrected file." });
-  return json(201, { track: publicTrack(track, userId) });
+  return json(201, { track: await publicTrack(track, userId) });
 }, 10);

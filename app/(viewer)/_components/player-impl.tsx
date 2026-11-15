@@ -1,4 +1,5 @@
 "use client";
+import { isLocalPlaybackUrl } from "@/lib/evo/local-file";
 
 import "vidstack/player/styles/default/theme.css";
 import "vidstack/player/styles/default/layouts/video.css";
@@ -200,7 +201,7 @@ export default function PlayerImpl({
   // lands on another quality or a fresh Evo ingest. Other failures (codec, network) are left to the viewer.
   const router = useRouter();
   const [healChecked, setHealChecked] = useState(false);
-  const healable = Boolean(pdId && source.id && /^[0-9a-f-]{36}$/i.test(source.id));
+  const healable = Boolean((pdId || isLocalPlaybackUrl(source.url)) && source.id && /^[0-9a-f-]{36}$/i.test(source.id));
   useEffect(() => {
     if (!failed || !healable) return;
     fetchWithRefresh("/api/evo/heal", {
