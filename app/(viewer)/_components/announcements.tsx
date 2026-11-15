@@ -5,65 +5,61 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { InboxItem } from "@/lib/announcements";
 import { fetchWithRefresh } from "@/lib/client/api";
 import { BellIcon, CloseIcon } from "./icons";
-import { useSupportNotifications } from "@/app/_components/support/unread";
-
-const POLL_MS = 60_000;
+import { useInboxSummary, useSupportNotifications } from "@/app/_components/support/unread";
 
 type Inbox = {
   items: InboxItem[];
   unread: number;
   read: (id: string) => void;
   readAll: () => void;
+  loadBodies: () => Promise<void>;
 };
-const Ctx = createContext<Inbox>({ items: [], unread: 0, read: () => {}, readAll: () => {} });
+const Ctx = createContext<Inbox>({ items: [], unread: 0, read: () => {}, readAll: () => {}, loadBodies: async () => {} });
 
 const post = (body: unknown) =>
   fetchWithRefresh("/api/me/announcements/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
 
-/** One inbox for the bell and the banner: loads on mount, refreshes on focus and every minute. Reads are optimistic. */
+/** Summaries share the support poll; only opening the bell loads inbox-only bodies. */
 export function AnnouncementsProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<{ items: InboxItem[]; unread: number }>({ items: [], unread: 0 });
-  const busy = useRef(0);
+  const inbox = useInboxSummary();
+  const summary = inbox?.summary;
+  const refresh = inbox?.refresh;
+  const [bodies, setBodies] = useState<Record<string, { body: string; version: string }>>({});
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [allRead, setAllRead] = useState(false);
+  const busy = useRef(false);
+  const pending = useRef(0);
+  const items = useMemo(() => (summary?.items ?? []).map((item) => ({ ...item, body: item.bodyLoaded ? item.body : (bodies[item.id]?.version === item.bodyVersion ? bodies[item.id].body : ""), read: item.read || readIds.has(item.id) })), [summary, bodies, readIds]);
+  const unread = allRead ? 0 : Math.max(0, (summary?.unread ?? 0) - (summary?.items ?? []).filter((item) => !item.read && readIds.has(item.id)).length);
 
-  const load = useCallback(async () => {
-    if (busy.current) return; // a local change is in flight; its refresh will follow
+  const loadBodies = useCallback(async () => {
+    if (busy.current || !(summary?.items.some((item) => !item.bodyLoaded && bodies[item.id]?.version !== item.bodyVersion))) return;
+    busy.current = true;
     try {
       const res = await fetchWithRefresh("/api/me/announcements");
-      if (res.ok) setState(await res.json());
-    } catch {}
-  }, []);
+      if (res.ok) {
+        const full: { items: InboxItem[] } = await res.json();
+        setBodies(Object.fromEntries(full.items.map((item) => [item.id, { body: item.body, version: summary.items.find((entry) => entry.id === item.id)?.bodyVersion ?? "" }])));
+      }
+    } catch {} finally { busy.current = false; }
+  }, [summary, bodies]);
 
-  useEffect(() => {
-    // Initial load plus polling; the setState happens after the fetch resolves, not synchronously.
-    const first = setTimeout(load, 0);
-    const timer = setInterval(() => document.visibilityState === "visible" && load(), POLL_MS);
-    const onFocus = () => load();
-    window.addEventListener("focus", onFocus);
-    return () => {
-      clearTimeout(first);
-      clearInterval(timer);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [load]);
+  const mutate = useCallback(async (body: { id: string } | { all: true }) => {
+    if ("all" in body) setAllRead(true);
+    const ids = "all" in body ? (summary?.items ?? []).map((item) => item.id) : [body.id];
+    setReadIds((current) => new Set([...current, ...ids]));
+    pending.current++;
+    const result = await post(body);
+    if (!result?.ok) setReadIds((current) => new Set([...current].filter((id) => !ids.includes(id))));
+    pending.current--;
+    if (!pending.current) {
+      await refresh?.();
+      setReadIds(new Set());
+      setAllRead(false);
+    }
+  }, [summary, refresh]);
 
-  const mutate = useCallback(
-    async (body: { id: string } | { all: true }) => {
-      setState((s) => {
-        const items = s.items.map((i) => ("all" in body || i.id === body.id ? { ...i, read: true } : i));
-        return { items, unread: items.filter((i) => !i.read).length };
-      });
-      busy.current++;
-      await post(body);
-      busy.current--;
-      load();
-    },
-    [load],
-  );
-
-  const value = useMemo<Inbox>(
-    () => ({ ...state, read: (id) => void mutate({ id }), readAll: () => void mutate({ all: true }) }),
-    [state, mutate],
-  );
+  const value = useMemo<Inbox>(() => ({ items, unread, loadBodies, read: (id) => void mutate({ id }), readAll: () => void mutate({ all: true }) }), [items, unread, loadBodies, mutate]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -81,12 +77,14 @@ function useOpenLink() {
 }
 
 export function NotificationBell() {
-  const { items, unread, read, readAll } = useInbox();
+  const { items, unread, read, readAll, loadBodies } = useInbox();
   const support = useSupportNotifications();
   const totalUnread = unread + support.count;
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const openLink = useOpenLink();
+
+  useEffect(() => { if (open) void loadBodies(); }, [open, loadBodies]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +101,7 @@ export function NotificationBell() {
 
   return (
     <div className="v-menu" ref={root}>
-      <button type="button" className="v-top-bell" aria-haspopup="dialog" aria-expanded={open} aria-label={totalUnread ? `Notifications, ${totalUnread} unread` : "Notifications"} onClick={() => { setOpen((o) => !o); if (!open) void support.refresh(); }}>
+      <button type="button" className="v-top-bell" aria-haspopup="dialog" aria-expanded={open} aria-label={totalUnread ? `Notifications, ${totalUnread} unread` : "Notifications"} onClick={() => { setOpen((o) => !o); if (!open) { void support.refresh(); void loadBodies(); } }}>
         <BellIcon size={20} />
         {totalUnread > 0 && <span className="v-badge" aria-hidden="true">{totalUnread > 9 ? "9+" : totalUnread}</span>}
       </button>

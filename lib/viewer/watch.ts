@@ -1,14 +1,16 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
+import { cacheTag } from "next/cache";
 import { db } from "@/db";
-import { catalogCache } from "./cache";
-import { episodeNeighbors } from "./availability";
+import { catalogCache, titleTag, tmdbTag } from "./cache";
+import { episodeNeighbors, isUpcoming } from "./availability";
+import { airedEpisode } from "./availability-query";
 import { normalizeSource } from "@/lib/viewer/providers";
 import { episodes, movies, seasons, shows, sources, subtitles } from "@/db/schema";
 import { parseMediaId } from "./ids";
 import { findMovieIdByTmdb } from "@/lib/cms/movies";
 import { findShowIdByTmdb } from "@/lib/cms/shows";
-import { getMovieDetails, getShowDetails } from "@/lib/tmdb";
+import { getMovieSummary, getShowSummary, getShowSeason } from "@/lib/tmdb";
 
 export type WatchSource = {
   id: string;
@@ -57,6 +59,7 @@ const subtitleRows = (where: ReturnType<typeof eq>): Promise<WatchSubtitle[]> =>
     .orderBy(desc(subtitles.score), sql`${subtitles.lastUsedAt} desc nulls last`, asc(subtitles.id));
 
 async function getDbMovieWatch(id: string) {
+  cacheTag(titleTag("movie", id));
   const [[movie], srcs, subs] = await Promise.all([
     db
       .select({ id: movies.id, tmdbId: movies.tmdbId, title: movies.title, releaseDate: movies.releaseDate, backdropPath: movies.backdropPath, overview: movies.overview, runtimeMinutes: movies.runtimeMinutes, rating: movies.rating })
@@ -66,6 +69,7 @@ async function getDbMovieWatch(id: string) {
     activeSources(eq(sources.movieId, id)),
     subtitleRows(eq(subtitles.movieId, id)),
   ]);
+  if (movie?.tmdbId) cacheTag(tmdbTag("movie", movie.tmdbId));
   return movie ? { ...movie, sources: srcs, subtitles: subs } : null;
 }
 
@@ -80,6 +84,7 @@ export const getMovieWatch = cache(async (id: string): Promise<MovieWatch | null
   if (!media) return null;
 
   if (media.kind === "tmdb") {
+    cacheTag(tmdbTag("movie", media.tmdbId));
     const localId = await findMovieIdByTmdb(media.tmdbId);
     if (localId) {
       const localWatch = await getDbMovieWatch(localId);
@@ -87,7 +92,7 @@ export const getMovieWatch = cache(async (id: string): Promise<MovieWatch | null
     }
 
     try {
-      const tmdbMovie = await getMovieDetails(media.tmdbId);
+      const tmdbMovie = await getMovieSummary(media.tmdbId, "watch");
       return {
         id: `tmdb-${media.tmdbId}`,
         tmdbId: media.tmdbId,
@@ -110,10 +115,23 @@ export const getMovieWatch = cache(async (id: string): Promise<MovieWatch | null
 
 export type EpisodeRef = { seasonNumber: number; episodeNumber: number; name: string };
 
+/** Reuse the lightweight sidebar across every episode in this season. */
+async function getDbSeasonSidebar(showId: string, seasonId: string) {
+  "use cache";
+  catalogCache();
+  cacheTag(titleTag("show", showId));
+  return db.select({ id: episodes.id, episodeNumber: episodes.episodeNumber, name: episodes.name,
+    airDate: episodes.airDate, runtimeMinutes: episodes.runtimeMinutes, stillPath: episodes.stillPath })
+    .from(episodes).where(and(eq(episodes.seasonId, seasonId), eq(episodes.isVisible, true)))
+    .orderBy(asc(episodes.episodeNumber));
+}
+
 async function getDbEpisodeWatch(showId: string, seasonNumber: number, episodeNumber: number) {
-  const list = await db
+  cacheTag(titleTag("show", showId));
+  const [current] = await db
     .select({
       id: episodes.id,
+      seasonId: seasons.id,
       showName: shows.name,
       backdropPath: shows.backdropPath,
       seasonNumber: seasons.seasonNumber,
@@ -130,26 +148,34 @@ async function getDbEpisodeWatch(showId: string, seasonNumber: number, episodeNu
     .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
     .innerJoin(shows, eq(shows.id, seasons.showId))
     .where(
-      and(eq(shows.id, showId), eq(shows.isPublished, true), eq(seasons.isVisible, true), eq(episodes.isVisible, true)),
+      and(eq(shows.id, showId), eq(shows.isPublished, true), eq(seasons.isVisible, true), eq(episodes.isVisible, true), eq(seasons.seasonNumber, seasonNumber), eq(episodes.episodeNumber, episodeNumber)),
     )
-    .orderBy(asc(seasons.seasonNumber), asc(episodes.episodeNumber));
+    .limit(1);
+  if (!current) return null;
+  if (current.tmdbId) cacheTag(tmdbTag("tv", current.tmdbId));
 
-  const i = list.findIndex((e) => e.seasonNumber === seasonNumber && e.episodeNumber === episodeNumber);
-  if (i < 0) return null;
-  const current = list[i];
-  const neighbors = episodeNeighbors(list, current);
-  const ref = (e?: (typeof list)[number]): EpisodeRef | null =>
-    e ? { seasonNumber: e.seasonNumber, episodeNumber: e.episodeNumber, name: e.name } : null;
-
-  const [srcs, subs] = await Promise.all([
+  const neighbor = async (direction: "prev" | "next"): Promise<EpisodeRef | null> => {
+    if (isUpcoming(current.airDate)) return null;
+    const compare = direction === "prev" ? sql`<` : sql`>`;
+    const order = direction === "prev" ? desc : asc;
+    const [row] = await db.select({ seasonNumber: seasons.seasonNumber, episodeNumber: episodes.episodeNumber, name: episodes.name })
+      .from(seasons).innerJoin(episodes, eq(episodes.seasonId, seasons.id))
+      .where(and(eq(seasons.showId, showId), eq(seasons.isVisible, true), eq(episodes.isVisible, true), airedEpisode(),
+        sql`(${seasons.seasonNumber}, ${episodes.episodeNumber}) ${compare} (${seasonNumber}, ${episodeNumber})`))
+      .orderBy(order(seasons.seasonNumber), order(episodes.episodeNumber)).limit(1);
+    return row ?? null;
+  };
+  const [srcs, subs, seasonEpisodes, prev, next] = await Promise.all([
     activeSources(eq(sources.episodeId, current.id)),
     subtitleRows(eq(subtitles.episodeId, current.id)),
+    getDbSeasonSidebar(showId, current.seasonId),
+    neighbor("prev"), neighbor("next"),
   ]);
   return {
     current,
-    prev: ref(neighbors.prev ?? undefined),
-    next: ref(neighbors.next ?? undefined),
-    seasonEpisodes: list.filter((e) => e.seasonNumber === seasonNumber),
+    prev,
+    next,
+    seasonEpisodes: seasonEpisodes.map((episode) => ({ ...current, ...episode, overview: undefined })),
     sources: srcs,
     subtitles: subs,
   };
@@ -169,6 +195,7 @@ export const getEpisodeWatch = cache(async (showId: string, seasonNumber: number
   if (!media) return null;
 
   if (media.kind === "tmdb") {
+    cacheTag(tmdbTag("tv", media.tmdbId));
     const localId = await findShowIdByTmdb(media.tmdbId);
     if (localId) {
       const localWatch = await getDbEpisodeWatch(localId, seasonNumber, episodeNumber);
@@ -176,53 +203,46 @@ export const getEpisodeWatch = cache(async (showId: string, seasonNumber: number
     }
 
     try {
-      const s = await getShowDetails(media.tmdbId);
-      const allEpisodes: Array<{
-        id: string;
-        showName: string;
-        backdropPath: string | null;
-        seasonNumber: number;
-        seasonName: string;
-        episodeNumber: number;
-        name: string;
-        overview: string;
-        airDate: string | null;
-        runtimeMinutes: number | null;
-        stillPath: string | null;
-        tmdbId: number;
-      }> = [];
-
-      for (const sec of s.seasons) {
-        for (const ep of sec.episodes ?? []) {
-          allEpisodes.push({
-            id: `tmdb-ep-${media.tmdbId}-${sec.seasonNumber}-${ep.episodeNumber}`,
-            showName: s.name,
-            backdropPath: s.backdropPath,
-            seasonNumber: sec.seasonNumber,
-            seasonName: sec.name,
-            episodeNumber: ep.episodeNumber,
-            name: ep.name,
-            overview: ep.overview,
-            airDate: ep.airDate,
-            runtimeMinutes: ep.runtimeMinutes,
-            stillPath: ep.stillPath,
-            tmdbId: media.tmdbId,
-          });
-        }
-      }
-
-      const i = allEpisodes.findIndex((e) => e.seasonNumber === seasonNumber && e.episodeNumber === episodeNumber);
-      if (i < 0) return null;
-      const current = allEpisodes[i];
+      const [s, season] = await Promise.all([getShowSummary(media.tmdbId, "watch"), getShowSeason(media.tmdbId, seasonNumber)]);
+      const mapEpisode = (ep: (typeof season)[number], secNumber: number, secName: string) => ({
+        id: `tmdb-ep-${media.tmdbId}-${secNumber}-${ep.episodeNumber}`,
+        showName: s.name, backdropPath: s.backdropPath, seasonId: `tmdb-season-${media.tmdbId}-${secNumber}`,
+        seasonNumber: secNumber, seasonName: secName, episodeNumber: ep.episodeNumber,
+        name: ep.name, overview: ep.overview, airDate: ep.airDate, runtimeMinutes: ep.runtimeMinutes,
+        stillPath: ep.stillPath, tmdbId: media.tmdbId,
+      });
+      const sec = s.seasons.find((v) => v.seasonNumber === seasonNumber);
+      if (!sec) return null;
+      const allEpisodes = season.map((ep) => mapEpisode(ep, seasonNumber, sec.name));
+      const current = allEpisodes.find((e) => e.episodeNumber === episodeNumber);
+      if (!current) return null;
       const neighbors = episodeNeighbors(allEpisodes, current);
-      const ref = (e?: (typeof allEpisodes)[number]): EpisodeRef | null =>
+      const ref = (e: EpisodeRef | null): EpisodeRef | null =>
         e ? { seasonNumber: e.seasonNumber, episodeNumber: e.episodeNumber, name: e.name } : null;
-
+      // Only fetch an adjacent aired season when navigation actually reaches a boundary.
+      if (!isUpcoming(current.airDate)) {
+        const ordered = s.seasons.filter((v) => v.episodeCount > 0 && !isUpcoming(v.airDate))
+          .sort((a, b) => a.seasonNumber - b.seasonNumber);
+        const previous = ordered.filter((v) => v.seasonNumber < seasonNumber).at(-1);
+        const next = ordered.find((v) => v.seasonNumber > seasonNumber);
+        const adjacent = async (v: typeof sec | undefined, last: boolean) => {
+          if (!v) return null;
+          const eps = (await getShowSeason(media.tmdbId, v.seasonNumber).catch(() => [])).filter((e) => !isUpcoming(e.airDate));
+          const ep = last ? eps.at(-1) : eps[0];
+          return ep ? mapEpisode(ep, v.seasonNumber, v.name) : null;
+        };
+        const [prevEdge, nextEdge] = await Promise.all([
+          !neighbors.prev ? adjacent(previous, true) : null,
+          !neighbors.next ? adjacent(next, false) : null,
+        ]);
+        neighbors.prev ??= prevEdge;
+        neighbors.next ??= nextEdge;
+      }
       return {
         current,
-        prev: ref(neighbors.prev ?? undefined),
-        next: ref(neighbors.next ?? undefined),
-        seasonEpisodes: allEpisodes.filter((e) => e.seasonNumber === seasonNumber),
+        prev: ref(neighbors.prev),
+        next: ref(neighbors.next),
+        seasonEpisodes: allEpisodes.map((e) => ({ ...e, overview: undefined })),
         sources: [] as WatchSource[],
         subtitles: [] as WatchSubtitle[],
       };

@@ -1,0 +1,46 @@
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { startVisiblePoll } from "@/app/_components/support/poll";
+let page: EventTarget & { visibilityState: string };
+let browser: EventTarget;
+let stop: (() => void) | undefined;
+beforeEach(() => {
+  vi.useFakeTimers();
+  page = Object.assign(new EventTarget(), { visibilityState: "visible" });
+  browser = new EventTarget();
+  vi.stubGlobal("document", page);
+  vi.stubGlobal("window", browser);
+});
+afterEach(() => { stop?.(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+it("skips the seeded mount request and coalesces returning focus/visibility events", async () => {
+  const load = vi.fn(async () => {});
+  stop = startVisiblePoll(load, 45000, false);
+  browser.dispatchEvent(new Event("focus"));
+  expect(load).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(15000);
+  browser.dispatchEvent(new Event("focus"));
+  page.dispatchEvent(new Event("visibilitychange"));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(load).toHaveBeenCalledTimes(1);
+  browser.dispatchEvent(new Event("focus"));
+  expect(load).toHaveBeenCalledTimes(1);
+  page.visibilityState = "hidden";
+  await vi.advanceTimersByTimeAsync(90000);
+  expect(load).toHaveBeenCalledTimes(1);
+  page.visibilityState = "visible";
+  page.dispatchEvent(new Event("visibilitychange"));
+  expect(load).toHaveBeenCalledTimes(2);
+});
+it("keeps the existing five-second chat cadence and prevents overlapping requests", async () => {
+  let finish: (() => void) | undefined;
+  const load = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+  stop = startVisiblePoll(load, 5000);
+  expect(load).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(load).toHaveBeenCalledTimes(1);
+  finish?.();
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(load).toHaveBeenCalledTimes(2);
+  finish?.();
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(load).toHaveBeenCalledTimes(3);
+});

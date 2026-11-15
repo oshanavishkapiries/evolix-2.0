@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import { SupportUnreadProvider } from "@/app/_components/support/unread";
 import "@/app/_components/support/support.css";
 import type { Metadata } from "next";
 import { font } from "@/app/fonts";
 import { AnnouncementBanner, AnnouncementPopup, AnnouncementsProvider } from "./_components/announcements";
-import { AppChrome } from "./_components/app-chrome";
+import { CardMorphHandler } from "./_components/morph-handler";
+import { ViewerSeed } from "./_components/viewer-seed";
+import { AppChrome, ViewerAccountProvider } from "./_components/app-chrome";
 import { BookmarkProvider } from "./_components/bookmarks";
 import { BottomNav } from "./_components/bottom-nav";
 import { PREFS_SCRIPT } from "./_components/prefs";
@@ -27,19 +30,23 @@ export default function ViewerLayout({ children }: { children: React.ReactNode }
       {/* Applies saved sidebar/card-size prefs before first paint. */}
       <script dangerouslySetInnerHTML={{ __html: PREFS_SCRIPT }} />
       <a href="#main" className="v-skip">Skip to content</a>
-      <SupportUnreadProvider>
-        <AnnouncementsProvider>
-          <AppChrome />
-          <BookmarkProvider>
-            <main id="main" className="v-main">
-              <AnnouncementBanner />
-              <AnnouncementPopup />
-              {children}
-            </main>
-          </BookmarkProvider>
-        </AnnouncementsProvider>
-        <BottomNav />
-      </SupportUnreadProvider>
+      <ViewerAccountProvider>
+        <SupportUnreadProvider initial={{ unreadSupport: { count: 0, latest: null }, announcements: { items: [], unread: 0 } }}>
+          <AnnouncementsProvider>
+            <AppChrome />
+            <BookmarkProvider initial={{ movies: [], shows: [] }}>
+              <Suspense fallback={null}><ViewerSeed /></Suspense>
+              <CardMorphHandler />
+              <main id="main" className="v-main">
+                <AnnouncementBanner />
+                <AnnouncementPopup />
+                {children}
+              </main>
+            </BookmarkProvider>
+          </AnnouncementsProvider>
+          <BottomNav />
+        </SupportUnreadProvider>
+      </ViewerAccountProvider>
     </div>
   );
 }

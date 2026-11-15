@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { PlayLink } from "./play-link";
 import { audioLabel } from "@/lib/audio";
 import { imageUrl } from "@/lib/images";
@@ -22,6 +23,10 @@ type Props = {
   posterPath: string | null;
   backdropPath: string | null;
   play: PlayAction | null;
+  playSlot?: ReactNode;
+  progressSlot?: ReactNode;
+  extrasSlot?: ReactNode;
+  dubsSlot?: ReactNode;
   voteCount?: number | null;
   /** Show a Trailer button that jumps to the Extras row. */
   hasExtras?: boolean;
@@ -65,13 +70,14 @@ export function DetailHeader(p: Props) {
             </div>
           )}
           <div className="v-detail-actions">
-            {p.play ? (
+            {p.playSlot ?? (p.play ? (
               <PlayLink href={p.play.href} className="v-btn v-btn-primary v-btn-lg">
                 <PlayIcon size={18} /> {p.play.label}
               </PlayLink>
             ) : (
               <span className="v-btn v-btn-lg" aria-disabled="true">Not available yet</span>
-            )}
+            ))}
+            {p.extrasSlot}
             {p.hasExtras && (
               <a href="#extras" className="v-btn v-btn-lg">Trailers &amp; extras</a>
             )}
@@ -79,7 +85,7 @@ export function DetailHeader(p: Props) {
             <ShareButton title={p.title} />
             <ReportButton target={{ kind: p.kind, id: p.id, title: p.title }} />
           </div>
-          {p.dubs && p.dubs.length > 0 && (
+          {p.dubsSlot ?? (p.dubs && p.dubs.length > 0 && (
             <div className="v-dubs">
               <span>Audio:</span>
               {p.dubs.map((c) =>
@@ -90,7 +96,8 @@ export function DetailHeader(p: Props) {
                 ),
               )}
             </div>
-          )}
+          ))}
+          {p.progressSlot}
           {p.play?.detail && (
             <div className="v-detail-progress">
               {typeof p.play.percent === "number" && p.play.percent > 0 && (

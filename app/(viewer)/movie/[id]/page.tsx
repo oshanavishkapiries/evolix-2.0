@@ -1,13 +1,16 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { parseMediaId } from "@/lib/viewer/ids";
 import { getMovieDetail } from "@/lib/viewer/detail";
 import { dateText, languageName, runtimeText, yearOf } from "@/lib/viewer/format";
-import { resumeFor } from "@/lib/viewer/library";
-import { currentUserId } from "@/lib/viewer/user";
-import { DetailHeader, type PlayAction } from "../../_components/detail-header";
-import { detailMetadata, MediaSections } from "../../_components/media-sections";
+import { DetailHeader } from "../../_components/detail-header";
+import { detailMetadata } from "../../_components/media-sections";
+import { DetailPersonalPlay, DetailPersonalProgress, DetailPersonalDubs, DetailSections, DetailTrailerLink } from "../../_components/detail-streams";
+import { RowSkeleton } from "../../_components/skeletons";
 import { PageMotion } from "../../_components/motion";
+import { PlayIcon } from "../../_components/icons";
+import { PlayLink } from "../../_components/play-link";
 
 // Blocking on purpose: the id is resolved before the response starts, so a missing or
 // unpublished title is a real HTTP 404 instead of a streamed 200.
@@ -23,20 +26,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return detailMetadata(year ? `${movie.title} (${year})` : movie.title, movie.overview, movie.backdropPath);
 }
 
-const left = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m left` : `${m} min left`);
-
 export default async function MoviePage({ params }: Props) {
   const { id } = await params;
   if (!parseMediaId(id)) notFound();
-  const [movie, userId] = await Promise.all([getMovieDetail(id), currentUserId()]);
+  const movie = await getMovieDetail(id);
   if (!movie) notFound();
-  const resume = userId && movie.playable ? await resumeFor(userId, "movie", movie.id) : null;
-  const href = `/watch/movie/${movie.id}`;
-  const play: PlayAction | null = !movie.playable
-    ? null
-    : resume
-      ? { href, label: "Resume", detail: resume.leftMinutes ? left(resume.leftMinutes) : undefined, percent: resume.percent }
-      : { href, label: "Play" };
+  const personal = { kind: "movie" as const, id: movie.id, playable: movie.playable };
+  const play = movie.playable ? { href: `/watch/movie/${movie.id}`, label: "Play" } : null;
 
   return (
     <PageMotion>
@@ -54,11 +50,15 @@ export default async function MoviePage({ params }: Props) {
         posterPath={movie.posterPath}
         backdropPath={movie.backdropPath}
         play={play}
+        // Fallback is a working Play link: the watch page resolves the resume position server-side anyway.
+        playSlot={<Suspense fallback={play ? <PlayLink href={play.href} className="v-btn v-btn-primary v-btn-lg"><PlayIcon size={18} /> Play</PlayLink> : null}><DetailPersonalPlay {...personal} /></Suspense>}
+        progressSlot={<Suspense fallback={null}><DetailPersonalProgress {...personal} /></Suspense>}
+        extrasSlot={<Suspense fallback={null}><DetailTrailerLink kind="movie" item={movie} /></Suspense>}
         voteCount={movie.voteCount}
-        hasExtras={movie.videos.length > 0}
-        dubs={movie.dubs}
+        dubsSlot={<Suspense fallback={null}><DetailPersonalDubs {...personal} dubs={movie.dubs} /></Suspense>}
       />
-      <MediaSections
+      <Suspense fallback={<RowSkeleton />}><DetailSections
+        kind="movie"
         item={movie}
         facts={[
           ["Original title", movie.originalTitle && movie.originalTitle !== movie.title ? movie.originalTitle : ""],
@@ -68,7 +68,7 @@ export default async function MoviePage({ params }: Props) {
           ["Original language", languageName(movie.originalLanguage)],
           ["Genres", movie.genres.join(", ")],
         ]}
-      />
+      /></Suspense>
     </div>
     </PageMotion>
   );

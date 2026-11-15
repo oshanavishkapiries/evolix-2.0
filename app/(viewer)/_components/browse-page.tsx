@@ -13,7 +13,7 @@ import { PageMotion, Reveal, SkeletonOut } from "./motion";
 
 type Raw = Record<string, string | string[] | undefined>;
 
-const SORT_LABEL: Record<Sort, string> = { newest: "Recently added", title: "Title", year: "Release year" };
+const SORT_LABEL: Record<Sort, string> = { newest: "Recommended", title: "Title", year: "Release year" };
 
 function parse(raw: Raw) {
   const one = (k: string) => {
@@ -84,19 +84,28 @@ async function Content({ kind, basePath, heading, searchParams }: { kind: CardKi
   );
 }
 
-async function Rows({ kind }: { kind: CardKind }) {
-  const [latest, genres] = await Promise.all([browse({ type: kind, limit: 20 }), listGenres(2, 10, kind)]);
+function Rows({ kind }: { kind: CardKind }) {
+  return <>
+    <Suspense fallback={<RowSkeleton />}><LatestRow kind={kind} /></Suspense>
+    <Suspense fallback={<RowSkeleton />}><GenreRows kind={kind} /></Suspense>
+  </>;
+}
+
+async function LatestRow({ kind }: { kind: CardKind }) {
+  const latest = await browse({ type: kind, limit: 20 });
   if (!latest.items.length) return <Empty />;
-  const rows = await Promise.all(genres.map(async (g) => ({ genre: g, items: (await browse({ type: kind, genre: g, limit: 20 })).items })));
-  const label = kind === "movie" ? "Movies" : "TV Shows";
-  return (
-    <>
-      <HubRow title="Recently Added" subtitle={label} items={latest.items} priority />
-      {rows.map((r) => (
-        <HubRow key={r.genre} title={r.genre} subtitle={label} items={r.items} href={`/search?type=${kind}&genre=${encodeURIComponent(r.genre)}`} />
-      ))}
-    </>
-  );
+  return <HubRow title="Recently Added" subtitle={kind === "movie" ? "Movies" : "TV Shows"} items={latest.items} priority />;
+}
+
+async function GenreRows({ kind }: { kind: CardKind }) {
+  const genres = await listGenres(2, 10, kind);
+  return genres.map((genre) => <Suspense key={genre} fallback={<RowSkeleton />}><GenreRow kind={kind} genre={genre} /></Suspense>);
+}
+
+async function GenreRow({ kind, genre }: { kind: CardKind; genre: string }) {
+  const { items } = await browse({ type: kind, genre, limit: 20 });
+  if (!(await browse({ type: kind, limit: 20 })).items.length) return null;
+  return <HubRow title={genre} subtitle={kind === "movie" ? "Movies" : "TV Shows"} items={items} href={`/search?type=${kind}&genre=${encodeURIComponent(genre)}`} />;
 }
 
 async function Grid({ kind, query, href }: { kind: CardKind; query: Query; href: (p: Partial<Query>) => string }) {

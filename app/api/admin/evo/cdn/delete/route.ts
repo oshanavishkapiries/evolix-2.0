@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { sources } from "@/db/schema";
 import { json, parseBody } from "@/lib/auth/http";
 import { adminRoute, notFound } from "@/lib/cms/api";
+import { invalidateCatalogParent } from "@/lib/cms/catalog-invalidation";
 import { engineProxyFor } from "@/lib/cms/evo-admin";
 
 const body = z.union([z.object({ sourceId: z.uuid() }), z.object({ url: z.string().url().max(500) })]);
@@ -25,6 +26,10 @@ export const POST = adminRoute(async (req) => {
   }
   const res = await engineProxyFor(req, "POST", "/cdn/delete", { url });
   if (!res.ok) return res;
-  if ("sourceId" in parsed.data) await db.delete(sources).where(eq(sources.id, parsed.data.sourceId));
+  if ("sourceId" in parsed.data) {
+    const removed = await db.delete(sources).where(eq(sources.id, parsed.data.sourceId))
+      .returning({ movieId: sources.movieId, episodeId: sources.episodeId });
+    for (const parent of removed) await invalidateCatalogParent(parent);
+  }
   return json(200, {});
 });

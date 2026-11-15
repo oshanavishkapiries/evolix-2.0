@@ -4,7 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { sources, subtitles } from "@/db/schema";
 import { pixeldrainId } from "@/lib/viewer/providers";
-import { CATALOG_TAG } from "@/lib/viewer/cache";
+import { catalogListTag, tmdbTag } from "@/lib/viewer/cache";
+import { invalidateCatalogParent } from "@/lib/cms/catalog-invalidation";
+import { findMovieIdByTmdb } from "@/lib/cms/movies";
+import { findShowIdByTmdb } from "@/lib/cms/shows";
 import { ensureEpisode, ensureMovie } from "./ensure";
 import { inParent, saveTrack } from "@/lib/subtitles/store";
 
@@ -44,6 +47,7 @@ export type PromotionInput = z.infer<typeof promotionInput>;
 export async function promote(raw: z.input<typeof promotionInput>, engineId?: string | null) {
   const input = promotionInput.parse(raw);
   const isMovie = input.mediaType === "movie";
+  const existed = isMovie ? await findMovieIdByTmdb(input.tmdbId) : await findShowIdByTmdb(input.tmdbId);
   let parent: { movieId: string } | { episodeId: string };
   if (isMovie) {
     parent = { movieId: await ensureMovie(input.tmdbId) };
@@ -89,7 +93,9 @@ export async function promote(raw: z.input<typeof promotionInput>, engineId?: st
   }
 
   // Watch pages are cached; expire them so the new source shows up immediately.
-  revalidateTag(CATALOG_TAG, { expire: 0 });
+  await invalidateCatalogParent(parent);
+  revalidateTag(tmdbTag(input.mediaType, input.tmdbId), { expire: 0 });
+  if (!existed) revalidateTag(catalogListTag, "max");
   return parent;
 }
 

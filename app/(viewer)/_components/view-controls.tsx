@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { GridIcon, RowsIcon } from "./icons";
 import { CARD_SIZES, DEFAULT_SIZE, PREF_SIZE, savePref } from "./prefs";
 
@@ -33,12 +33,13 @@ export function CardSizeSlider() {
 /** Rows/grid toggle; the choice is remembered in a cookie so the server renders it next time. */
 export function ViewToggle({ cookie, current, rowsHref, gridHref }: { cookie: string; current: "rows" | "grid"; rowsHref: string; gridHref: string }) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const pick = (mode: "rows" | "grid") => {
     document.cookie = `${cookie}=${mode}; path=/; max-age=31536000; samesite=lax`;
-    router.replace(mode === "rows" ? rowsHref : gridHref, { scroll: false });
+    startTransition(() => router.replace(mode === "rows" ? rowsHref : gridHref, { scroll: false }));
   };
   return (
-    <div className="v-view-toggle" role="group" aria-label="Layout">
+    <div className="v-view-toggle" data-pending={pending || undefined} aria-busy={pending} role="group" aria-label="Layout">
       <button type="button" aria-pressed={current === "rows"} aria-label="Rows" title="Rows" onClick={() => pick("rows")}>
         <RowsIcon size={18} />
       </button>
