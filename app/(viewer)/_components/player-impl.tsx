@@ -362,8 +362,9 @@ export default function PlayerImpl({
       onProviderChange={(provider: MediaProviderAdapter | null) => {
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
         if (isHLSProvider(provider)) {
-          // Must be an arrow: Vidstack treats anything with a `prototype` as the hls.js constructor itself.
-          provider.library = () => warmHls();
+          // Must not have a `prototype`: Vidstack treats such a function as the hls.js constructor itself. A bound
+          // function never has one (an arrow can be hoisted into a plain `function` by the React Compiler).
+          provider.library = warmHls.bind(null);
           // Same reason: the m3u8 <source> Vidstack appends for reference would start a native HLS load. hls.js
           // plays from an MSE blob, so the element never needs it.
           (provider as unknown as { appendSource: () => void }).appendSource = () => {};
