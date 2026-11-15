@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   env: { NEXT_PUBLIC_RELEASE: release },
+  // Public files default to max-age=0; explicitly revalidate the worker on updates.
+  headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }] }];
+  },
   // Source maps let the error tracker show original files and lines. Browser maps are read from disk by the
   // server and never served: proxy.ts answers 404 for *.map.
   productionBrowserSourceMaps: true,

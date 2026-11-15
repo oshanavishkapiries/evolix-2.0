@@ -72,7 +72,7 @@ async function Items({ searchParams }: Props) {
       <ul className="v-grid v-page-pad">
         {items.map((item) => (
           <li key={`${item.kind}-${item.id}`}>
-            <MediaCard item={item} badge />
+            <MediaCard grid item={item} badge />
           </li>
         ))}
       </ul>

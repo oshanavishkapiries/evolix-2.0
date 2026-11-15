@@ -1,5 +1,5 @@
 import type { CastMember } from "@/db/schema";
-import { imageUrl } from "@/lib/images";
+import { imageSrcSet } from "@/lib/images";
 import { initials } from "@/lib/viewer/format";
 import { ScrollRow } from "./scroll-row";
 
@@ -9,13 +9,13 @@ export function CastList({ cast }: { cast: CastMember[] }) {
   return (
     <ScrollRow label="Cast" variant="cast" head={<h2>Cast &amp; crew</h2>}>
       {top.map((c, i) => {
-        const src = imageUrl(c.profilePath, "w185");
+        const image = imageSrcSet(c.profilePath, "profile");
         return (
           <li key={`${c.name}-${i}`} className="v-cast-card">
             <div className="v-cast-img">
-              {src ? (
+              {image.src ? (
                 // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-                <img src={src} alt="" width={185} height={278} loading="lazy" decoding="async" />
+                <img {...image} sizes="auto, clamp(120px, 11vw, 164px)" alt="" width={185} height={278} loading="lazy" decoding="async" />
               ) : (
                 <span aria-hidden="true">{initials(c.name)}</span>
               )}

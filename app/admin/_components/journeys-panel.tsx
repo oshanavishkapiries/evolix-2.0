@@ -1,7 +1,8 @@
 "use client";
+import { useVisibleInterval } from "@/lib/client/use-visible-interval";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useRef, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
 import { NODES } from "@/lib/evo/flow";
 import { JOURNEY_WINDOWS, OUTCOMES, OUTCOME_TEXT, waitText, type Journey, type JourneyReport, type Outcome } from "@/lib/evo/journeys";
@@ -42,10 +43,7 @@ export function JourneysPanel({ initial, multi, engines = [], failures = {}, asO
     if (asked.current === h) { setLoading(false); setLoadError(!body?.report); }
   }, []);
 
-  useEffect(() => {
-    const tick = setInterval(() => document.visibilityState === "visible" && void load(hours), REFRESH_MS);
-    return () => clearInterval(tick);
-  }, [hours, load]);
+  useVisibleInterval(() => load(hours), REFRESH_MS, false);
 
   const pick = (h: number) => {
     if (h === hours) return;

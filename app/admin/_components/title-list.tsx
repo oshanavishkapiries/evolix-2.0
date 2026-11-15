@@ -1,4 +1,5 @@
 "use client";
+import { useVisibleInterval } from "@/lib/client/use-visible-interval";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -24,10 +25,7 @@ export function TitleList({ kind }: { kind: TitleKind }) {
 
   // Bumping `tick` re-runs the search, so the list stays current without a reload (paused while the tab is hidden).
   const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => document.visibilityState === "visible" && setTick((n) => n + 1), 30_000);
-    return () => clearInterval(t);
-  }, []);
+  useVisibleInterval(() => setTick((n) => n + 1), 30_000, false);
   const search = useDebouncedSearch<Listing>(
     async (term, signal) => {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });

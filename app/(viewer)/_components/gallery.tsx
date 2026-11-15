@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { imageUrl } from "@/lib/images";
+import { imageSrcSet } from "@/lib/images";
 import { ChevronIcon, CloseIcon } from "./icons";
 import { ScrollRow } from "./scroll-row";
 
@@ -38,7 +38,7 @@ export function Gallery({ paths, title }: { paths: string[]; title: string }) {
           <li key={p}>
             <button type="button" className="v-shot" onClick={() => open(i)} aria-label={`View image ${i + 1} of ${count}`}>
               {/* eslint-disable-next-line @next/next/no-img-element -- TMDB CDN */}
-              <img src={imageUrl(p, "w780") ?? ""} alt={`${title} backdrop ${i + 1}`} width={780} height={439} loading="lazy" decoding="async" />
+              <img {...imageSrcSet(p, "backdrop", 780)} sizes="auto, (max-width: 47.99rem) 72vw, clamp(240px, 24vw, 352px)" alt={`${title} backdrop ${i + 1}`} width={780} height={439} loading="lazy" decoding="async" />
             </button>
           </li>
         ))}
@@ -54,7 +54,7 @@ export function Gallery({ paths, title }: { paths: string[]; title: string }) {
       >
         {isOpen && (
           // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-          <img key={index} src={imageUrl(paths[index], "w1280") ?? ""} alt={`${title} backdrop ${index + 1}`} data-close="1" />
+          <img key={index} {...imageSrcSet(paths[index], "backdrop")} sizes="min(94vw, 1440px)" alt={`${title} backdrop ${index + 1}`} data-close="1" />
         )}
         <button type="button" className="v-bar-icon v-lb-close" aria-label="Close gallery" onClick={() => dialog.current?.close()}>
           <CloseIcon size={22} />

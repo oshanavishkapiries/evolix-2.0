@@ -1,4 +1,5 @@
 "use client";
+import { startVisibleInterval } from "@/lib/client/visible-interval";
 import {useCallback,useEffect,useState} from "react";
 import {adminApi,errorText} from "@/lib/client/admin";
 import {ENGINE_CONFIG_SPECS,ENGINE_CONFIG_BY_KEY,syncLabel,validateEngineValue,type ConfigSyncStatus,type EngineValues} from "@/lib/evo/engine-config";
@@ -15,8 +16,8 @@ export function EngineConfigSyncChip({engine}:{engine:string}) {
   useEffect(()=>{
     let alive=true;
     const load=()=>adminApi<Snapshot>("GET",`/api/admin/evo/config?scope=${encodeURIComponent(`engine:${engine}`)}`).then(r=>{if(alive && r.ok) setSync(r.sync);});
-    const initial=setTimeout(load,0), poll=setInterval(load,10000);
-    return ()=>{alive=false;clearTimeout(initial);clearInterval(poll);};
+    const stop=startVisibleInterval(load,10000);
+    return ()=>{alive=false;stop();};
   },[engine]);
   return sync ? <span className="engine-config-sync" data-state={sync.state} role="status">{syncLabel(sync)}{sync.restartNeeded.length > 0 && <span> · Restart needed: {sync.restartNeeded.join(", ")}</span>}</span> : null;
 }
@@ -54,8 +55,9 @@ export function EngineConfigPanel({engine,locked=false,view="all"}:{engine?:stri
   },[query,revision,filter,cursor]);
   useEffect(()=>{
     if(scope === "global") return;
-    const poll=setInterval(()=>{adminApi<Snapshot>("GET",`${base}${query}`).then(r=>{if(r.ok) setSnapshot(old=>old ? {...old,sync:r.sync} : old);});},10000);
-    return ()=>clearInterval(poll);
+    let alive=true;
+    const stop=startVisibleInterval(()=>adminApi<Snapshot>("GET",`${base}${query}`).then(r=>{if(alive && r.ok) setSnapshot(old=>old ? {...old,sync:r.sync} : old);}),10000,false);
+    return ()=>{alive=false;stop();};
   },[scope,query]);
   const changes:EngineValues={}, invalid:Record<string,string>={};
   for(const s of ENGINE_CONFIG_SPECS) {

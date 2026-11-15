@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { imageUrl } from "@/lib/images";
+import { imageSrcSet } from "@/lib/images";
 import { browse, listGenres, listGenreTiles, SEARCH_PAGE_SIZE, SORTS, type Sort } from "@/lib/viewer/catalog";
 import type { CardKind } from "@/lib/viewer/ids";
 import { HubRow } from "./hub-row";
@@ -131,7 +131,7 @@ async function Grid({ kind, query, href }: { kind: CardKind; query: Query; href:
       <ul className="v-grid">
         {items.map((item, index) => (
           <li key={item.id}>
-            <MediaCard item={item} priority={index < 4} fetchPriority={index === 0 ? "high" : "auto"} />
+            <MediaCard grid item={item} priority={index < 4} fetchPriority={index === 0 ? "high" : "auto"} />
           </li>
         ))}
       </ul>
@@ -152,13 +152,13 @@ async function Genres({ kind }: { kind: CardKind }) {
   return (
     <ul className="v-genres v-page-pad">
       {tiles.map((t) => {
-        const src = imageUrl(t.backdropPath, "w780");
+        const image = imageSrcSet(t.backdropPath, "backdrop", 780);
         return (
           <li key={t.genre}>
             <Link href={`/search?type=${kind}&genre=${encodeURIComponent(t.genre)}`} className="v-genre">
-              {src && (
+              {image.src && (
                 // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-                <img src={src} alt="" width={780} height={439} loading="lazy" decoding="async" />
+                <img {...image} sizes="auto, (max-width: 47.99rem) calc((100vw - 44px) / 2), 320px" alt="" width={780} height={439} loading="lazy" decoding="async" />
               )}
               <span className="v-genre-name">{t.genre}</span>
               <span className="v-genre-count">{t.count} {t.count === 1 ? "title" : "titles"}</span>

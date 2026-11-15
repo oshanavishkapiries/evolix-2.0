@@ -125,7 +125,7 @@ async function Results({ query, path }: { query: Query; path: string }) {
       <ul className="v-grid">
         {items.map((item) => (
           <li key={`${item.kind}-${item.id}`}>
-            <MediaCard item={item} badge={type === "all"} />
+            <MediaCard grid item={item} badge={type === "all"} />
           </li>
         ))}
       </ul>
