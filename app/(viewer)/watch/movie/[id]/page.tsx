@@ -31,15 +31,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function WatchMoviePage({ params, searchParams }: Props) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   if (!parseMediaId(id)) notFound();
-  const movie = await getMovieWatch(id);
+  const moviePromise = getMovieWatch(id);
+  const userPromise = currentUserId();
+  const cookiesPromise = cookies();
+  const approvalPromise = userPromise.then(canWatch);
+  const movie = await moviePromise;
   if (!movie) notFound();
-  const userId = await currentUserId();
-  if (!(await canWatch(userId))) return <ApprovalNotice />;
-  // Evo titles start as TMDB-only ("tmdb-123"); signed-in viewers get a catalog row so progress and reports have something to attach to.
-  const rowId = isUuid(movie.id) ? movie.id : userId ? await ensureMovie(movie.tmdbId).catch(() => null) : null;
-  const startAt = userId && rowId ? await resumePosition(userId, { movieId: rowId }) : 0;
+  const progressPromise = userPromise.then(async (userId) => {
+    // Persist TMDB-only titles only for approved, signed-in viewers.
+    const rowId = isUuid(movie.id) ? movie.id : userId && await approvalPromise ? await ensureMovie(movie.tmdbId).catch(() => null) : null;
+    const startAt = userId && rowId ? await resumePosition(userId, { movieId: rowId }) : 0;
+    return { rowId, startAt };
+  });
+  const [approved, { rowId, startAt }, cookieStore] = await Promise.all([approvalPromise, progressPromise, cookiesPromise]);
+  if (!approved) return <ApprovalNotice />;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-  const audio = chooseAudio(movie.sources, { source: one(sp.source), lang: one(sp.lang), saved: (await cookies()).get(AUDIO_COOKIE)?.value });
+  const audio = chooseAudio(movie.sources, { source: one(sp.source), lang: one(sp.lang), saved: cookieStore.get(AUDIO_COOKIE)?.value });
 
   return (
     <WatchView

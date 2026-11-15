@@ -1,6 +1,7 @@
-import Link from "next/link";
+import type { ReactNode } from "react";
+import { PlayLink } from "./play-link";
 import { audioLabel } from "@/lib/audio";
-import { imageUrl } from "@/lib/images";
+import { imageUrl, imageSrcSet } from "@/lib/images";
 import { ratingText, votesText, yearOf } from "@/lib/viewer/format";
 import { BookmarkButton } from "./bookmarks";
 import { Overview, PosterTint, ShareButton } from "./detail-client";
@@ -22,6 +23,10 @@ type Props = {
   posterPath: string | null;
   backdropPath: string | null;
   play: PlayAction | null;
+  playSlot?: ReactNode;
+  progressSlot?: ReactNode;
+  extrasSlot?: ReactNode;
+  dubsSlot?: ReactNode;
   voteCount?: number | null;
   /** Show a Trailer button that jumps to the Extras row. */
   hasExtras?: boolean;
@@ -31,21 +36,24 @@ type Props = {
 
 /** Plex-style detail header (spec §5.5): poster left, metadata and actions right, tinted page. */
 export function DetailHeader(p: Props) {
-  const poster = imageUrl(p.posterPath, "w500");
-  const backdrop = imageUrl(p.backdropPath, "w1280");
+  const poster = imageSrcSet(p.posterPath, "poster");
+  const backdrop = imageSrcSet(p.backdropPath, "backdrop");
   const rating = ratingText(p.rating);
   const genres = p.genres.length > 3 ? `${p.genres.slice(0, 3).join(", ")}, and more` : p.genres.join(", ");
   return (
     <>
       <PosterTint src={imageUrl(p.posterPath, "w92")} />
-      {backdrop && (
-        // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN, decorative
-        <img className="v-detail-backdrop" src={backdrop} alt="" width={1280} height={720} decoding="async" />
+      {backdrop.src && (
+        <picture>
+          {/* Decorative, faded backdrop: cap phone downloads at w780 even at DPR 3. */}
+          <source media="(max-width: 47.99rem)" srcSet={imageSrcSet(p.backdropPath, "backdrop", 780).srcSet} sizes="100vw" />
+          <img className="v-detail-backdrop" fetchPriority="low" {...backdrop} sizes="(max-width: 47.99rem) 100vw, min(70vw, 1120px)" alt="" width={1280} height={720} decoding="async" />
+        </picture>
       )}
       <div className="v-detail-head">
-        {poster ? (
+        {poster.src ? (
           // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-          <img className="v-detail-poster" src={poster} alt={`Poster for ${p.title}`} width={500} height={750} decoding="async" fetchPriority="high" style={{ viewTransitionName: `poster-${p.id}` }} />
+          <img className="v-detail-poster" {...poster} sizes="(max-width: 47.99rem) 160px, clamp(144px, 18vw, 248px)" alt={`Poster for ${p.title}`} width={500} height={750} decoding="async" fetchPriority="high" style={{ viewTransitionName: `poster-${p.id}` }} />
         ) : (
           <div className="v-detail-poster v-card-ph">{p.title}</div>
         )}
@@ -65,13 +73,14 @@ export function DetailHeader(p: Props) {
             </div>
           )}
           <div className="v-detail-actions">
-            {p.play ? (
-              <Link href={p.play.href} className="v-btn v-btn-primary v-btn-lg" prefetch={false}>
+            {p.playSlot ?? (p.play ? (
+              <PlayLink href={p.play.href} className="v-btn v-btn-primary v-btn-lg">
                 <PlayIcon size={18} /> {p.play.label}
-              </Link>
+              </PlayLink>
             ) : (
               <span className="v-btn v-btn-lg" aria-disabled="true">Not available yet</span>
-            )}
+            ))}
+            {p.extrasSlot}
             {p.hasExtras && (
               <a href="#extras" className="v-btn v-btn-lg">Trailers &amp; extras</a>
             )}
@@ -79,18 +88,19 @@ export function DetailHeader(p: Props) {
             <ShareButton title={p.title} />
             <ReportButton target={{ kind: p.kind, id: p.id, title: p.title }} />
           </div>
-          {p.dubs && p.dubs.length > 0 && (
+          {p.dubsSlot ?? (p.dubs && p.dubs.length > 0 && (
             <div className="v-dubs">
               <span>Audio:</span>
               {p.dubs.map((c) =>
                 p.play && p.dubs!.length > 1 ? (
-                  <Link key={c} href={`${p.play.href}${p.play.href.includes("?") ? "&" : "?"}lang=${c}`} prefetch={false}>{audioLabel(c)} dub</Link>
+                  <PlayLink key={c} href={`${p.play.href}${p.play.href.includes("?") ? "&" : "?"}lang=${c}`}>{audioLabel(c)} dub</PlayLink>
                 ) : (
                   <span key={c} className="v-dub">{audioLabel(c)} dub</span>
                 ),
               )}
             </div>
-          )}
+          ))}
+          {p.progressSlot}
           {p.play?.detail && (
             <div className="v-detail-progress">
               {typeof p.play.percent === "number" && p.play.percent > 0 && (

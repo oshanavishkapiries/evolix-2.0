@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { episodes, movies, seasons, shows, watchProgress } from "@/db/schema";
@@ -26,33 +26,23 @@ export async function POST(req: NextRequest) {
   const position = Math.min(Math.round(parsed.data.position), duration || MAX_SECONDS);
   const completed = duration > 0 && position / duration >= COMPLETE_RATIO;
 
-  const visible =
-    kind === "movie"
-      ? await db.select({ id: movies.id }).from(movies).where(and(eq(movies.id, id), eq(movies.isPublished, true))).limit(1)
-      : await db
-          .select({ id: episodes.id })
-          .from(episodes)
-          .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-          .innerJoin(shows, eq(shows.id, seasons.showId))
-          .where(and(eq(episodes.id, id), eq(shows.isPublished, true)))
-          .limit(1);
-  if (!visible.length) return fail(404, "NOT_FOUND", "Title not found");
-
-  const values = {
-    userId: auth.userId,
-    ...(kind === "movie" ? { movieId: id } : { episodeId: id }),
-    positionSeconds: position,
-    durationSeconds: duration,
-    completed,
-    updatedAt: new Date(),
-  };
-  await db
-    .insert(watchProgress)
-    .values(values)
-    .onConflictDoUpdate({
-      target: kind === "movie" ? [watchProgress.userId, watchProgress.movieId] : [watchProgress.userId, watchProgress.episodeId],
-      set: { positionSeconds: position, durationSeconds: duration, completed, updatedAt: values.updatedAt },
-    });
+  const visible = kind === "movie"
+    ? sql`select ${movies.id} as id from ${movies} where ${movies.id} = ${id} and ${movies.isPublished} = true`
+    : sql`select ${episodes.id} as id from ${episodes}
+        inner join ${seasons} on ${seasons.id} = ${episodes.seasonId}
+        inner join ${shows} on ${shows.id} = ${seasons.showId}
+        where ${episodes.id} = ${id} and ${shows.isPublished} = true
+          and ${seasons.isVisible} = true and ${episodes.isVisible} = true`;
+  const target = kind === "movie" ? sql`movie_id` : sql`episode_id`;
+  const result = await db.execute(sql`
+    insert into ${watchProgress} (user_id, ${target}, position_seconds, duration_seconds, completed, updated_at)
+    select ${auth.userId}::uuid, visible.id, ${position}, ${duration}, ${completed}, now()
+    from (${visible}) visible where true
+    on conflict (user_id, ${target}) do update set
+      position_seconds = excluded.position_seconds, duration_seconds = excluded.duration_seconds,
+      completed = excluded.completed, updated_at = excluded.updated_at
+    returning completed`);
+  if (!result.rows.length) return fail(404, "NOT_FOUND", "Title not found");
   return json(200, { completed });
 }
 

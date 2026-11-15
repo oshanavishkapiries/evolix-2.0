@@ -31,22 +31,48 @@ function validateName(name: unknown): string {
   return name.trim();
 }
 type Row = typeof evoEngines.$inferSelect;
+const ENGINE_CACHE_TTL_MS = 10_000;
+let engineCache: { rows: Row[]; expires: number } | undefined;
+let engineLoad: Promise<Row[]> | undefined;
+let cacheGeneration = 0;
+
+/** Also fences queries started before a mutation, so they cannot repopulate stale rows. */
+export function invalidateEngineCache() {
+  cacheGeneration += 1;
+  engineCache = undefined;
+  engineLoad = undefined;
+}
+function engineRows(): Promise<Row[]> {
+  if (engineCache && engineCache.expires > Date.now()) return Promise.resolve(engineCache.rows);
+  if (engineLoad) return engineLoad;
+  const generation = cacheGeneration;
+  const load = Promise.resolve(db.select().from(evoEngines)).then((rows) => {
+    if (generation === cacheGeneration) engineCache = { rows, expires: Date.now() + ENGINE_CACHE_TTL_MS };
+    return rows;
+  }).finally(() => { if (engineLoad === load) engineLoad = undefined; });
+  engineLoad = load;
+  return load;
+}
 const refFor = (r: Row): EngineRef => ({ id: r.id, name: r.name ?? r.id, url: r.url });
 export async function registeredEngines(): Promise<EngineRef[]> {
-  const rows = await db.select().from(evoEngines);
+  const rows = await engineRows();
   const managed = rows.filter((r) => r.managed && !r.removedAt);
   if (managed.length) return managed.sort((a, b) => a.id.localeCompare(b.id)).map(refFor);
   const removed = new Set(rows.filter((r) => r.removedAt).map((r) => r.id));
   return parseEngines((await getConfig()).EVO_ENGINES).filter((r) => !removed.has(r.id));
 }
 /** Server only: Phase 4 uses this same token when deriving the config transport key. */
-export async function engineToken(id: string): Promise<string> {
-  const [row] = await db.select({ token: evoEngines.token, removedAt: evoEngines.removedAt }).from(evoEngines).where(eq(evoEngines.id, id));
+export async function engineCredential(id: string): Promise<{ token: string; cached: boolean }> {
+  const cached = Boolean(engineLoad || (engineCache && engineCache.expires > Date.now()));
+  const row = (await engineRows()).find((r) => r.id === id);
   if (row?.removedAt) throw new RegistryError("Engine has been removed", 404);
-  return row?.token ? decryptSecret(row.token) : (await getConfig()).EVO_SECRET_TOKEN;
+  return { token: row?.token ? decryptSecret(row.token) : (await getConfig()).EVO_SECRET_TOKEN, cached };
+}
+export async function engineToken(id: string): Promise<string> {
+  return (await engineCredential(id)).token;
 }
 export async function listEngines() {
-  const rows = await db.select().from(evoEngines);
+  const rows = await engineRows();
   const managed = rows.some((r) => r.managed && !r.removedAt);
   const refs = await registeredEngines();
   return { managed, engines: refs.map((ref) => {
@@ -69,6 +95,7 @@ async function audited(mutation: SQL, id: string, actor: string, key: string, be
     const result = await db.execute(sql`with changed as (${mutation})
       insert into config_audit (key, scope, old_value, new_value, actor, action)
       select ${key}, ${`engine:${id}`}, ${before}, ${after}, ${actor}, ${remove ? "reset" : "set"} from changed returning id`);
+    invalidateEngineCache();
     if (!result.rows.length) throw new RegistryError("Engine changed concurrently; reload and retry", 409);
   } catch (e) {
     if (e instanceof RegistryError) throw e;

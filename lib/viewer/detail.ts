@@ -1,15 +1,16 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
+import { cacheTag } from "next/cache";
 import { db } from "@/db";
 import { AUDIO_LANGUAGES } from "@/lib/audio";
-import { catalogCache } from "./cache";
+import { catalogCache, titleTag, tmdbTag } from "./cache";
 import { isUpcoming } from "./availability";
 import { airedEpisode } from "./availability-query";
 import { episodes, movies, seasons, shows, sources, videos } from "@/db/schema";
 import { parseMediaId } from "./ids";
 import { findMovieIdByTmdb } from "@/lib/cms/movies";
 import { findShowIdByTmdb } from "@/lib/cms/shows";
-import { getMovieDetails, getShowDetails, getTmdbVideos } from "@/lib/tmdb";
+import { getMovieSummary, getShowSummary, getShowSeason, getViewerTmdbVideos } from "@/lib/tmdb";
 
 /** Language codes of a title's sources in display order, without the unspecified one. */
 const dubCodes = (rows: { audioLanguage: string }[]) =>
@@ -21,10 +22,19 @@ type VideoRow = Awaited<ReturnType<typeof visibleVideos>>[number];
 async function withTmdbVideos(stored: VideoRow[], kind: "movie" | "tv", tmdbId: number | null): Promise<VideoRow[]> {
   if (stored.length || !tmdbId) return stored;
   try {
-    return (await getTmdbVideos(kind, tmdbId)).map((v, i) => ({ id: `tmdb-vid-${i}`, site: v.site, key: v.key, name: v.name, type: v.type }));
+    return (await getViewerTmdbVideos(kind, tmdbId)).map((v, i) => ({ id: `tmdb-vid-${i}`, site: v.site, key: v.key, name: v.name, type: v.type }));
   } catch {
     return stored;
   }
+}
+
+/** Await only in the optional extras boundary, after the title has been validated. */
+export async function getDetailVideos(kind: "movie" | "tv", id: string, tmdbId: number | null, stored: VideoRow[]) {
+  "use cache";
+  catalogCache();
+  cacheTag(titleTag(kind === "movie" ? "movie" : "show", id));
+  if (tmdbId) cacheTag(tmdbTag(kind, tmdbId));
+  return withTmdbVideos(stored, kind, tmdbId);
 }
 
 // Viewer reads: published titles, visible seasons/episodes/videos, active sources only.
@@ -54,7 +64,8 @@ export async function firstEpisode(showId: string): Promise<{ seasonNumber: numb
 }
 
 async function getDbMovieDetail(id: string) {
-  const [[movie], vids, langs, hasSourcesRow] = await Promise.all([
+  cacheTag(titleTag("movie", id));
+  const [[movie], vids, langs] = await Promise.all([
     db
       .select({
         id: movies.id,
@@ -84,14 +95,10 @@ async function getDbMovieDetail(id: string) {
       .selectDistinct({ audioLanguage: sources.audioLanguage })
       .from(sources)
       .where(and(eq(sources.movieId, id), eq(sources.isActive, true))),
-    db
-      .select({ id: sources.id })
-      .from(sources)
-      .where(and(eq(sources.movieId, id), eq(sources.isActive, true)))
-      .limit(1),
   ]);
-  const hasSources = hasSourcesRow.length > 0;
-  return movie ? { ...movie, videos: await withTmdbVideos(vids, "movie", movie.tmdbId), playable: hasSources || Boolean(movie.tmdbId), isEvo: !hasSources && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
+  const hasSources = langs.length > 0;
+  if (movie?.tmdbId) cacheTag(tmdbTag("movie", movie.tmdbId));
+  return movie ? { ...movie, videos: vids, playable: hasSources || Boolean(movie.tmdbId), isEvo: !hasSources && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
 }
 
 export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getDbMovieDetail>>>;
@@ -105,6 +112,7 @@ export const getMovieDetail = cache(async (id: string): Promise<MovieDetail | nu
   if (!media) return null;
 
   if (media.kind === "tmdb") {
+    cacheTag(tmdbTag("movie", media.tmdbId));
     const localId = await findMovieIdByTmdb(media.tmdbId);
     if (localId) {
       const localDetail = await getDbMovieDetail(localId);
@@ -112,7 +120,7 @@ export const getMovieDetail = cache(async (id: string): Promise<MovieDetail | nu
     }
 
     try {
-      const tmdbMovie = await getMovieDetails(media.tmdbId);
+      const tmdbMovie = await getMovieSummary(media.tmdbId);
       return {
         id: `tmdb-${media.tmdbId}`,
         title: tmdbMovie.title,
@@ -145,8 +153,11 @@ export const getMovieDetail = cache(async (id: string): Promise<MovieDetail | nu
   return getDbMovieDetail(media.id);
 });
 
-async function getDbShowDetail(id: string, seasonNumber: number | null) {
-  const [[show], vids, seasonRows, first, langs] = await Promise.all([
+async function getDbShowBase(id: string) {
+  "use cache";
+  catalogCache();
+  cacheTag(titleTag("show", id));
+  const [[show], vids, seasonRows, langs] = await Promise.all([
     db
       .select({
         id: shows.id,
@@ -180,15 +191,15 @@ async function getDbShowDetail(id: string, seasonNumber: number | null) {
         overview: seasons.overview,
         airDate: seasons.airDate,
         posterPath: seasons.posterPath,
-        // Table-qualified by hand: drizzle drops the table name on single-table selects.
-        episodeCount: sql<number>`(select count(*)::int from episodes e where e.season_id = ${seasons}.id and e.is_visible)`,
-        upcomingCount: sql<number>`(select count(*)::int from episodes e where e.season_id = ${seasons}.id and e.is_visible and e.air_date > (now() at time zone 'Asia/Colombo')::date)`,
-        firstEpisode: sql<number | null>`(select min(e.episode_number) from episodes e where e.season_id = ${seasons}.id and e.is_visible and (e.air_date is null or e.air_date <= (now() at time zone 'Asia/Colombo')::date))`,
+        episodeCount: sql<number>`count(${episodes.id})::int`,
+        upcomingCount: sql<number>`count(${episodes.id}) filter (where ${episodes.airDate} > (now() at time zone 'Asia/Colombo')::date)::int`,
+        firstEpisode: sql<number | null>`min(${episodes.episodeNumber}) filter (where ${airedEpisode()})`,
       })
       .from(seasons)
+      .leftJoin(episodes, and(eq(episodes.seasonId, seasons.id), eq(episodes.isVisible, true)))
       .where(and(eq(seasons.showId, id), eq(seasons.isVisible, true)))
+      .groupBy(seasons.id)
       .orderBy(asc(seasons.seasonNumber)),
-    firstEpisode(id),
     db
       .selectDistinct({ audioLanguage: sources.audioLanguage })
       .from(sources)
@@ -197,12 +208,23 @@ async function getDbShowDetail(id: string, seasonNumber: number | null) {
       .where(and(eq(seasons.showId, id), eq(sources.isActive, true))),
   ]);
   if (!show) return null;
+  if (show.tmdbId) cacheTag(tmdbTag("tv", show.tmdbId));
+  const firstSeason = seasonRows.find((s) => s.seasonNumber > 0 && s.firstEpisode !== null)
+    ?? seasonRows.find((s) => s.firstEpisode !== null);
+  const first = firstSeason ? { seasonNumber: firstSeason.seasonNumber, episodeNumber: firstSeason.firstEpisode! } : null;
 
+  return { ...show, videos: vids, seasons: seasonRows, first, dubs: dubCodes(langs) };
+}
+
+async function getDbShowDetail(id: string, seasonNumber: number | null, includeEpisodes: boolean) {
+  const show = await getDbShowBase(id);
+  if (!show) return null;
+  const { seasons: seasonRows, first } = show;
   const selected: (typeof seasonRows)[number] | null =
     seasonRows.find((s) => s.seasonNumber === seasonNumber) ??
     seasonRows.find((s) => s.seasonNumber === first?.seasonNumber) ??
     (seasonRows.length > 0 ? seasonRows[0] : null);
-  const eps = selected
+  const eps = selected && includeEpisodes
     ? await db
         .select({
           id: episodes.id,
@@ -217,13 +239,13 @@ async function getDbShowDetail(id: string, seasonNumber: number | null) {
         .where(and(eq(episodes.seasonId, selected.id), eq(episodes.isVisible, true)))
         .orderBy(asc(episodes.episodeNumber))
     : [];
-  return { ...show, videos: await withTmdbVideos(vids, "tv", show.tmdbId), seasons: seasonRows, selected, episodes: eps, first, dubs: dubCodes(langs) };
+  return { ...show, selected, episodes: eps };
 }
 
 export type ShowDetail = NonNullable<Awaited<ReturnType<typeof getDbShowDetail>>>;
 
 /** Published show with visible seasons; episodes are for the selected season only. */
-export const getShowDetail = cache(async (id: string, seasonNumber: number | null): Promise<ShowDetail | null> => {
+export const getShowDetail = cache(async (id: string, seasonNumber: number | null, includeEpisodes = true): Promise<ShowDetail | null> => {
   "use cache";
   catalogCache();
 
@@ -233,18 +255,20 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
   if (media.kind === "tmdb") {
     const localId = await findShowIdByTmdb(media.tmdbId);
     if (localId) {
-      const localDetail = await getDbShowDetail(localId, seasonNumber);
+      const localDetail = await getDbShowDetail(localId, seasonNumber, includeEpisodes);
       if (localDetail) return localDetail;
     }
 
     try {
-      const s = await getShowDetails(media.tmdbId);
+      cacheTag(tmdbTag("tv", media.tmdbId));
+      const s = await getShowSummary(media.tmdbId);
       const selected =
         s.seasons.find((sec) => sec.seasonNumber === seasonNumber) ??
         s.seasons.find((sec) => sec.seasonNumber === 1) ??
         s.seasons[0] ??
         null;
-      const eps = (selected?.episodes ?? []).map((e) => ({
+      const selectedEpisodes = selected && includeEpisodes ? await getShowSeason(media.tmdbId, selected.seasonNumber).catch(() => []) : [];
+      const eps = selectedEpisodes.map((e) => ({
         id: `tmdb-ep-${media.tmdbId}-${selected?.seasonNumber ?? 1}-${e.episodeNumber}`,
         episodeNumber: e.episodeNumber,
         name: e.name,
@@ -260,9 +284,15 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
         overview: sec.overview,
         airDate: sec.airDate,
         posterPath: sec.posterPath,
-        episodeCount: sec.episodes?.length ?? 0,
-        upcomingCount: sec.episodes.filter((e) => isUpcoming(e.airDate)).length,
-        firstEpisode: sec.episodes.find((e) => !isUpcoming(e.airDate))?.episodeNumber ?? null,
+        episodeCount: sec.episodeCount,
+        // TMDB summaries expose the latest aired episode; only the selected season needs episode detail.
+        upcomingCount: sec.seasonNumber === selected?.seasonNumber && includeEpisodes
+          ? selectedEpisodes.filter((e) => isUpcoming(e.airDate)).length
+          : isUpcoming(sec.airDate) ? sec.episodeCount
+          : s.lastEpisode?.seasonNumber === sec.seasonNumber ? Math.max(0, sec.episodeCount - s.lastEpisode.episodeNumber) : 0,
+        firstEpisode: sec.seasonNumber === selected?.seasonNumber && includeEpisodes
+          ? selectedEpisodes.find((e) => !isUpcoming(e.airDate))?.episodeNumber ?? null
+          : sec.episodeCount > 0 && !isUpcoming(sec.airDate) ? 1 : null,
       }));
       const firstSeason = seasonRows.find((sec) => sec.seasonNumber > 0 && sec.firstEpisode !== null)
         ?? seasonRows.find((sec) => sec.firstEpisode !== null);
@@ -298,5 +328,8 @@ export const getShowDetail = cache(async (id: string, seasonNumber: number | nul
     }
   }
 
-  return getDbShowDetail(media.id, seasonNumber);
+  return getDbShowDetail(media.id, seasonNumber, includeEpisodes);
 });
+
+/** Hero metadata never waits for a season endpoint or the season episode query. */
+export const getShowHero = (id: string) => getShowDetail(id, null, false);

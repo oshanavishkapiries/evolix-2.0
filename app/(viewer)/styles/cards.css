@@ -5,6 +5,7 @@
 
 /* Row */
 .v-row { margin-top: 1.75rem; }
+.v-row ~ .v-row ~ .v-row { content-visibility: auto; contain-intrinsic-size: auto calc(var(--card-w) * 1.5 + 6rem); }
 .v-row-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 0 var(--v-gutter); margin-bottom: .75rem; }
 .v-row-title { min-width: 0; }
 .v-row-title h2 { font-size: clamp(1.05rem, 1.6vw, 1.3rem); font-weight: 700; }
@@ -27,17 +28,10 @@
 .v-scroller[data-variant="landscape"] > li { width: calc(var(--card-w) * 2); }
 @media (max-width: 47.99rem) { .v-scroller[data-variant="landscape"] > li { width: 72vw; } }
 
-/* Entrance stagger, once per row (§6.7) */
+/* Later rows enter without waiting for hydration; the first two paint immediately. */
+@keyframes v-card-enter { from { translate: 0 12px; } to { translate: 0 0; } }
 @media (prefers-reduced-motion: no-preference) {
-  .v-scroller > li { opacity: 0; translate: 0 12px; }
-  .v-scroller[data-in="true"] > li { opacity: 1; translate: 0 0; transition: opacity var(--v-dur-3) var(--v-ease), translate var(--v-dur-3) var(--v-ease); }
-  .v-scroller[data-in="true"] > li:nth-child(2) { transition-delay: 40ms; }
-  .v-scroller[data-in="true"] > li:nth-child(3) { transition-delay: 80ms; }
-  .v-scroller[data-in="true"] > li:nth-child(4) { transition-delay: 120ms; }
-  .v-scroller[data-in="true"] > li:nth-child(5) { transition-delay: 160ms; }
-  .v-scroller[data-in="true"] > li:nth-child(n + 6) { transition-delay: 200ms; }
-  /* Skeleton rows have no observer */
-  .v-row[aria-hidden="true"] .v-scroller > li { opacity: 1; translate: none; }
+  .v-row ~ .v-row ~ .v-row:not([aria-hidden="true"]) .v-scroller > li { animation: v-card-enter var(--v-dur-3) var(--v-ease); }
 }
 
 /* Card */
@@ -88,6 +82,7 @@
 
 /* Grid (My List, Search, grid mode); follows the card-size slider */
 .v-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr)); gap: 1.5rem clamp(.75rem, 1.5vw, 1.5rem); }
+.v-grid > li { content-visibility: auto; contain-intrinsic-size: auto calc(var(--card-w) * 1.5 + 4rem); }
 @media (max-width: 47.99rem) { .v-grid { grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); } }
 
 /* Page bits used by Movies / TV / My List / Search (spec §5.2–5.4) */

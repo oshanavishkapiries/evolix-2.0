@@ -24,7 +24,7 @@ function parse(raw: Raw) {
   };
   const q = one("q").trim().slice(0, 100);
   const type: TypeFilter = one("type") === "movie" ? "movie" : one("type") === "show" ? "show" : "all";
-  const sort = (SORTS as string[]).includes(one("sort")) ? (one("sort") as Sort) : "newest";
+  const sort = q.length < MIN_QUERY && (SORTS as string[]).includes(one("sort")) ? (one("sort") as Sort) : "newest";
   const genre = one("genre").trim().slice(0, 50);
   const page = Math.min(1000, Math.max(1, Math.trunc(Number(one("page"))) || 1));
   return { q, type, sort, genre, page };
@@ -75,9 +75,9 @@ async function SearchContent({ searchParams }: { searchParams: Promise<Raw> }) {
           ))}
         </span>
         <span className="v-seg" role="group" aria-label="Sort">
-          {SORTS.map((s) => (
+          {(q.length >= MIN_QUERY ? (["newest"] as const) : SORTS).map((s) => (
             <Link key={s} href={href(query, { sort: s, page: 1 }, path)} aria-current={sort === s} replace>
-              {s === "newest" ? "Newest" : s === "title" ? "Title" : "Year"}
+              {s === "newest" ? (q.length >= MIN_QUERY ? "Relevance" : "Recommended") : "Year"}
             </Link>
           ))}
         </span>
@@ -125,7 +125,7 @@ async function Results({ query, path }: { query: Query; path: string }) {
       <ul className="v-grid">
         {items.map((item) => (
           <li key={`${item.kind}-${item.id}`}>
-            <MediaCard item={item} badge={type === "all"} />
+            <MediaCard grid item={item} badge={type === "all"} />
           </li>
         ))}
       </ul>

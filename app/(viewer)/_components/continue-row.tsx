@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { imageUrl } from "@/lib/images";
+import { PlayLink } from "./play-link";
+import { imageSrcSet, LANDSCAPE_ROW_SIZES } from "@/lib/images";
 import type { ContinueItem } from "@/lib/viewer/library";
 import { PlayIcon } from "./icons";
 import { RemoveProgress } from "./remove-progress";
@@ -13,16 +13,16 @@ export function ContinueRow({ items }: { items: ContinueItem[] }) {
   return (
     <ScrollRow label="Continue watching" variant="landscape" head={<><h2>Continue Watching</h2><p>Pick up where you left off</p></>}>
       {items.map((it) => {
-        const src = imageUrl(it.backdropPath ?? it.posterPath, "w780");
+        const image = imageSrcSet(it.backdropPath ?? it.posterPath, it.backdropPath ? "backdrop" : "poster", 780);
         const sub = [it.label, it.leftMinutes ? leftText(it.leftMinutes) : it.percent === 0 ? "Up next" : ""].filter(Boolean).join(" · ");
         return (
           <li key={it.key}>
             <div className="v-card" data-variant="landscape">
-              <Link href={it.href} className="v-card-link" prefetch={false} aria-label={`Resume ${it.title}${it.label ? ` ${it.label}` : ""}`}>
+              <PlayLink href={it.href} className="v-card-link" aria-label={`Resume ${it.title}${it.label ? ` ${it.label}` : ""}`}>
                 <div className="v-card-img">
-                  {src ? (
+                  {image.src ? (
                     // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-                    <img src={src} alt="" width={780} height={439} loading="lazy" decoding="async" />
+                    <img {...image} sizes={`auto, ${LANDSCAPE_ROW_SIZES}`} alt="" width={780} height={439} loading="lazy" decoding="async" />
                   ) : (
                     <span className="v-card-ph">{it.title}</span>
                   )}
@@ -35,7 +35,7 @@ export function ContinueRow({ items }: { items: ContinueItem[] }) {
                 </div>
                 <span className="v-card-title">{it.title}</span>
                 {sub && <span className="v-card-sub">{sub}</span>}
-              </Link>
+              </PlayLink>
               <RemoveProgress target={it.target} title={it.title} />
             </div>
           </li>

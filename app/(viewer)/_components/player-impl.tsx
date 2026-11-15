@@ -27,6 +27,7 @@ import { DualSubtitles, useDualSubtitleSelection, type SubtitleSlot, type Subtit
 import { usePlayerFeedback } from "./player-feedback";
 import { libraryId, rankTracks, SubtitleLibraryBanner, SubtitleLibraryPicker, SubtitleSuggestion, useSubtitleLibrary, useSubtitlePlays } from "./subtitle-library";
 import { PENDING_ID } from "./sinhala-subtitles";
+import { warmHls } from "./player-loaders";
 
 export type ProgressTarget = { kind: "movie" | "episode"; id: string };
 /** Shown over the video while paused, Netflix-style. */
@@ -42,9 +43,14 @@ export type QualityMenu = {
   onSelect: (quality: string, at: number) => void;
 };
 const SAVE_EVERY_MS = 15_000;
-/** Streams start (and stay) here unless the viewer picks otherwise. */
-const DEFAULT_HEIGHT = 720;
 const START_NOTE_MS = 6000;
+/** First ABR guess (bps): the browser's downlink hint, heavily discounted so the first fragment is small and the
+ *  first frame comes fast (ABR ramps up from measured throughput); capped because Chrome reports up to 10 Mbps
+ *  and a top-rung first fragment can be several MB. hls.js's 500 kbps default when there is no hint. */
+const initialBandwidth = () => {
+  const mbps = (navigator as Navigator & { connection?: { downlink?: number } }).connection?.downlink;
+  return mbps && Number.isFinite(mbps) ? Math.min(1.5e6, Math.max(3e5, mbps * 1e6 * 0.35)) : 5e5;
+};
 /** How long the video must stay paused before the "You are watching" poster appears. */
 const PAUSE_OVERLAY_DELAY_MS = 3 * 60_000;
 
@@ -105,7 +111,14 @@ export default function PlayerImpl({
     }
   }, [pendingTranslate, englishSource?.id, allSubtitles, dual]);
   const lastSave = useRef(0);
-  const seekTo = useRef(startAt);
+  const [resumeAt] = useState(() => Number.isFinite(startAt) && startAt > 0 ? startAt : 0);
+  const seekTo = useRef(resumeAt);
+  const guardResume = (duration: number) => {
+    if (seekTo.current <= 0 || !Number.isFinite(duration) || duration <= 0 || seekTo.current < duration - 5) return false;
+    seekTo.current = 0;
+    if (player.current) player.current.currentTime = 0;
+    return true;
+  };
 
   const save = useCallback(
     (unloading = false) => {
@@ -218,43 +231,18 @@ export default function PlayerImpl({
     return () => ctrl.abort();
   }, [pdId]);
 
+  // Before mount Vidstack renders the source as <source> children; with native HLS (Safari, recent Chrome) the browser
+  // starts fetching the stream from them and competes with hls.js until MSE takes over. Hand over the source a frame later.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const candidates = playbackCandidates(source.kind, source.url, hint);
   const current = candidates[Math.min(attempt, candidates.length - 1)];
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
 
-  // ---- quality: never switched behind the viewer's back. HLS starts on 720p and stays there (no adaptive
-  // switching, no "switching" toast); a better-fitting quality is only ever suggested (see the advisor below).
-  const qualityLocked = useRef(false);
-  const lockDefaultQuality = () => {
-    const hls = hlsOf()?.instance as { levels: { height?: number }[]; currentLevel: number } | null | undefined;
-    if (!hls || qualityLocked.current || hls.levels.length < 2) return;
-    const heights: number[] = hls.levels.map((l) => l.height || 0);
-    const below = heights.flatMap((h, i) => (h && h < DEFAULT_HEIGHT ? [[h, i]] : [])).sort((x, y) => y[0] - x[0])[0];
-    const index = heights.indexOf(DEFAULT_HEIGHT) >= 0 ? heights.indexOf(DEFAULT_HEIGHT) : below ? below[1] : heights.indexOf(Math.min(...heights.filter(Boolean)));
-    if (index < 0) return;
-    qualityLocked.current = true;
-    // A fixed level turns adaptive switching off. It goes through Vidstack's own quality list (so its menu shows the
-    // real selection instead of "Auto") but after Vidstack has finished handling the levels event: changing the list
-    // from inside that event can break the menu's render.
-    const height = heights[index];
-    // It applies from the next fragment ("load"), never as an immediate switch: that aborts the fragments already on
-    // their way, and on fMP4 streams (an init segment) hls.js 1.7 then aborts its own retry and never loads another
-    // fragment, so the video sits at 0:00.
-    setTimeout(() => {
-      try {
-        const list = player.current?.qualities;
-        const item = [...(list ?? [])].find((q) => q.height === height);
-        if (list && item) {
-          const mode = list.switch;
-          list.switch = "load";
-          item.selected = true;
-          list.switch = mode;
-        } else (hls as unknown as { loadLevel: number }).loadLevel = index;
-      } catch {
-        // player was torn down in between
-      }
-    }, 0);
-  };
+  // HLS adapts by default; selecting a rendition in Vidstack still switches to manual quality.
   const hlsOf = () => {
     const provider = player.current?.provider;
     return isHLSProvider(provider) ? provider : null;
@@ -291,7 +279,14 @@ export default function PlayerImpl({
   const [startNote, setStartNote] = useState(false);
   const noteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(noteTimer.current), []);
-  const advisor = useQualityAdvisor({ active: started, current: nowQuality, offered: offeredQualities, readMbps, onSwitch: switchTo });
+  const advisor = useQualityAdvisor({
+    active: started,
+    // ABR already handles connection changes; suggestions remain useful for manual choices.
+    current: () => !qualityMenu && player.current?.qualities.auto ? null : nowQuality(),
+    offered: offeredQualities,
+    readMbps,
+    onSwitch: switchTo,
+  });
   // One question per viewing, whichever asks first: the experience survey or a small question about a feature.
   const viewing = useRef({ asked: false });
   const feedback = usePlayerFeedback({
@@ -342,13 +337,13 @@ export default function PlayerImpl({
       ref={player}
       title={title}
       key={`${current.type}`}
-      src={current}
+      src={mounted ? current : undefined}
+      currentTime={resumeAt}
       style={styleVars(subStyles[0])}
       playsInline
       autoPlay
       keyTarget="document"
       keyShortcuts={{ toggleCaptions: { keys: "c", callback: () => setSubOpen((open) => !open) } }}
-      onQualitiesChange={lockDefaultQuality}
       onPlaying={() => {
         if (started) return;
         setStarted(true);
@@ -366,14 +361,32 @@ export default function PlayerImpl({
       }}
       onProviderChange={(provider: MediaProviderAdapter | null) => {
         // Bundle hls.js ourselves (lazy chunk) instead of letting Vidstack fetch it from a CDN.
-        if (isHLSProvider(provider)) provider.library = () => import("hls.js");
+        if (isHLSProvider(provider)) {
+          // Must not have a `prototype`: Vidstack treats such a function as the hls.js constructor itself. A bound
+          // function never has one (an arrow can be hoisted into a plain `function` by the React Compiler).
+          provider.library = warmHls.bind(null);
+          // Same reason: the m3u8 <source> Vidstack appends for reference would start a native HLS load. hls.js
+          // plays from an MSE blob, so the element never needs it.
+          (provider as unknown as { appendSource: () => void }).appendSource = () => {};
+          // Let ABR choose the first rendition from its bandwidth estimate, capped to the viewport.
+          // testBandwidth: false — otherwise hls.js downloads a first fragment only to measure throughput and
+          // discards it, so the first frame waits for a second (often much larger) fragment.
+          provider.config = { ...provider.config, startLevel: -1, testBandwidth: false, abrEwmaDefaultEstimate: initialBandwidth(), capLevelToPlayerSize: true, startPosition: seekTo.current };
+          provider.onInstance((hls) => {
+            const event = provider.ctor!.Events.LEVEL_UPDATED;
+            // Playlist duration is known here, before the stream controller requests its first fragment.
+            hls.once(event, (_event, data) => {
+              if (!data.details.live && guardResume(data.details.totalduration)) hls.startLoad(0);
+            });
+          });
+        }
       }}
+      onLoadedMetadata={() => { guardResume(player.current?.state.duration ?? 0); }}
       onCanPlay={() => {
-        lockDefaultQuality();
         const at = seekTo.current;
         seekTo.current = 0;
         const duration = player.current?.state.duration ?? 0;
-        if (at > 0 && player.current && (!duration || at < duration - 5)) player.current.currentTime = at;
+        if (at > 0 && player.current) player.current.currentTime = !duration || at < duration - 5 ? at : 0;
       }}
       onTimeUpdate={() => {
         if (Date.now() - lastSave.current >= SAVE_EVERY_MS) save();

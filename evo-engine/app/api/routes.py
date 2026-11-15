@@ -1,4 +1,5 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header, Response, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header, Response, Query, Request
+from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel, Field
 import base64
@@ -19,7 +20,7 @@ from app.services.ffmpeg_downloader import FFmpegStreamDownloader
 from app.services.pixeldrain_storage import PixeldrainStorageProvider
 from app.services.sqlite_repository import SQLiteTaskRepository
 from app.services.subtitle_service import SubtitleService
-from app.services.hls_proxy import HlsProxyService
+from app.services.hls_proxy import HlsProxyService, close_segment
 from app.services.translation_service import SinhalaTranslator
 from app.core.config import settings
 from app.core import metrics, runtime_config
@@ -401,9 +402,36 @@ async def get_proxy_variant_playlist(
     )
 
 
+class _SegmentStreamingResponse(StreamingResponse):
+    def __init__(self, upstream, headers):
+        self.upstream = upstream
+        self._closed = False
+        super().__init__(self._chunks(), status_code=upstream.status_code, headers=headers)
+
+    async def _close(self):
+        if not self._closed:
+            self._closed = True
+            await close_segment(self.upstream)
+
+    async def _chunks(self):
+        try:
+            async for chunk in self.upstream.aiter_content():
+                yield chunk
+        finally:
+            await self._close()
+
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            # Also covers send failures and disconnects before iteration starts.
+            await self._close()
+
+
 @router.api_route("/stream/{task_id}/segment", methods=["GET", "HEAD"], dependencies=[Depends(verify_secret_token)])
 async def get_proxy_stream_segment(
     task_id: str,
+    request: Request,
     url: str = Query(...),
     sig: Optional[str] = Query(None),
     range_header: Optional[str] = Header(None, alias="Range"),
@@ -417,22 +445,35 @@ async def get_proxy_stream_segment(
         raise HTTPException(status_code=403, detail="Invalid segment signature")
 
     try:
-        status_code, headers, content = await _hls_proxy.fetch_segment(url, task, range_header=range_header)
+        upstream = await _hls_proxy.fetch_segment(url, task, range_header=range_header, head=request.method == "HEAD")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Upstream segment fetch failed: {e}")
-    ct = headers.get("Content-Type", "")
-    if not ct or ct.startswith("text/"):
-        ct = "video/mp2t"
-
-    return Response(
-        content=content,
-        status_code=status_code,
-        media_type=ct,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Accept-Ranges": "bytes",
-        },
-    )
+    handed_off = False
+    try:
+        headers = {name: upstream.headers[name] for name in
+                   ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges")
+                   if name in upstream.headers}
+        ct = headers.get("Content-Type", "")
+        if not ct or ct.lower().startswith("text/"):
+            headers["Content-Type"] = "video/mp2t"
+        headers["Access-Control-Allow-Origin"] = "*"
+        if request.method == "HEAD":
+            response = Response(status_code=upstream.status_code, headers=headers)
+            if "Content-Length" not in headers:
+                del response.headers["content-length"]
+            return response
+        if not 200 <= upstream.status_code < 300:
+            # Do not download an arbitrary CDN error page. Its length describes
+            # that page, so let Response calculate the size of our small body.
+            headers.pop("Content-Length", None)
+            return Response(content=f"Upstream segment returned {upstream.status_code}",
+                            status_code=upstream.status_code, headers=headers)
+        response = _SegmentStreamingResponse(upstream, headers)
+        handed_off = True
+        return response
+    finally:
+        if not handed_off:
+            await close_segment(upstream)
 
 
 # ==============================================================================

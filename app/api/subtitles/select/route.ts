@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { revalidateTag } from "next/cache";
 import { json, parseBody } from "@/lib/auth/http";
 import { engineById } from "@/lib/evo/client";
 import { subtitleRoute } from "@/lib/subtitles/http";
@@ -8,7 +7,7 @@ import { publicTrack } from "@/lib/subtitles/store";
 import { downloadTrack, HiddenSubtitleError } from "@/lib/subtitles/service";
 import { captureException } from "@/lib/errors/capture";
 import { PROBLEMS } from "@/lib/evo/problems";
-import { CATALOG_TAG } from "@/lib/viewer/cache";
+import { invalidateCatalogParent } from "@/lib/cms/catalog-invalidation";
 
 export const POST = subtitleRoute(async (req, userId) => {
   const body = await parseBody(req, z.object({ ref: z.string().max(8000) }));
@@ -19,7 +18,7 @@ export const POST = subtitleRoute(async (req, userId) => {
   if (!engine) return json(503, { message: "This subtitle server is unavailable" });
   try {
     const track = await downloadTrack(choice.target, engine, choice.providerRef, choice.lang, choice.label, "opensubtitles");
-    revalidateTag(CATALOG_TAG, { expire: 0 });
+    await invalidateCatalogParent(track);
     return json(200, { track: publicTrack(track, userId) });
   } catch (e) {
     // A hidden release already has a plain message; anything else is provider trouble the viewer cannot act on.

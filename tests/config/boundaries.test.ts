@@ -53,6 +53,7 @@ describe("config boundaries", () => {
         if (!(ts.isImportDeclaration(stmt) || ts.isExportDeclaration(stmt)) || !stmt.moduleSpecifier || !ts.isStringLiteral(stmt.moduleSpecifier)) continue;
         if (ts.isImportDeclaration(stmt) && stmt.importClause?.isTypeOnly) continue;
         if (ts.isExportDeclaration(stmt) && stmt.isTypeOnly) continue;
+        if (stmt.moduleSpecifier.text === "zod") failures.push(`${origin} imports browser Zod through ${path.slice(root.length + 1)}`);
         const target = resolveImport(path, stmt.moduleSpecifier.text);
         if (target) walk(target, origin, seen);
       }

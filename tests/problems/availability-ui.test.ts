@@ -10,6 +10,8 @@ vi.mock('@/lib/viewer/user', () => ({ currentUserId: async () => 'viewer' }));
 vi.mock('@/lib/viewer/access', () => ({ canWatch: async () => true }));
 vi.mock('@/lib/viewer/library', () => ({ resumePosition: vi.fn() }));
 vi.mock('@/app/(viewer)/_components/watch-view', () => ({ WatchView: state.watch }));
+// The page reads cookies concurrently with the catalog lookup; there is no request scope in a unit test.
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }) }));
 
 import { EpisodeRow, Seasons } from '@/app/(viewer)/_components/seasons';
 import WatchEpisodePage from '@/app/(viewer)/watch/tv/[id]/[season]/[episode]/page';

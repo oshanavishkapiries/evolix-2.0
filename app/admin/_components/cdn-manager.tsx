@@ -1,6 +1,7 @@
 "use client";
+import { useVisibleInterval } from "@/lib/client/use-visible-interval";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";
@@ -58,14 +59,7 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
     if (u.ok) setAccount(u.data);
   }, [q]);
 
-  useEffect(() => {
-    const first = setTimeout(load, 0); // deferred: load sets state
-    const poll = setInterval(() => document.visibilityState === "visible" && load(), 30_000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(poll);
-    };
-  }, [load]);
+  useVisibleInterval(load, 30_000, true, load);
 
   const visible = useMemo(() => {
     if (!files) return [];

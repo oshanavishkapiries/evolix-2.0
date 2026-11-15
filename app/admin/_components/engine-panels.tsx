@@ -1,4 +1,5 @@
 "use client";
+import { useVisibleInterval } from "@/lib/client/use-visible-interval";
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -46,14 +47,7 @@ export function ProvidersPanel({ engine }: { engine: string }) {
       setError("");
     } else setError(errorText(res));
   }, [engine]);
-  useEffect(() => {
-    const first = setTimeout(load, 0);
-    const t = setInterval(load, 5000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(t);
-    };
-  }, [load]);
+  useVisibleInterval(load, 5000, true, load);
 
   const reset = async (name: string) => {
     const res = await adminApi<{ data: Provider[] }>("POST", `/api/admin/evo/providers/${encodeURIComponent(name)}/reset${q(engine)}`);

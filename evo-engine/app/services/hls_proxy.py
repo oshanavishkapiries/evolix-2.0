@@ -1,16 +1,31 @@
+import asyncio
 import hashlib
 import hmac
 import logging
 import re
 import secrets
 import urllib.parse
-from typing import Optional, Tuple, Iterator
+from contextlib import suppress
+from typing import Optional
+import anyio
 from curl_cffi import requests
 
 from app.core.config import settings
 from app.domain.models import IngestTask
 
 logger = logging.getLogger("evo.hls_proxy")
+
+
+async def close_segment(response):
+    """Abort unfinished curl_cffi 0.16 transfers before awaiting their cleanup."""
+    # aclose() alone waits for the entire download in this version. Cancel its
+    # transfer task to release the curl handle immediately on HEAD/disconnect.
+    with anyio.CancelScope(shield=True):
+        transfer = response.astream_task
+        if transfer is not None and not transfer.done():
+            transfer.cancel()
+        with suppress(asyncio.CancelledError):
+            await response.aclose()
 
 
 class HlsProxyService:
@@ -160,12 +175,19 @@ class HlsProxyService:
         segment_url: str,
         task: IngestTask,
         range_header: Optional[str] = None,
-    ) -> Tuple[int, dict, bytes]:
-        """Fetches video segment from upstream CDN using engine's session and IP."""
+        head: bool = False,
+    ):
+        """Open a segment stream; the caller owns and must close the response."""
         headers = dict(task.upstream_headers or {})
         if range_header:
             headers["Range"] = range_header
 
-        r = await self._session.get(segment_url, headers=headers, timeout=15)
-        content_type = r.headers.get("Content-Type", "video/mp2t")
-        return r.status_code, {"Content-Type": content_type}, r.content
+        # In curl_cffi 0.16 streaming mode, timeout sets connect and low-speed
+        # timeouts, not a total download deadline. Identity encoding keeps the
+        # forwarded Content-Length/Range consistent with the delivered bytes.
+        request = self._session.head if head else self._session.get
+        r = await request(segment_url, headers=headers, timeout=15, stream=True, accept_encoding="identity")
+        if head and r.status_code in (405, 501):
+            await close_segment(r)
+            r = await self._session.get(segment_url, headers=headers, timeout=15, stream=True, accept_encoding="identity")
+        return r

@@ -2,14 +2,22 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { fetchWithRefresh, navigate, postJson } from "@/lib/client/api";
+import { createContext, Suspense, useContext, useEffect, useRef, useState, useTransition } from "react";
+import { navigate, postJson } from "@/lib/client/api";
 import { SEARCH_MIN_CHARS, useDebouncedValue } from "@/lib/client/use-debounced";
 import { NotificationBell } from "./announcements";
 import { FilmIcon, HomeIcon, ListIcon, MenuIcon, SearchIcon, SupportIcon, TvIcon, UserIcon } from "./icons";
 import { activeNavKey, SIDEBAR_ITEMS } from "./nav-items";
 import { PREF_SIDEBAR, savePref } from "./prefs";
 import { SupportBadge } from "@/app/_components/support/unread";
+
+export type ViewerAccount = { email: string; isAdmin: boolean };
+const AccountContext = createContext<{ me: ViewerAccount | null; seed: (me: ViewerAccount | null) => void }>({ me: null, seed: () => {} });
+export const useViewerAccount = () => useContext(AccountContext);
+export function ViewerAccountProvider({ children }: { children: React.ReactNode }) {
+  const [me, seed] = useState<ViewerAccount | null>(null);
+  return <AccountContext.Provider value={{ me, seed }}>{children}</AccountContext.Provider>;
+}
 
 const ICONS = { support: SupportIcon, dashboard: HomeIcon, movies: FilmIcon, tv: TvIcon, "my-list": ListIcon };
 const DESKTOP = "(min-width: 80rem)";
@@ -20,6 +28,7 @@ const DESKTOP = "(min-width: 80rem)";
  */
 function NavSearch() {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const pathname = usePathname();
   const params = useSearchParams();
   const base = "/search";
@@ -45,8 +54,10 @@ function NavSearch() {
     next.delete("page");
     const qs = next.toString();
     const url = qs ? `${base}?${qs}` : base;
-    if (onSearch) router.replace(url);
-    else router.push(url);
+    startTransition(() => {
+      if (onSearch) router.replace(url);
+      else router.push(url);
+    });
   };
 
   useEffect(() => {
@@ -60,6 +71,8 @@ function NavSearch() {
     <form
       role="search"
       className="v-top-search"
+      data-pending={pending || undefined}
+      aria-busy={pending}
       onSubmit={(e) => {
         e.preventDefault();
         const q = value.trim();
@@ -85,7 +98,7 @@ function NavSearch() {
 
 function UserMenu() {
   const [open, setOpen] = useState(false);
-  const [me, setMe] = useState<{ email: string; isAdmin: boolean } | null>(null);
+  const { me } = useViewerAccount();
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,16 +114,8 @@ function UserMenu() {
     };
   }, [open]);
 
-  async function toggle() {
+  function toggle() {
     setOpen((o) => !o);
-    if (me) return;
-    try {
-      const res = await fetchWithRefresh("/api/auth/me");
-      if (res.ok) {
-        const body = await res.json();
-        setMe({ email: body.user?.email ?? "", isAdmin: body.isAdmin === true });
-      }
-    } catch {}
   }
 
   async function logout() {

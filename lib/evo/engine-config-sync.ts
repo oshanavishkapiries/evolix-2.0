@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { engineConfigSync, evoEngines } from "@/db/schema";
-import { engineToken, registeredEngines } from "./registry";
+import { engineToken, registeredEngines, invalidateEngineCache } from "./registry";
 import { fetchEngine } from "./transport";
 import { buildPushPayload, configRows, effectiveEngineConfig, EngineConfigError } from "./engine-config-store";
 import { ENGINE_CONFIG_BY_KEY, type ConfigSyncStatus } from "./engine-config";
@@ -16,6 +16,7 @@ async function record(id:string,version:number,state:ConfigSyncStatus["state"],e
     select id,${state},${error},now(),${JSON.stringify(restartKeys(restart))}::jsonb from current
     on conflict (engine_id) do update set state=excluded.state,last_error=excluded.last_error,last_attempt_at=excluded.last_attempt_at,restart_needed=excluded.restart_needed returning engine_id
   ) update evo_engines set config_pushed_version=${version} where id in (select engine_id from recorded) and ${state}='in_sync'`);
+  invalidateEngineCache();
 }
 const pushing = new Map<string,Promise<void>>();
 export function pushEngineConfig(id:string,force=false):Promise<void> {
@@ -32,7 +33,10 @@ async function push(id:string,force:boolean) {
     const [sync] = await db.select().from(engineConfigSync).where(eq(engineConfigSync.engineId,id));
     if (!force && (sync?.state === "too_old" || sync?.state === "rejected")) return;
     // A newly registered engine can inherit global rows created before it existed.
-    if (row.configVersion === 0) await db.update(evoEngines).set({configVersion:1}).where(and(eq(evoEngines.id,id),eq(evoEngines.configVersion,0),isNull(evoEngines.removedAt)));
+    if (row.configVersion === 0) {
+      await db.update(evoEngines).set({configVersion:1}).where(and(eq(evoEngines.id,id),eq(evoEngines.configVersion,0),isNull(evoEngines.removedAt)));
+      invalidateEngineCache();
+    }
     const version = row.configVersion || 1, config = effectiveEngineConfig(rows,id), token = await engineToken(id);
     try {
       const response = await fetchEngine(ref.url,"/config/push",token,{method:"PUT",body:buildPushPayload(version,config,token),timeoutMs:5000});
@@ -40,6 +44,7 @@ async function push(id:string,force:boolean) {
       if (response.ok && body.version === version && body.managed === true) { await record(id,version,"in_sync",null,body.restart_needed); return; }
       if (response.status === 409 && attempt === 0 && typeof body.version === "number" && Number.isSafeInteger(body.version) && body.version >= version && body.version < Number.MAX_SAFE_INTEGER) {
         await db.update(evoEngines).set({configVersion:sql`greatest(${evoEngines.configVersion},${body.version})+1`}).where(and(eq(evoEngines.id,id),isNull(evoEngines.removedAt)));
+        invalidateEngineCache();
         continue;
       }
       if ([404,405].includes(response.status)) { await record(id,version,"too_old","This engine does not support configuration push"); return; }

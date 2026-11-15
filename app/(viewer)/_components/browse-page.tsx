@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { imageUrl } from "@/lib/images";
+import { imageSrcSet } from "@/lib/images";
 import { browse, listGenres, listGenreTiles, SEARCH_PAGE_SIZE, SORTS, type Sort } from "@/lib/viewer/catalog";
 import type { CardKind } from "@/lib/viewer/ids";
 import { HubRow } from "./hub-row";
@@ -13,7 +13,7 @@ import { PageMotion, Reveal, SkeletonOut } from "./motion";
 
 type Raw = Record<string, string | string[] | undefined>;
 
-const SORT_LABEL: Record<Sort, string> = { newest: "Recently added", title: "Title", year: "Release year" };
+const SORT_LABEL: Record<Sort, string> = { newest: "Recommended", title: "Title", year: "Release year" };
 
 function parse(raw: Raw) {
   const one = (k: string) => {
@@ -84,19 +84,28 @@ async function Content({ kind, basePath, heading, searchParams }: { kind: CardKi
   );
 }
 
-async function Rows({ kind }: { kind: CardKind }) {
-  const [latest, genres] = await Promise.all([browse({ type: kind, limit: 20 }), listGenres(2, 10, kind)]);
+function Rows({ kind }: { kind: CardKind }) {
+  return <>
+    <Suspense fallback={<RowSkeleton />}><LatestRow kind={kind} /></Suspense>
+    <Suspense fallback={<RowSkeleton />}><GenreRows kind={kind} /></Suspense>
+  </>;
+}
+
+async function LatestRow({ kind }: { kind: CardKind }) {
+  const latest = await browse({ type: kind, limit: 20 });
   if (!latest.items.length) return <Empty />;
-  const rows = await Promise.all(genres.map(async (g) => ({ genre: g, items: (await browse({ type: kind, genre: g, limit: 20 })).items })));
-  const label = kind === "movie" ? "Movies" : "TV Shows";
-  return (
-    <>
-      <HubRow title="Recently Added" subtitle={label} items={latest.items} />
-      {rows.map((r) => (
-        <HubRow key={r.genre} title={r.genre} subtitle={label} items={r.items} href={`/search?type=${kind}&genre=${encodeURIComponent(r.genre)}`} />
-      ))}
-    </>
-  );
+  return <HubRow title="Recently Added" subtitle={kind === "movie" ? "Movies" : "TV Shows"} items={latest.items} priority />;
+}
+
+async function GenreRows({ kind }: { kind: CardKind }) {
+  const genres = await listGenres(2, 10, kind);
+  return genres.map((genre) => <Suspense key={genre} fallback={<RowSkeleton />}><GenreRow kind={kind} genre={genre} /></Suspense>);
+}
+
+async function GenreRow({ kind, genre }: { kind: CardKind; genre: string }) {
+  const { items } = await browse({ type: kind, genre, limit: 20 });
+  if (!(await browse({ type: kind, limit: 20 })).items.length) return null;
+  return <HubRow title={genre} subtitle={kind === "movie" ? "Movies" : "TV Shows"} items={items} href={`/search?type=${kind}&genre=${encodeURIComponent(genre)}`} />;
 }
 
 async function Grid({ kind, query, href }: { kind: CardKind; query: Query; href: (p: Partial<Query>) => string }) {
@@ -120,9 +129,9 @@ async function Grid({ kind, query, href }: { kind: CardKind; query: Query; href:
         </details>
       </div>
       <ul className="v-grid">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li key={item.id}>
-            <MediaCard item={item} />
+            <MediaCard grid item={item} priority={index < 4} fetchPriority={index === 0 ? "high" : "auto"} />
           </li>
         ))}
       </ul>
@@ -143,13 +152,13 @@ async function Genres({ kind }: { kind: CardKind }) {
   return (
     <ul className="v-genres v-page-pad">
       {tiles.map((t) => {
-        const src = imageUrl(t.backdropPath, "w780");
+        const image = imageSrcSet(t.backdropPath, "backdrop", 780);
         return (
           <li key={t.genre}>
             <Link href={`/search?type=${kind}&genre=${encodeURIComponent(t.genre)}`} className="v-genre">
-              {src && (
+              {image.src && (
                 // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-                <img src={src} alt="" width={780} height={439} loading="lazy" decoding="async" />
+                <img {...image} sizes="auto, (max-width: 47.99rem) calc((100vw - 44px) / 2), 320px" alt="" width={780} height={439} loading="lazy" decoding="async" />
               )}
               <span className="v-genre-name">{t.genre}</span>
               <span className="v-genre-count">{t.count} {t.count === 1 ? "title" : "titles"}</span>

@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { configAudit, engineConfig, engineConfigSync, evoEngines } from "@/db/schema";
 import { decryptSecret, encryptForEngine, encryptSecret, maskSecret } from "@/lib/config/crypto";
-import { registeredEngines } from "./registry";
+import { registeredEngines, invalidateEngineCache } from "./registry";
 import { ENGINE_CONFIG_BY_KEY, ENGINE_CONFIG_SPECS, mergeEngineConfig, splitEngineConfig, validateEngineValue, type ConfigSyncStatus, type EngineValues } from "./engine-config";
 
 export class EngineConfigError extends Error { constructor(message:string, public status = 422, public errors?:Record<string,string>) { super(message); } }
@@ -39,7 +39,10 @@ export async function configSnapshot(scope:string) {
 }
 async function ensureConfigEngines() {
   const refs = await registeredEngines();
-  if (refs.length) await db.insert(evoEngines).values(refs.map(e=>({id:e.id,url:e.url}))).onConflictDoNothing();
+  if (refs.length) {
+    await db.insert(evoEngines).values(refs.map(e=>({id:e.id,url:e.url}))).onConflictDoNothing();
+    invalidateEngineCache();
+  }
 }
 /** All validation precedes writes; one CTE commits rows, masked audit and versions together. */
 export async function saveEngineConfig(scope:string, input:unknown, actor:string, resetKeys:string[] = [], action:"set"|"reset"|"rollback" = "set") {
@@ -80,6 +83,7 @@ export async function saveEngineConfig(scope:string, input:unknown, actor:string
     )
     insert into engine_config_sync (engine_id,state) select id,'pending' from bumped
     on conflict (engine_id) do update set state='pending',last_error=null returning engine_id`);
+    invalidateEngineCache();
     return result.rows.map(r=>String(r.engine_id));
   } catch { throw new EngineConfigError("Configuration changed concurrently; reload and retry",409); }
 }
