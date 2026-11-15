@@ -17,7 +17,7 @@ import { POST as ROTATE } from "@/app/api/admin/evo/engines/[id]/rotate-token/ro
 import { getConfig } from "@/lib/config";
 import * as database from "@/db";
 import type { PGlite } from "@electric-sql/pglite";
-import { addEngine, registeredEngines, listEngines, updateEngine, rotateEngineToken, removeEngine, validateEngineUrl, engineToken, generateToken, testEngineConnection } from "@/lib/evo/registry";
+import { addEngine, registeredEngines, listEngines, updateEngine, rotateEngineToken, removeEngine, validateEngineUrl, engineToken, generateToken, testEngineConnection, invalidateEngineCache } from "@/lib/evo/registry";
 import { engineFetch, engineIdFor } from "@/lib/evo/client";
 import { ensureRows, engineForTask, claimEngine } from "@/lib/evo/scheduler";
 import { isEngineCall } from "@/lib/evo/engine";
@@ -32,6 +32,7 @@ beforeAll(async () => {
   for (const file of ["0021_silky_victor_mancha.sql", "0022_orange_the_liberteens.sql", "0023_slim_gauntlet.sql"]) await client.exec(readFileSync(`drizzle/${file}`, "utf8"));
 });
 beforeEach(async () => {
+  invalidateEngineCache();
   await client.exec("truncate evo_engines, evo_tasks, config_audit");
   vi.stubEnv("CONFIG_ENCRYPTION_KEY", "ab".repeat(32));
   fetchMock.mockReset().mockImplementation(async () => Response.json({ waiting_extraction: 0, extracting: 0, caching: 0, status: "COMPLETED", version: "fixture-v1" }));
@@ -82,6 +83,7 @@ describe("engine DB registry", () => {
     expect(await isEngineCall(new Request("http://app.test", { headers: { "x-evo-secret": added.token } }))).toBe(true);
     expect(await isEngineCall(new Request("http://app.test", { headers: { "x-evo-secret": "global-fixture-token" } }))).toBe(false);
     await client.exec("update evo_engines set token = null where managed");
+    invalidateEngineCache();
     expect(await engineToken(added.engine.id)).toBe("global-fixture-token");
   });
   it("requires drain, no live jobs and no owned in-flight tasks; force preserves task history", async () => {
@@ -186,4 +188,71 @@ describe("admin registry API", () => {
       expect((await client.query("select * from evo_engines")).rows).toEqual([]);
     } finally { await client.exec("alter table config_audit drop constraint registry_test_actor"); }
   });
+});
+
+
+describe("registry cache", () => {
+  it("shares one registry query across concurrent task and token lookups, then expires", async () => {
+    const added = await addEngine({ name: "Cached", url: "http://cache.test" }, actor);
+    const { recordTask } = await import("@/lib/evo/scheduler");
+    await recordTask("cache-owned", added.engine, "ingest");
+    invalidateEngineCache();
+    const select = vi.spyOn(database.db, "select");
+    try {
+      await Promise.all(Array.from({ length: 20 }, () => Promise.all([engineForTask("cache-owned"), engineToken(added.engine.id)])));
+      expect(select).toHaveBeenCalledTimes(1);
+      const now = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 11_000);
+      try { await engineToken(added.engine.id); expect(select).toHaveBeenCalledTimes(2); }
+      finally { now.mockRestore(); }
+    } finally { select.mockRestore(); }
+  });
+  it("does not cache failed queries", async () => {
+    const select = vi.spyOn(database.db, "select").mockImplementationOnce(() => ({ from: () => Promise.reject(new Error("offline")) }) as unknown as ReturnType<typeof database.db.select>);
+    try {
+      await expect(registeredEngines()).rejects.toThrow("offline");
+      expect(await registeredEngines()).toHaveLength(1);
+      expect(select).toHaveBeenCalledTimes(2);
+    } finally { select.mockRestore(); }
+  });
+  it.each([401, 403])("retries %s once only when a cached credential changed", async (status) => {
+    const added = await addEngine({ name: "Rotating", url: "http://rotate.test" }, actor);
+    await engineToken(added.engine.id);
+    const { encryptSecret } = await import("@/lib/config/crypto");
+    fetchMock.mockImplementationOnce(async () => {
+      await client.query("update evo_engines set token = $1 where id = $2", [encryptSecret("new-remote-credential"), added.engine.id]);
+      return new Response(null, { status });
+    }).mockResolvedValueOnce(new Response(null, { status }));
+    expect((await engineFetch("/queue", { engine: added.engine })).status).toBe(status);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.lastCall?.[1].headers["X-Evo-Secret"]).toBe("new-remote-credential");
+    fetchMock.mockReset().mockResolvedValue(new Response(null, { status }));
+    await engineFetch("/queue", { engine: added.engine });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it("invalidates cached rows after add, update, rotation and removal", async () => {
+    await registeredEngines();
+    const added = await addEngine({ name: "Before", url: "http://invalidate.test" }, actor);
+    expect((await registeredEngines())[0].name).toBe("Before");
+    await updateEngine(added.engine.id, { name: "After" }, actor);
+    expect((await registeredEngines())[0].name).toBe("After");
+    await engineToken(added.engine.id);
+    const next = await rotateEngineToken(added.engine.id, actor);
+    expect(await engineToken(added.engine.id)).toBe(next.token);
+    await removeEngine(added.engine.id, actor, true);
+    await expect(engineToken(added.engine.id)).rejects.toThrow("removed");
+    expect((await registeredEngines()).some(e => e.id === added.engine.id)).toBe(false);
+  });
+});
+
+it("does not let an in-flight read repopulate rows invalidated by a mutation", async () => {
+  let resolve!: (rows: never[]) => void;
+  const pending = new Promise<never[]>(done => { resolve = done; });
+  const select = vi.spyOn(database.db, "select").mockImplementationOnce(() => ({ from: () => pending }) as unknown as ReturnType<typeof database.db.select>);
+  try {
+    const stale = registeredEngines();
+    const added = await addEngine({ name: "Concurrent", url: "http://concurrent.test" }, actor);
+    resolve([]);
+    await stale;
+    expect((await registeredEngines()).map(e => e.id)).toEqual([added.engine.id]);
+  } finally { select.mockRestore(); }
 });

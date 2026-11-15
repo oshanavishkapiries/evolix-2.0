@@ -44,6 +44,13 @@ export type QualityMenu = {
 };
 const SAVE_EVERY_MS = 15_000;
 const START_NOTE_MS = 6000;
+/** First ABR guess (bps): the browser's downlink hint, heavily discounted so the first fragment is small and the
+ *  first frame comes fast (ABR ramps up from measured throughput); capped because Chrome reports up to 10 Mbps
+ *  and a top-rung first fragment can be several MB. hls.js's 500 kbps default when there is no hint. */
+const initialBandwidth = () => {
+  const mbps = (navigator as Navigator & { connection?: { downlink?: number } }).connection?.downlink;
+  return mbps && Number.isFinite(mbps) ? Math.min(1.5e6, Math.max(3e5, mbps * 1e6 * 0.35)) : 5e5;
+};
 /** How long the video must stay paused before the "You are watching" poster appears. */
 const PAUSE_OVERLAY_DELAY_MS = 3 * 60_000;
 
@@ -224,6 +231,13 @@ export default function PlayerImpl({
     return () => ctrl.abort();
   }, [pdId]);
 
+  // Before mount Vidstack renders the source as <source> children; with native HLS (Safari, recent Chrome) the browser
+  // starts fetching the stream from them and competes with hls.js until MSE takes over. Hand over the source a frame later.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const candidates = playbackCandidates(source.kind, source.url, hint);
   const current = candidates[Math.min(attempt, candidates.length - 1)];
   const insecure = typeof window !== "undefined" && window.location.protocol === "https:" && source.url.startsWith("http:");
@@ -323,7 +337,7 @@ export default function PlayerImpl({
       ref={player}
       title={title}
       key={`${current.type}`}
-      src={current}
+      src={mounted ? current : undefined}
       currentTime={resumeAt}
       style={styleVars(subStyles[0])}
       playsInline
@@ -350,8 +364,13 @@ export default function PlayerImpl({
         if (isHLSProvider(provider)) {
           // Must be an arrow: Vidstack treats anything with a `prototype` as the hls.js constructor itself.
           provider.library = () => warmHls();
+          // Same reason: the m3u8 <source> Vidstack appends for reference would start a native HLS load. hls.js
+          // plays from an MSE blob, so the element never needs it.
+          (provider as unknown as { appendSource: () => void }).appendSource = () => {};
           // Let ABR choose the first rendition from its bandwidth estimate, capped to the viewport.
-          provider.config = { ...provider.config, startLevel: -1, capLevelToPlayerSize: true, startPosition: seekTo.current };
+          // testBandwidth: false — otherwise hls.js downloads a first fragment only to measure throughput and
+          // discards it, so the first frame waits for a second (often much larger) fragment.
+          provider.config = { ...provider.config, startLevel: -1, testBandwidth: false, abrEwmaDefaultEstimate: initialBandwidth(), capLevelToPlayerSize: true, startPosition: seekTo.current };
           provider.onInstance((hls) => {
             const event = provider.ctor!.Events.LEVEL_UPDATED;
             // Playlist duration is known here, before the stream controller requests its first fragment.

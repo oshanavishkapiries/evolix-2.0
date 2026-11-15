@@ -1,5 +1,6 @@
 import { Suspense, cache } from "react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { browse, featuredLogo, listFeatured, listGenres, listLatest, type Card } from "@/lib/viewer/catalog";
 import { canWatch } from "@/lib/viewer/access";
 import { currentUserId } from "@/lib/viewer/user";
@@ -11,8 +12,26 @@ import { MediaCard } from "./media-card";
 import { ScrollRow } from "./scroll-row";
 import { RowSkeleton } from "./skeletons";
 
+/**
+ * Rows read TMDB through the public catalog cache. An upstream failure must not fail the build or the page:
+ * during prerender the row becomes a request-time hole (connection()), at request time it retries once and
+ * then renders empty.
+ */
+async function resilient<T>(load: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await load();
+  } catch {
+    await connection();
+    return load().catch(() => fallback);
+  }
+}
+
 // React cache deduplicates these reads only within the current server render.
-const publicRows = cache(() => ({ featured: listFeatured(), movies: listLatest("movie"), shows: listLatest("show") }));
+const publicRows = cache(() => ({
+  featured: resilient(() => listFeatured(), [] as Card[]),
+  movies: resilient(() => listLatest("movie"), [] as Card[]),
+  shows: resilient(() => listLatest("show"), [] as Card[]),
+}));
 const emptyLibrary = cache(async () => {
   const rows = publicRows();
   const items = await Promise.all([rows.featured, rows.movies, rows.shows]);
@@ -74,7 +93,8 @@ export async function HomeLatest({ kind }: { kind: "movie" | "show" }) {
 }
 
 async function HomeGenre({ genre }: { genre: string }) {
-  const result = await browse({ genre, limit: 20 });
+  const result = await resilient(() => browse({ genre, limit: 20 }), { items: [] as Card[], total: 0 });
+  if (!result.items.length) return null;
   if (await emptyLibrary()) return null;
   return <HubRow title={genre} subtitle="Movies & Shows" items={result.items} href={`/search?genre=${encodeURIComponent(genre)}`} badge />;
 }
