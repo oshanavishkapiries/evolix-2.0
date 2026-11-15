@@ -45,11 +45,17 @@ const worker = {
     const timer = setTimeout(() => ctrl.abort(), HEADER_TIMEOUT_MS);
     let res: Response;
     try {
-      res = await fetch(`${engine.url}${file ? `/api/v1/media/files/${file.fileId}` : enginePath(path!, url.search)}`, { method: req.method, headers, signal: ctrl.signal, redirect: "error" });
+      res = await fetch(`${engine.url}${file ? `/api/v1/media/files/${file.fileId}` : enginePath(path!, url.search)}`, { method: req.method, headers, signal: ctrl.signal, redirect: "manual" });
     } catch (e) {
+      console.error("engine fetch failed", engine.key, e instanceof Error ? `${e.name}: ${e.message}` : String(e));
       return reply(502, e instanceof Error && e.name !== "AbortError" ? "Stream source unreachable" : "Stream source timed out", cors);
     } finally {
       clearTimeout(timer);
+    }
+    // Workers have no redirect:"error"; with "manual" a 3xx comes back unfollowed, so the secret never leaves the engine host.
+    if (res.status >= 300 && res.status < 400) {
+      await res.body?.cancel().catch(() => {});
+      return reply(502, "Stream source redirected", cors);
     }
     if (file) {
       const out = new Headers(cors);

@@ -118,7 +118,7 @@ describe("local CDN files", () => {
     const f = stubEngine(new Response("BYTES", { status: 206, headers: { "Content-Type": "video/mp4", "Content-Length": "5", "Content-Range": "bytes 0-4/100", "Accept-Ranges": "bytes", ETag: '"v1"', "X-Evo-Secret": "s3cret" } }));
     const res = await call(`/${key}/file/${id}`, { headers: { Range: "bytes=0-4", "If-Range": '"v1"', Origin: SITE } });
     expect(f.mock.calls[0][0]).toBe(`${ENGINE}/api/v1/media/files/${id}`);
-    expect(f.mock.calls[0][1]).toMatchObject({ redirect: "error", headers: { Range: "bytes=0-4", "If-Range": '"v1"', "X-Evo-Secret": "s3cret" } });
+    expect(f.mock.calls[0][1]).toMatchObject({ redirect: "manual", headers: { Range: "bytes=0-4", "If-Range": '"v1"', "X-Evo-Secret": "s3cret" } });
     expect(res.status).toBe(206);
     expect(res.headers.get("Content-Range")).toBe("bytes 0-4/100");
     expect(res.headers.get("Cache-Control")).toBe("private, max-age=3600");
