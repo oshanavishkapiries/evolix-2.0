@@ -91,7 +91,7 @@ async function Rows({ kind }: { kind: CardKind }) {
   const label = kind === "movie" ? "Movies" : "TV Shows";
   return (
     <>
-      <HubRow title="Recently Added" subtitle={label} items={latest.items} />
+      <HubRow title="Recently Added" subtitle={label} items={latest.items} priority />
       {rows.map((r) => (
         <HubRow key={r.genre} title={r.genre} subtitle={label} items={r.items} href={`/search?type=${kind}&genre=${encodeURIComponent(r.genre)}`} />
       ))}
@@ -120,9 +120,9 @@ async function Grid({ kind, query, href }: { kind: CardKind; query: Query; href:
         </details>
       </div>
       <ul className="v-grid">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li key={item.id}>
-            <MediaCard item={item} />
+            <MediaCard item={item} priority={index < 4} fetchPriority={index === 0 ? "high" : "auto"} />
           </li>
         ))}
       </ul>

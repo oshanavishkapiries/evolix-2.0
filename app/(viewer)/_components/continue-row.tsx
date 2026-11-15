@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PlayLink } from "./play-link";
 import { imageUrl } from "@/lib/images";
 import type { ContinueItem } from "@/lib/viewer/library";
 import { PlayIcon } from "./icons";
@@ -18,7 +18,7 @@ export function ContinueRow({ items }: { items: ContinueItem[] }) {
         return (
           <li key={it.key}>
             <div className="v-card" data-variant="landscape">
-              <Link href={it.href} className="v-card-link" prefetch={false} aria-label={`Resume ${it.title}${it.label ? ` ${it.label}` : ""}`}>
+              <PlayLink href={it.href} className="v-card-link" aria-label={`Resume ${it.title}${it.label ? ` ${it.label}` : ""}`}>
                 <div className="v-card-img">
                   {src ? (
                     // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
@@ -35,7 +35,7 @@ export function ContinueRow({ items }: { items: ContinueItem[] }) {
                 </div>
                 <span className="v-card-title">{it.title}</span>
                 {sub && <span className="v-card-sub">{sub}</span>}
-              </Link>
+              </PlayLink>
               <RemoveProgress target={it.target} title={it.title} />
             </div>
           </li>

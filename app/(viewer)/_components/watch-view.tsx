@@ -56,7 +56,7 @@ export function WatchView({ heading, sub, backHref, backLabel, basePath, sources
         <ul className="v-sources">
           {sources.map((s) => (
             <li key={s.id}>
-              <Link href={`${basePath}?source=${s.id}`} className="v-source" aria-current={s.id === selected?.id} replace prefetch={false}>
+              <Link href={`${basePath}?source=${s.id}`} className="v-source" aria-current={s.id === selected?.id} replace>
                 {s.label}
                 {s.quality && <small>{s.quality}</small>}
               </Link>

@@ -11,27 +11,30 @@ export function ScrollRow({ label, head, variant = "poster", children }: { label
   const update = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    setEdge({ left: el.scrollLeft > 4, right: el.scrollLeft < el.scrollWidth - el.clientWidth - 8 });
+    const left = el.scrollLeft > 4;
+    const right = el.scrollLeft < el.scrollWidth - el.clientWidth - 8;
+    setEdge((previous) => previous.left === left && previous.right === right ? previous : { left, right });
   }, []);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    // Cards stagger in once, the first time the row scrolls into view (spec §6.7).
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!e.isIntersecting) return;
-        el.dataset.in = "true";
-        io.disconnect();
-      },
-      { rootMargin: "0px 0px -10% 0px" },
-    );
-    io.observe(el);
+    const hover = window.matchMedia("(hover: hover)");
+    let ro: ResizeObserver | undefined;
+    const track = () => {
+      ro?.disconnect();
+      el.removeEventListener("scroll", update);
+      if (!hover.matches) return;
+      ro = new ResizeObserver(update);
+      ro.observe(el);
+      el.addEventListener("scroll", update, { passive: true });
+    };
+    track();
+    hover.addEventListener("change", track);
     return () => {
-      ro.disconnect();
-      io.disconnect();
+      ro?.disconnect();
+      el.removeEventListener("scroll", update);
+      hover.removeEventListener("change", track);
     };
   }, [update]);
 
@@ -53,7 +56,7 @@ export function ScrollRow({ label, head, variant = "poster", children }: { label
           </button>
         </div>
       </div>
-      <ul className="v-scroller" data-variant={variant} ref={ref} onScroll={update}>
+      <ul className="v-scroller" data-variant={variant} ref={ref}>
         {children}
       </ul>
     </section>

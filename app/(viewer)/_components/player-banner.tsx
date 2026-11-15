@@ -87,8 +87,12 @@ export function useQualityAdvisor({
   const consider = useCallback(() => {
     const now = latest.current.current();
     const have = latest.current.offered();
-    if (!now || answered.current) return;
+    if (!now || answered.current) {
+      setAdvice(null);
+      return;
+    }
     const i = ORDER.indexOf(now);
+    if (i < 0) return;
     const lower = ORDER.slice(i + 1).find((q) => have.includes(q));
     const higher = [...ORDER.slice(0, i)].reverse().find((q) => have.includes(q));
     const recent = stalls.current.filter((t) => Date.now() - t < STALL_WINDOW_MS);

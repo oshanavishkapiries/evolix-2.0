@@ -14,7 +14,6 @@ export function CardLink({ href, morphId, className, children }: { href: string;
     <Link
       href={href}
       className={className}
-      prefetch={false}
       onClick={(e) => {
         const img = morphId ? e.currentTarget.querySelector<HTMLElement>(".v-card-img") : null;
         if (!img) return;

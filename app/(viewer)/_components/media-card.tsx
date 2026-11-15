@@ -9,7 +9,7 @@ import { PlayIcon } from "./icons";
 export type CardVariant = "poster" | "landscape";
 
 /** Plex-style card: image with a light hover, title and meta underneath (spec §5, Q15). */
-export function MediaCard({ item, variant = "poster", badge = false, meta, logo = false }: { item: Card; variant?: CardVariant; badge?: boolean; meta?: string; /** Overlay the title logo on landscape cards. */ logo?: boolean }) {
+export function MediaCard({ item, variant = "poster", badge = false, meta, logo = false, priority = false, fetchPriority = "auto" }: { item: Card; variant?: CardVariant; badge?: boolean; meta?: string; priority?: boolean; fetchPriority?: "high" | "auto"; /** Overlay the title logo on landscape cards. */ logo?: boolean }) {
   const landscape = variant === "landscape";
   const src = landscape ? imageUrl(item.backdropPath ?? item.posterPath, "w780") : imageUrl(item.posterPath, "w342");
   const logoSrc = landscape && logo ? imageUrl(item.logoPath, "w300") : null;
@@ -21,7 +21,7 @@ export function MediaCard({ item, variant = "poster", badge = false, meta, logo 
         <div className="v-card-img">
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN, sizes picked per use
-            <img src={src} alt="" width={landscape ? 780 : 439} height={landscape ? 439 : 513} loading="lazy" decoding="async" />
+            <img src={src} alt="" width={landscape ? 780 : 342} height={landscape ? 439 : 513} loading={priority ? "eager" : "lazy"} fetchPriority={fetchPriority} decoding="async" />
           ) : (
             <span className="v-card-ph">{item.title}</span>
           )}

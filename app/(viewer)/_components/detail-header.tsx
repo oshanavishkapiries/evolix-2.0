@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PlayLink } from "./play-link";
 import { audioLabel } from "@/lib/audio";
 import { imageUrl } from "@/lib/images";
 import { ratingText, votesText, yearOf } from "@/lib/viewer/format";
@@ -40,7 +40,7 @@ export function DetailHeader(p: Props) {
       <PosterTint src={imageUrl(p.posterPath, "w92")} />
       {backdrop && (
         // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN, decorative
-        <img className="v-detail-backdrop" src={backdrop} alt="" width={1280} height={720} decoding="async" />
+        <img className="v-detail-backdrop" fetchPriority="low" src={backdrop} alt="" width={1280} height={720} decoding="async" />
       )}
       <div className="v-detail-head">
         {poster ? (
@@ -66,9 +66,9 @@ export function DetailHeader(p: Props) {
           )}
           <div className="v-detail-actions">
             {p.play ? (
-              <Link href={p.play.href} className="v-btn v-btn-primary v-btn-lg" prefetch={false}>
+              <PlayLink href={p.play.href} className="v-btn v-btn-primary v-btn-lg">
                 <PlayIcon size={18} /> {p.play.label}
-              </Link>
+              </PlayLink>
             ) : (
               <span className="v-btn v-btn-lg" aria-disabled="true">Not available yet</span>
             )}
@@ -84,7 +84,7 @@ export function DetailHeader(p: Props) {
               <span>Audio:</span>
               {p.dubs.map((c) =>
                 p.play && p.dubs!.length > 1 ? (
-                  <Link key={c} href={`${p.play.href}${p.play.href.includes("?") ? "&" : "?"}lang=${c}`} prefetch={false}>{audioLabel(c)} dub</Link>
+                  <PlayLink key={c} href={`${p.play.href}${p.play.href.includes("?") ? "&" : "?"}lang=${c}`}>{audioLabel(c)} dub</PlayLink>
                 ) : (
                   <span key={c} className="v-dub">{audioLabel(c)} dub</span>
                 ),

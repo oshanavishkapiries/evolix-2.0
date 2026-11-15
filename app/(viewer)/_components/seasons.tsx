@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PlayLink } from "./play-link";
 import { imageUrl } from "@/lib/images";
 import { PlayIcon } from "./icons";
 import { dateText, runtimeText } from "@/lib/viewer/format";
@@ -52,7 +52,7 @@ export function EpisodeRow({
   return upcoming ? (
     <div className="v-ep" aria-disabled="true">{inner}</div>
   ) : (
-    <Link href={`/watch/tv/${showId}/${seasonNumber}/${ep.episodeNumber}`} className="v-ep" aria-current={current} prefetch={false}>{inner}</Link>
+    <PlayLink href={`/watch/tv/${showId}/${seasonNumber}/${ep.episodeNumber}`} className="v-ep" aria-current={current}>{inner}</PlayLink>
   );
 }
 
@@ -96,7 +96,7 @@ export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: s
           return (
             <li key={s.id}>
               {href ? (
-                <Link href={href} className="v-card" prefetch={false} aria-label={`Play ${label(s)}`}>{inner}</Link>
+                <PlayLink href={href} className="v-card" aria-label={`Play ${label(s)}`}>{inner}</PlayLink>
               ) : (
                 <div className="v-card" aria-disabled="true">{inner}</div>
               )}
