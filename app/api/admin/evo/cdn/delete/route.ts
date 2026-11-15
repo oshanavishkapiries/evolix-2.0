@@ -5,7 +5,9 @@ import { sources } from "@/db/schema";
 import { json, parseBody } from "@/lib/auth/http";
 import { adminRoute, notFound } from "@/lib/cms/api";
 import { invalidateCatalogParent } from "@/lib/cms/catalog-invalidation";
-import { engineProxyFor } from "@/lib/cms/evo-admin";
+import { localFileId } from "@/lib/evo/local-file";
+import { engineById } from "@/lib/evo/client";
+import { engineProxy, engineProxyFor } from "@/lib/cms/evo-admin";
 
 const body = z.union([z.object({ sourceId: z.uuid() }), z.object({ url: z.string().url().max(500) })]);
 
@@ -17,14 +19,19 @@ export const POST = adminRoute(async (req) => {
   const parsed = await parseBody(req, body);
   if ("error" in parsed) return parsed.error;
   let url: string;
+  let ownerId: string | null = null;
   if ("sourceId" in parsed.data) {
-    const [row] = await db.select({ url: sources.url }).from(sources).where(eq(sources.id, parsed.data.sourceId)).limit(1);
+    const [row] = await db.select({ url: sources.url, engineId: sources.engineId }).from(sources).where(eq(sources.id, parsed.data.sourceId)).limit(1);
     if (!row) return notFound("Source");
     url = row.url;
+    if (localFileId(url)) ownerId = row.engineId;
   } else {
     url = parsed.data.url;
   }
-  const res = await engineProxyFor(req, "POST", "/cdn/delete", { url });
+  const owner = ownerId ? await engineById(ownerId) : undefined;
+  if (ownerId && !owner) return notFound("Source engine");
+  const res = owner ? await engineProxy("POST", "/cdn/delete", { url }, owner)
+    : await engineProxyFor(req, "POST", "/cdn/delete", { url });
   if (!res.ok) return res;
   if ("sourceId" in parsed.data) {
     const removed = await db.delete(sources).where(eq(sources.id, parsed.data.sourceId))

@@ -60,6 +60,13 @@ export function parsePath(pathname: string): StreamPath | null {
   return m ? { key: m[1].toLowerCase(), taskId: m[2].toLowerCase(), file: m[3] as StreamPath["file"] } : null;
 }
 
+/** Local files are opaque SHA/UUID names with one extension, never paths. */
+export const FILE_ID = /^[a-f0-9]{32,64}\.[a-z0-9]{1,10}$/;
+export function parseFilePath(pathname: string): { key: string; fileId: string } | null {
+  const m = /^\/([0-9a-f]{8})\/file\/([^/]+)$/i.exec(pathname);
+  return m && FILE_ID.test(m[2]) ? { key: m[1].toLowerCase(), fileId: m[2] } : null;
+}
+
 /** Points a playlist's child URLs back at the Worker instead of the engine's own path. */
 export function rewritePlaylist(text: string, taskId: string, key: string) {
   return text.replaceAll(`${MEDIA_STREAM}/${taskId}`, `/${key}/${taskId}`);
@@ -73,7 +80,7 @@ export function corsHeaders(origin: string | null, allowed: string): Headers {
   const list = allowed.split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean);
   if (origin && (list.includes("*") || list.includes(origin))) {
     h.set("Access-Control-Allow-Origin", list.includes("*") ? "*" : origin);
-    h.set("Access-Control-Allow-Headers", "Range");
+    h.set("Access-Control-Allow-Headers", "Range, If-Range");
     h.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     h.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
     h.set("Access-Control-Max-Age", "86400");

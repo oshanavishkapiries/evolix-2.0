@@ -3,6 +3,7 @@ import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { sources, subtitles } from "@/db/schema";
+import { localFileId } from "./local-file";
 import { pixeldrainId } from "@/lib/viewer/providers";
 import { catalogListTag, tmdbTag } from "@/lib/viewer/cache";
 import { invalidateCatalogParent } from "@/lib/cms/catalog-invalidation";
@@ -15,7 +16,7 @@ export const QUALITIES = ["1080p", "720p", "480p", "360p"] as const;
 /** Lower plays first: 720p is the default pick, then the others by descending quality. */
 const RANK: Record<string, number> = { "720p": 0, "1080p": 1, "480p": 2, "360p": 3 };
 
-const pixeldrainUrl = z.string().max(2048).refine((u) => pixeldrainId(u) !== null, "Must be a Pixeldrain file URL");
+const cdnUrl = z.string().max(2048).refine((u) => pixeldrainId(u) !== null || localFileId(u) !== null, "Must be a CDN file URL");
 
 /** What the engine knows once a quality has been cached to the CDN (webhook body and status reconcile). */
 export const promotionInput = z.object({
@@ -25,9 +26,9 @@ export const promotionInput = z.object({
   episode: z.number().int().min(0).max(100_000).nullish(),
   // Both absent for a subtitles-only completion (on-demand Sinhala translation: no video was cached).
   quality: z.string().regex(/^\d{3,4}p$/).optional(),
-  resultUrl: pixeldrainUrl.optional(),
+  resultUrl: cdnUrl.optional(),
   subtitles: z
-    .array(z.object({ language: z.string().min(2).max(10), label: z.string().min(1).max(100), url: pixeldrainUrl,
+    .array(z.object({ language: z.string().min(2).max(10), label: z.string().min(1).max(100), url: cdnUrl,
       source: z.enum(["auto", "opensubtitles", "translation"]).default("auto"),
       originRef: z.string().max(200).nullish(), originTrackId: z.uuid().nullish(),
     }))
@@ -46,6 +47,7 @@ export type PromotionInput = z.infer<typeof promotionInput>;
  */
 export async function promote(raw: z.input<typeof promotionInput>, engineId?: string | null) {
   const input = promotionInput.parse(raw);
+  if (!engineId && [input.resultUrl, ...input.subtitles.map((s) => s.url)].some(localFileId)) throw new Error("Local CDN completion requires an owning engine");
   const isMovie = input.mediaType === "movie";
   const existed = isMovie ? await findMovieIdByTmdb(input.tmdbId) : await findShowIdByTmdb(input.tmdbId);
   let parent: { movieId: string } | { episodeId: string };

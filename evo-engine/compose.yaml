@@ -10,6 +10,7 @@ services:
       EVO_SECRET_TOKEN: ${EVO_SECRET_TOKEN:?Set EVO_SECRET_TOKEN in .env before starting}
       DOWNLOAD_DIR: /app/downloads
       TEMP_DIR: /app/temp
+      LOCAL_CDN_DIR: /app/cdn
       SQLITE_DB_PATH: /app/data/evo_engine.sqlite3
     ports:
       - "${EVO_BIND_ADDRESS:-127.0.0.1}:${EVO_PORT:-8000}:8000"
@@ -17,6 +18,7 @@ services:
       - engine-data:/app/data
       - engine-downloads:/app/downloads
       - engine-temp:/app/temp
+      - engine-cdn:/app/cdn
     shm_size: "1gb"
     stop_grace_period: 2m
 
@@ -24,3 +26,5 @@ volumes:
   engine-data:
   engine-downloads:
   engine-temp:
+  # Docker does not cap named-volume size; application quotas enforce the limit.
+  engine-cdn:

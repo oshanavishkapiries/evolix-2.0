@@ -22,7 +22,7 @@ export const POST = subtitleRoute(async (req, userId) => {
   if ("error" in parsed) return parsed.error;
   const t = parsed.data;
   const existing = (await listTracks(await resolveParent(t), userId)).find((s) => s.language === "en");
-  if (existing) return json(200, { track: publicTrack(existing, userId) });
+  if (existing) return json(200, { track: await publicTrack(existing, userId) });
   const titleKey = `${t.mediaType}:${t.tmdbId}:${t.season ?? 0}:${t.episode ?? 0}`;
   const recent = noAuto.get(titleKey);
   if (recent && recent.until > Date.now()) return json(200, { track: null, needsChoice: true, message: recent.message });
@@ -40,7 +40,7 @@ export const POST = subtitleRoute(async (req, userId) => {
   for (const choice of choices.slice(0, 5)) {
     try {
       const track = await downloadTrack(t, engine, choice.ref, "en", "English", "auto");
-      return json(200, { track: publicTrack(track, userId) });
+      return json(200, { track: await publicTrack(track, userId) });
     } catch (e) {
       if (e instanceof HiddenSubtitleError) message = e.message;
       else await captureException(e, { url: req.nextUrl.pathname, method: req.method, headers: req.headers, level: "warning", tags: { provider: "opensubtitles", step: "auto" } });

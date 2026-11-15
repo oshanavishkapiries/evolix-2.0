@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PLAYWRIGHT_BROWSERS_PATH=/opt/playwright \
     DOWNLOAD_DIR=/app/downloads \
     TEMP_DIR=/app/temp \
+    LOCAL_CDN_DIR=/app/cdn \
     SQLITE_DB_PATH=/app/data/evo_engine.sqlite3
 
 WORKDIR /app
@@ -20,7 +21,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 evo \
     && useradd --uid 10001 --gid evo --create-home evo \
-    && mkdir -p /app/data /app/downloads /app/temp \
+    && mkdir -p /app/data /app/downloads /app/temp /app/cdn \
     && chown -R evo:evo /app
 
 COPY --chown=evo:evo app ./app

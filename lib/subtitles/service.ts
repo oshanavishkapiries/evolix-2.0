@@ -4,11 +4,12 @@ import { db } from "@/db";
 import { subtitles } from "@/db/schema";
 import { engineFetch, type EngineRef } from "@/lib/evo/client";
 import { recordSubtitleOwners } from "@/lib/evo/scheduler";
+import { localFileId } from "@/lib/evo/local-file";
 import { pixeldrainId } from "@/lib/viewer/providers";
 import { inParent, resolveParent, saveTrack } from "./store";
 import type { SubtitleTarget } from "./schema";
 
-const published = z.object({ id: z.string(), url: z.string().refine((u) => pixeldrainId(u) !== null), originRef: z.string(), release: z.string().nullish() });
+const published = z.object({ id: z.string(), url: z.string().refine((u) => pixeldrainId(u) !== null || localFileId(u) !== null), originRef: z.string(), release: z.string().nullish() });
 export class HiddenSubtitleError extends Error {}
 /** The provider could not supply a usable subtitle. `message` is engine text for logs, never for viewers. */
 class SubtitleDownloadError extends Error {}

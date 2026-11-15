@@ -259,3 +259,35 @@ describe('authenticated API and engine integration', () => {
     expect(await state.db.select().from(schema.subtitles)).toHaveLength(0);
   });
 });
+
+describe('local CDN publications', () => {
+  const video = `evo-local://${'a'.repeat(64)}.mp4`;
+  const subtitle = `evo-local://${'b'.repeat(32)}.vtt`;
+  it('persists opaque URLs and the owning engine, then resolves viewer tracks', async () => {
+    await promote({ tmdbId: 42, mediaType: 'movie', quality: '720p', resultUrl: video,
+      subtitles: [{ language: 'en', label: 'English', url: subtitle }] }, state.engine.id);
+    const [source] = await state.db.select().from(schema.sources);
+    const [stored] = await state.db.select().from(schema.subtitles);
+    expect(source.url).toBe(video);
+    expect(source.engineId).toBe(state.engine.id);
+    expect(stored.url).toBe(subtitle);
+    expect(stored.engineId).toBe(state.engine.id);
+    const res = await list(request(`/api/subtitles?tmdbId=42&mediaType=movie`));
+    const data = await res.json();
+    expect(data.tracks[0].url).toMatch(/^\/api\/evo\/file\/[0-9a-f]{8}\/[b]{32}\.vtt$/);
+    expect(data.tracks[0].engineId).toBeUndefined();
+  });
+  it('requires engine ownership before publishing local files', async () => {
+    await expect(promote({ tmdbId: 42, mediaType: 'movie', quality: '720p', resultUrl: video })).rejects.toThrow('owning engine');
+    expect(await state.db.select().from(schema.sources)).toHaveLength(0);
+  });
+  it('sends a local translation source to the owning engine without rewriting its storage URL', async () => {
+    const source = await track({ url: subtitle, engineId: state.engine.id });
+    state.engineFetch.mockResolvedValueOnce(Response.json({ state: 'none' }));
+    state.engineFetch.mockResolvedValueOnce(Response.json({ state: 'running', job_id: 'local-job', created: true }));
+    const res = await translate(request('/api/evo/translate', { tmdbId: 42, mediaType: 'movie', sourceTrackId: source.id }));
+    expect(res.status).toBe(200);
+    expect(state.engineFetch).toHaveBeenCalledWith('/subtitles/si', expect.objectContaining({ engine: state.engine,
+      body: expect.objectContaining({ source_url: subtitle, source_track_id: source.id }) }));
+  });
+});

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { subtitles } from "@/db/schema";
 import { ensureEpisode, ensureMovie } from "@/lib/evo/ensure";
 import type { SubtitleTarget } from "./schema";
+import { viewerFileUrl } from "@/lib/evo/stream-url";
 import { randomUUID } from "node:crypto";
 
 export type Parent = { movieId: string; episodeId?: never } | { episodeId: string; movieId?: never };
@@ -18,8 +19,8 @@ export async function resolveParent(t: SubtitleTarget): Promise<Parent> {
 }
 
 /** What a viewer may see of a track: never the uploader, the engine or provider references. */
-export const publicTrack = (t: typeof subtitles.$inferSelect, userId: string) => ({
-  id: t.id, label: t.label, language: t.language, format: t.format, url: t.url, source: t.source,
+export const publicTrack = async (t: typeof subtitles.$inferSelect, userId: string) => ({
+  id: t.id, label: t.label, language: t.language, format: t.format, url: await viewerFileUrl(t.url, t.engineId), source: t.source,
   originTrackId: t.originTrackId, visibility: t.visibility, score: t.score, lastUsedAt: t.lastUsedAt,
   canShare: t.uploadedBy === userId && t.source === "upload",
 });

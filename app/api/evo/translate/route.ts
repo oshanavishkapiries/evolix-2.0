@@ -2,7 +2,7 @@ import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { json, parseBody } from "@/lib/auth/http";
-import { engineFetch } from "@/lib/evo/client";
+import { engineFetch, engineById } from "@/lib/evo/client";
 import { titleContext } from "@/lib/evo/context";
 import { claimedEngine, claimEngine, recordTask, sinhalaKey } from "@/lib/evo/scheduler";
 import { findSinhala, settleSinhala, type SinhalaTarget } from "@/lib/evo/sinhala";
@@ -11,6 +11,7 @@ import { titleTarget } from "@/lib/subtitles/schema";
 import { accessibleTrack, inParent, listTracks, reserveQuota, resolveParent } from "@/lib/subtitles/store";
 import { and, eq } from "drizzle-orm";
 import { subtitles } from "@/db/schema";
+import { localFileId } from "@/lib/evo/local-file";
 import { pixeldrainId } from "@/lib/viewer/providers";
 
 const target = titleTarget.and(z.object({ sourceTrackId: z.uuid().optional() }));
@@ -32,7 +33,10 @@ export const POST = subtitleRoute(async (req, userId) => {
   if (!source || source.language !== "en" || (parent.movieId ? source.movieId !== parent.movieId : source.episodeId !== parent.episodeId)) return json(404, { message: "English source subtitle not found for this title" });
   const existing = await findSinhala(t, userId);
   if (existing) return json(200, { state: "done", subtitle: existing });
-  const engine = await claimEngine(keyOf(t));
+  const localId = localFileId(source.url);
+  const owner = localId && source.engineId ? await engineById(source.engineId) : undefined;
+  if (localId && !owner) return json(503, { message: "The source subtitle engine is unavailable" });
+  const engine = owner ?? await claimEngine(keyOf(t));
   const previousRes = await engineFetch(pathOf(t), { engine });
   const previous = previousRes.ok ? await previousRes.json() as Record<string, unknown> : {};
   if (previous.state === "running" || previous.state === "done") return json(200, await settleSinhala(t, previous, userId, engine.id));
@@ -60,14 +64,16 @@ export const GET = subtitleRoute(async (req, userId) => {
   const parsed = target.safeParse({ tmdbId: Number(q.get("tmdbId")), mediaType: q.get("mediaType") ?? "movie", season: q.has("season") ? Number(q.get("season")) : undefined, episode: q.has("episode") ? Number(q.get("episode")) : undefined, sourceTrackId: q.get("sourceTrackId") ?? undefined });
   if (!parsed.success) return json(400, { message: "Invalid title" });
   const t = parsed.data;
+  let sourceEngine;
   if (t.sourceTrackId) {
     const source = await accessibleTrack(t.sourceTrackId, userId);
     const parent = await resolveParent(t);
     if (!source || !(await db.select({ id: subtitles.id }).from(subtitles).where(and(eq(subtitles.id, source.id), inParent(parent))).limit(1)).length) return json(404, { message: "Source subtitle not found" });
+    if (localFileId(source.url) && source.engineId) sourceEngine = await engineById(source.engineId);
   }
   const existing = await findSinhala(t, userId);
   if (existing) return json(200, { state: "done", subtitle: existing });
-  const engine = await claimedEngine(keyOf(t));
+  const engine = sourceEngine ?? await claimedEngine(keyOf(t));
   if (!engine) return json(200, { state: "none" });
   const res = await engineFetch(pathOf(t), { engine });
   if (!res.ok) return json(502, { message: "The subtitle service is unavailable" });

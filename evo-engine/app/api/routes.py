@@ -17,7 +17,9 @@ from app.services.extraction_cache import CachingExtractor
 from app.services.stream_validator import validate_streams
 from app.services.ythd_extractor import YtHdStreamExtractor
 from app.services.ffmpeg_downloader import FFmpegStreamDownloader
-from app.services.pixeldrain_storage import PixeldrainStorageProvider
+from app.services.storage import RuntimeStorageProvider, local_storage
+from app.services.local_files import file_response
+from app.services.local_storage import validate_file_id
 from app.services.sqlite_repository import SQLiteTaskRepository
 from app.services.subtitle_service import SubtitleService
 from app.services.hls_proxy import HlsProxyService, close_segment
@@ -55,7 +57,7 @@ _composite = CompositeStreamExtractor([_cinesrc_extractor, _ythd_extractor], val
 _extractor = CachingExtractor(_composite, validator=validate_streams)
 metrics.set_sink(_repository.add_metric)
 _downloader = FFmpegStreamDownloader()
-_storage = PixeldrainStorageProvider()
+_storage = RuntimeStorageProvider()
 _translator = SinhalaTranslator(repository=_repository)
 
 _service_instance = IngestService(
@@ -667,7 +669,7 @@ def _pixeldrain_id(url: str) -> str:
 @router.post("/cdn/delete", dependencies=_AUTH)
 def delete_cdn_file(body: CdnUrl):
     """Deletes a file from the CDN account and forgets it, so the next play re-caches the title."""
-    file_id = _pixeldrain_id(body.url)
+    file_id = _cdn_id(body.url)
     try:
         _storage.delete_file(file_id)
     except Exception as e:
@@ -684,7 +686,7 @@ def list_cdn_files():
         raise HTTPException(status_code=502, detail=str(e))
     return [
         {"id": f.get("id"), "name": f.get("name"), "size": f.get("size"), "views": f.get("views"), "date_upload": f.get("date_upload"),
-         "url": f"https://pixeldrain.com/api/file/{f.get('id')}"}
+         "url": f.get("url") or f"https://pixeldrain.com/api/file/{f.get('id')}"}
         for f in files
     ]
 
@@ -715,7 +717,7 @@ def delete_cdn_files(body: CdnUrls):
     done, failed, reset = [], [], 0
     for url in body.urls[:200]:
         try:
-            _storage.delete_file(_pixeldrain_id(url))
+            _storage.delete_file(_cdn_id(url))
             _subtitle_service.forget_publication(url.strip())
             reset += _repository.clear_cdn_url(url.strip())
             done.append(url)
@@ -726,21 +728,25 @@ def delete_cdn_files(body: CdnUrls):
 
 @router.get("/cdn/user", dependencies=_AUTH)
 def cdn_account():
+    _require_pixeldrain()
     return _cdn_call(_storage.user_info)
 
 
 @router.get("/cdn/albums", dependencies=_AUTH)
 def cdn_albums():
+    _require_pixeldrain()
     return _cdn_call(_storage.list_albums)
 
 
 @router.get("/cdn/albums/{list_id}", dependencies=_AUTH)
 def cdn_album(list_id: str):
+    _require_pixeldrain()
     return _cdn_call(_storage.get_album, list_id)
 
 
 @router.post("/cdn/albums", dependencies=_AUTH)
 def cdn_create_album(body: CdnAlbum):
+    _require_pixeldrain()
     if not body.title.strip() or not body.ids:
         raise HTTPException(status_code=422, detail="An album needs a title and at least one file")
     return {"id": _cdn_call(_storage.create_album, body.title.strip(), body.ids)}
@@ -748,10 +754,43 @@ def cdn_create_album(body: CdnAlbum):
 
 @router.put("/cdn/albums/{list_id}", dependencies=_AUTH)
 def cdn_update_album(list_id: str, body: CdnAlbum):
+    _require_pixeldrain()
     return _cdn_call(_storage.update_album, list_id, body.title.strip() or None, body.add, body.remove)
 
 
 @router.delete("/cdn/albums/{list_id}", dependencies=_AUTH)
 def cdn_delete_album(list_id: str):
+    _require_pixeldrain()
     _cdn_call(_storage.delete_album, list_id)
     return {"deleted": True}
+
+
+def _require_pixeldrain():
+    if settings.CDN_PROVIDER != "pixeldrain":
+        raise HTTPException(409, "This endpoint requires the Pixeldrain CDN provider")
+
+
+def _cdn_id(url):
+    if settings.CDN_PROVIDER == "local":
+        try:
+            if not url.strip().startswith("evo-local://"):
+                raise ValueError("Expected an evo-local:// file URL")
+            return validate_file_id(url.strip()[len("evo-local://"):])
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+    return _pixeldrain_id(url)
+
+
+@router.api_route("/files/{file_id}", methods=["GET", "HEAD"], dependencies=_AUTH)
+def serve_local_file(file_id: str, request: Request):
+    return file_response(file_id, request)
+
+
+@router.get("/cdn/local/usage", dependencies=_AUTH)
+def local_cdn_usage():
+    return local_storage().usage()
+
+
+@router.post("/cdn/local/purge", dependencies=_AUTH)
+def local_cdn_purge():
+    return local_storage().purge()
