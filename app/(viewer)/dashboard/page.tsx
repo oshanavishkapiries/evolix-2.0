@@ -1,67 +1,26 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { browse, listFeatured, listGenres, listLatest } from "@/lib/viewer/catalog";
-import { canWatch } from "@/lib/viewer/access";
-import { currentUserId } from "@/lib/viewer/user";
-import { ApprovalNotice } from "../_components/approval-notice";
-import { continueWatching, listBookmarks } from "@/lib/viewer/library";
-import { ContinueRow } from "../_components/continue-row";
-import { HubRow } from "../_components/hub-row";
-import { LibrarySkeleton } from "../_components/skeletons";
-import { PageMotion, Reveal, SkeletonOut } from "../_components/motion";
+import { HomeApproval, HomeBrowseLink, HomeContinue, HomeEmpty, HomeFeatured, HomeGenres, HomeLatest, HomeMyList } from "../_components/home-rows";
+import { RowSkeleton } from "../_components/skeletons";
+import { PageMotion } from "../_components/motion";
 
 export const metadata: Metadata = { title: "Home" };
 
 export default function HomePage() {
   return (
     <PageMotion>
-    <div className="v-page v-page-rows">
-      <h1 className="v-sr">Home</h1>
-      <Suspense fallback={<SkeletonOut><LibrarySkeleton /></SkeletonOut>}>
-        <Reveal><HomeContent /></Reveal>
-      </Suspense>
-    </div>
-    </PageMotion>
-  );
-}
-
-async function HomeContent() {
-  const userId = await currentUserId();
-  const pending = userId ? !(await canWatch(userId)) : false;
-  const [featured, movies, shows, genres, resume, myList] = await Promise.all([
-    listFeatured(),
-    listLatest("movie"),
-    listLatest("show"),
-    listGenres(),
-    userId ? continueWatching(userId) : [],
-    userId ? listBookmarks(userId, 20) : [],
-  ]);
-  const genreRows = await Promise.all(genres.map(async (g) => ({ genre: g, items: (await browse({ genre: g, limit: 20 })).items })));
-
-  if (!featured.length && !movies.length && !shows.length) {
-    return (
-      <div className="v-empty">
-        <h2>Your library is empty</h2>
-        <p className="v-muted">Nothing has been published yet. Check back soon.</p>
+      <div className="v-page v-page-rows">
+        <h1 className="v-sr">Home</h1>
+        <Suspense fallback={null}><HomeApproval /></Suspense>
+        <Suspense fallback={null}><HomeEmpty /></Suspense>
+        <Suspense fallback={<RowSkeleton landscape />}><HomeFeatured /></Suspense>
+        <Suspense fallback={<RowSkeleton landscape />}><HomeContinue /></Suspense>
+        <Suspense fallback={<RowSkeleton />}><HomeMyList /></Suspense>
+        <Suspense fallback={<RowSkeleton />}><HomeLatest kind="movie" /></Suspense>
+        <Suspense fallback={<RowSkeleton />}><HomeLatest kind="show" /></Suspense>
+        <Suspense fallback={<RowSkeleton />}><HomeGenres /></Suspense>
+        <Suspense fallback={null}><HomeBrowseLink /></Suspense>
       </div>
-    );
-  }
-
-  return (
-    <>
-      {pending && <ApprovalNotice banner />}
-      <HubRow title="Featured" subtitle="New on Evolix" items={featured} variant="landscape" badge logo />
-      <ContinueRow items={resume} />
-      <HubRow title="My List" subtitle="Saved for later" items={myList} href="/my-list" badge />
-      <HubRow title="Recently Added Movies" subtitle="Movies" items={movies} href="/movies" />
-      <HubRow title="Recently Added Shows" subtitle="TV Shows" items={shows} href="/tv" />
-      {genreRows.map((r) => (
-        <HubRow key={r.genre} title={r.genre} subtitle="Movies & Shows" items={r.items} href={`/search?genre=${encodeURIComponent(r.genre)}`} badge />
-      ))}
-      <p style={{ textAlign: "center", marginTop: "2.5rem" }}>
-        <Link href="/search" className="v-btn">Browse everything</Link>
-      </p>
-    </>
+    </PageMotion>
   );
 }

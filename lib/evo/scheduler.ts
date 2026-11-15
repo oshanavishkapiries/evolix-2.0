@@ -1,3 +1,4 @@
+import { invalidateEngineCache } from "./registry";
 import { reconcileEngineConfig, type ReportedConfig } from "./engine-config-sync";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -48,6 +49,7 @@ export async function ensureRows() {
     target: evoEngines.id, set: { url: sql`excluded.url` },
     setWhere: and(eq(evoEngines.managed, false), sql`${evoEngines.removedAt} is null`),
   });
+  invalidateEngineCache();
 }
 
 let refreshing: Promise<void> | null = null;
@@ -91,11 +93,13 @@ async function doRefresh(force: boolean) {
             updatedAt: at,
           })
           .where(eq(evoEngines.id, engine.id));
+        invalidateEngineCache();
       } catch (e) {
         await db
           .update(evoEngines)
           .set({ healthy: false, lastCheckedAt: at, lastError: e instanceof Error ? e.message.slice(0, 300) : "unreachable", updatedAt: at })
           .where(eq(evoEngines.id, engine.id));
+        invalidateEngineCache();
       }
     }),
   );
@@ -116,12 +120,14 @@ export async function engineRows(fresh = true): Promise<(EngineRow & { ref: Engi
 export async function markUnhealthy(engine: EngineRef, reason: string) {
   if ((await engines()).length === 1) return;
   await db.update(evoEngines).set({ healthy: false, lastError: reason.slice(0, 300), lastCheckedAt: new Date(), updatedAt: new Date() }).where(eq(evoEngines.id, engine.id));
+  invalidateEngineCache();
 }
 
 export async function setDraining(id: string, draining: boolean) {
   if (!(await engineById(id))) return false;
   await ensureRows();
   await db.update(evoEngines).set({ draining, updatedAt: new Date() }).where(eq(evoEngines.id, id));
+  invalidateEngineCache();
   return true;
 }
 
@@ -142,8 +148,10 @@ export async function pickEngine(prefer?: string, exclude?: string): Promise<Eng
 }
 
 /** A job we just placed is not in the engine's own numbers until its next check: count it now so a burst spreads out. */
-const bump = (engine: EngineRef) =>
-  db.update(evoEngines).set({ queueDepth: sql`${evoEngines.queueDepth} + 1` }).where(eq(evoEngines.id, engine.id));
+const bump = async (engine: EngineRef) => {
+  await db.update(evoEngines).set({ queueDepth: sql`${evoEngines.queueDepth} + 1` }).where(eq(evoEngines.id, engine.id));
+  invalidateEngineCache();
+};
 
 // ---------------------------------------------------------------- claims
 

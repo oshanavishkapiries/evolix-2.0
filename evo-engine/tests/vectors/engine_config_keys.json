@@ -1,5 +1,62 @@
 [
   {
+    "key": "CDN_PROVIDER",
+    "label": "CDN provider",
+    "description": "Storage used on the next upload.",
+    "kind": "choice",
+    "min": 0,
+    "max": 0,
+    "live": true,
+    "choices": [
+      [
+        "pixeldrain",
+        "Pixeldrain"
+      ],
+      [
+        "local",
+        "Local disk"
+      ]
+    ],
+    "secret": false,
+    "restartNeeded": false
+  },
+  {
+    "key": "LOCAL_CDN_DIR",
+    "label": "Local CDN directory",
+    "description": "Storage directory; existing files stay in the previous directory when changed.",
+    "kind": "path",
+    "min": 0,
+    "max": 0,
+    "live": true,
+    "choices": [],
+    "secret": false,
+    "restartNeeded": false
+  },
+  {
+    "key": "LOCAL_CDN_VIDEO_GB",
+    "label": "Local video quota (GB)",
+    "description": "LRU video quota enforced before uploads.",
+    "kind": "float",
+    "min": 0,
+    "max": 1000000,
+    "live": true,
+    "choices": [],
+    "secret": false,
+    "restartNeeded": false
+  },
+  {
+    "key": "LOCAL_CDN_SUBTITLE_GB",
+    "label": "Local subtitle quota (GB)",
+    "description": "Independent LRU subtitle quota.",
+    "kind": "float",
+    "min": 0,
+    "max": 1000000,
+    "live": true,
+    "choices": [],
+    "secret": false,
+    "restartNeeded": false
+  },
+  {
     "key": "MAX_CONCURRENT_EXTRACTIONS",
     "label": "Parallel extractions",
     "description": "Headless-browser extractions running at once.",

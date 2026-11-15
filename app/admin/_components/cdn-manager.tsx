@@ -1,12 +1,14 @@
 "use client";
+import { useVisibleInterval } from "@/lib/client/use-visible-interval";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";
+import type { LocalCdnUsage } from "./local-cdn-panel";
 import { TZ } from "@/lib/tz";
 
-type CdnFile = { id: string; name: string; size: number | null; views: number | null; date_upload: string | null; url: string };
+type CdnFile = { id: string; name: string; size: number | null; views: number | null; date_upload: string | number | null; playbackUrl?: string; url: string };
 type Album = { id: string; title: string; file_count?: number; date_created?: string };
 type Account = {
   username?: string;
@@ -20,15 +22,17 @@ const btn = "btn-secondary rounded-md border px-3 py-1.5 text-sm";
 const danger = "btn-danger rounded-md border px-3 py-1.5 text-sm";
 const scoped = (engine?: string) => (engine ? `?engine=${encodeURIComponent(engine)}` : "");
 const size = (n: number) => (n >= 1024 ** 4 ? `${(n / 1024 ** 4).toFixed(2)} TB` : n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} GB` : `${(n / 1024 ** 2).toFixed(0)} MB`);
-const when = (s: string | null | undefined) => (s ? new Date(s).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ }) : "—");
+const timestamp = (s: string | number | null | undefined) => typeof s === "number" ? s * 1000 : s ? Date.parse(s) : 0;
+const when = (s: string | number | null | undefined) => (s ? new Date(timestamp(s)).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: TZ }) : "—");
 
-/** Pixeldrain CDN manager: account usage, searchable/sortable files with batch delete and album creation, and albums. */
+/** CDN manager: account usage, searchable/sortable files with batch delete and album creation, and albums. */
 export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: string[] }) {
   const toast = useToast();
   const confirm = useConfirm();
   const q = scoped(engine);
   const used = useMemo(() => new Set(usedUrls), [usedUrls]);
 
+  const [provider, setProvider] = useState<LocalCdnUsage["provider"]>("unknown");
   const [tab, setTab] = useState<"files" | "albums">("files");
   const [files, setFiles] = useState<CdnFile[] | null>(null);
   const [albums, setAlbums] = useState<Album[] | null>(null);
@@ -43,10 +47,14 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
   const [picked, setPicked] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
+    const local = await adminApi<{ data: LocalCdnUsage }>("GET", `/api/admin/evo/cdn/local/usage${q}`);
+    const currentProvider = local.ok ? local.data.provider : "unknown";
+    setProvider(currentProvider);
+    if (currentProvider !== "pixeldrain") { setTab("files"); setAlbums(null); setAccount(null); }
     const [f, a, u] = await Promise.all([
       adminApi<{ data: CdnFile[] }>("GET", `/api/admin/evo/cdn/files${q}`),
-      adminApi<{ data: Album[] }>("GET", `/api/admin/evo/cdn/albums${q}`),
-      adminApi<{ data: Account }>("GET", `/api/admin/evo/cdn/user${q}`),
+      currentProvider === "pixeldrain" ? adminApi<{ data: Album[] }>("GET", `/api/admin/evo/cdn/albums${q}`) : null,
+      currentProvider === "pixeldrain" ? adminApi<{ data: Account }>("GET", `/api/admin/evo/cdn/user${q}`) : null,
     ]);
     if (f.ok) {
       setFiles(f.data);
@@ -54,18 +62,11 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
       // Forget selections of files that no longer exist.
       setPicked((p) => new Set([...p].filter((id) => f.data.some((x) => x.id === id))));
     } else setError(errorText(f));
-    if (a.ok) setAlbums(a.data);
-    if (u.ok) setAccount(u.data);
+    if (a?.ok) setAlbums(a.data);
+    if (u?.ok) setAccount(u.data);
   }, [q]);
 
-  useEffect(() => {
-    const first = setTimeout(load, 0); // deferred: load sets state
-    const poll = setInterval(() => document.visibilityState === "visible" && load(), 30_000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(poll);
-    };
-  }, [load]);
+  useVisibleInterval(load, 30_000, true, load);
 
   const visible = useMemo(() => {
     if (!files) return [];
@@ -84,8 +85,8 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
       return re ? re.test(f.name) : f.name.toLowerCase().includes(term.toLowerCase());
     });
     const by: Record<Sort, (a: CdnFile, b: CdnFile) => number> = {
-      newest: (a, b) => (b.date_upload ?? "").localeCompare(a.date_upload ?? ""),
-      oldest: (a, b) => (a.date_upload ?? "").localeCompare(b.date_upload ?? ""),
+      newest: (a, b) => timestamp(b.date_upload) - timestamp(a.date_upload),
+      oldest: (a, b) => timestamp(a.date_upload) - timestamp(b.date_upload),
       largest: (a, b) => (b.size ?? 0) - (a.size ?? 0),
       name: (a, b) => a.name.localeCompare(b.name),
       views: (a, b) => (b.views ?? 0) - (a.views ?? 0),
@@ -175,10 +176,11 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
 
       <div className="toolbar mt-4" role="tablist" aria-label="CDN sections">
         <button type="button" role="tab" aria-selected={tab === "files"} className={tab === "files" ? "" : btn} onClick={() => setTab("files")}>Files</button>
-        <button type="button" role="tab" aria-selected={tab === "albums"} className={tab === "albums" ? "" : btn} onClick={() => setTab("albums")}>Albums</button>
+        {provider === "pixeldrain" && <button type="button" role="tab" aria-selected={tab === "albums"} className={tab === "albums" ? "" : btn} onClick={() => setTab("albums")}>Albums</button>}
         <button type="button" className={btn} onClick={load}>Refresh</button>
       </div>
 
+      {provider === "local" && <p className="mt-2 text-sm">Local disk storage is active. Albums are available with Pixeldrain.</p>}
       {error && <p className="mt-2 text-sm">{error}</p>}
       {!files && !error && <div className="skeleton mt-2 h-32" aria-busy="true" />}
 
@@ -202,8 +204,8 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
             <button type="button" className={btn} disabled={!visible.length} onClick={toggleAll}>{allPicked ? "Clear selection" : "Select all shown"}</button>
             <button type="button" className={btn} disabled={busy || !orphans.length} onClick={() => setPicked(new Set(orphans.map((f) => f.id)))}>Select orphans</button>
             <button type="button" className={danger} disabled={busy || !picked.size} onClick={deleteChosen}>Delete selected</button>
-            <input value={albumTitle} onChange={(e) => setAlbumTitle(e.target.value)} placeholder="New album title" aria-label="Album title" maxLength={200} />
-            <button type="button" className={btn} disabled={busy || !picked.size || !albumTitle.trim()} onClick={createAlbum}>Create album</button>
+            {provider === "pixeldrain" && <><input value={albumTitle} onChange={(e) => setAlbumTitle(e.target.value)} placeholder="New album title" aria-label="Album title" maxLength={200} />
+            <button type="button" className={btn} disabled={busy || !picked.size || !albumTitle.trim()} onClick={createAlbum}>Create album</button></>}
           </div>
 
           <div className="table-wrap mt-2">
@@ -223,12 +225,12 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
                 {visible.map((f) => (
                   <tr key={f.id}>
                     <td><input type="checkbox" aria-label={`Select ${f.name}`} checked={picked.has(f.id)} onChange={() => toggle(f.id)} /></td>
-                    <td style={{ overflowWrap: "anywhere" }}><a href={f.url} target="_blank" rel="noreferrer">{f.name}</a></td>
+                    <td style={{ overflowWrap: "anywhere" }}><a href={f.playbackUrl ?? f.url} target="_blank" rel="noreferrer">{f.name}</a></td>
                     <td style={{ whiteSpace: "nowrap" }}>{size(f.size ?? 0)}</td>
                     <td>{f.views ?? 0}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{when(f.date_upload)}</td>
                     <td>{used.has(f.url) ? "yes" : "orphan"}</td>
-                    <td><button type="button" className={btn} onClick={() => copy(f.url)}>Copy link</button></td>
+                    <td><button type="button" className={btn} onClick={() => copy(f.playbackUrl ?? f.url)}>Copy link</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -238,7 +240,7 @@ export function CdnManager({ engine, usedUrls }: { engine?: string; usedUrls: st
         </>
       )}
 
-      {tab === "albums" && albums && (
+      {provider === "pixeldrain" && tab === "albums" && albums && (
         <div className="table-wrap mt-3">
           <table className="data-table">
             <thead>

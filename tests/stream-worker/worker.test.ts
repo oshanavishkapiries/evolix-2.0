@@ -98,7 +98,7 @@ describe("requests", () => {
   it("answers the browser's preflight", async () => {
     const res = await call(`/x`, { method: "OPTIONS", headers: { Origin: SITE } });
     expect(res.status).toBe(204);
-    expect(res.headers.get("Access-Control-Allow-Headers")).toBe("Range");
+    expect(res.headers.get("Access-Control-Allow-Headers")).toBe("Range, If-Range");
   });
 
   it("passes the engine's status on, and says 502 when the engine is unreachable", async () => {
@@ -107,5 +107,46 @@ describe("requests", () => {
     expect((await call(`/${key}/${TASK}/segment?url=u&sig=bad`)).status).toBe(403);
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("connect failed"); }));
     expect((await call(`/${key}/${TASK}/master.m3u8`)).status).toBe(502);
+  });
+});
+
+
+describe("local CDN files", () => {
+  const id = "a".repeat(64) + ".mp4";
+  it("streams partial files, preserves validators and does not follow redirects with the secret", async () => {
+    const key = await keyOf(ENGINE);
+    const f = stubEngine(new Response("BYTES", { status: 206, headers: { "Content-Type": "video/mp4", "Content-Length": "5", "Content-Range": "bytes 0-4/100", "Accept-Ranges": "bytes", ETag: '"v1"', "X-Evo-Secret": "s3cret" } }));
+    const res = await call(`/${key}/file/${id}`, { headers: { Range: "bytes=0-4", "If-Range": '"v1"', Origin: SITE } });
+    expect(f.mock.calls[0][0]).toBe(`${ENGINE}/api/v1/media/files/${id}`);
+    expect(f.mock.calls[0][1]).toMatchObject({ redirect: "error", headers: { Range: "bytes=0-4", "If-Range": '"v1"', "X-Evo-Secret": "s3cret" } });
+    expect(res.status).toBe(206);
+    expect(res.headers.get("Content-Range")).toBe("bytes 0-4/100");
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=3600");
+    expect(res.headers.get("ETag")).toBe('"v1"');
+    expect([...res.headers].join(" ")).not.toContain("s3cret");
+    expect(await res.text()).toBe("BYTES");
+  });
+  it("preserves 416 range headers and HEAD subtitle MIME without exposing upstream errors", async () => {
+    const key = await keyOf(ENGINE);
+    stubEngine(new Response("private engine details", { status: 416, headers: { "Content-Range": "bytes */100" } }));
+    const error = await call(`/${key}/file/${id}`);
+    expect(error.status).toBe(416);
+    expect(error.headers.get("Content-Range")).toBe("bytes */100");
+    expect(await error.text()).toBe("");
+    const f = stubEngine(new Response(null, { headers: { "Content-Type": "text/vtt", "Content-Length": "123" } }));
+    const res = await call(`/${key}/file/${id.replace("mp4", "vtt")}`, { method: "HEAD" });
+    expect(f.mock.calls[0][1]?.method).toBe("HEAD");
+    expect(res.headers.get("Content-Type")).toBe("text/vtt");
+    expect(res.headers.get("Content-Length")).toBe("123");
+    expect(await res.text()).toBe("");
+  });
+  it("refuses invalid file identifiers and unknown engines before fetch", async () => {
+    const f = stubEngine(new Response("x"));
+    const key = await keyOf(ENGINE);
+    for (const bad of ["x.mp4", "../secret", "a".repeat(64) + ".mp4/extra", "%2e%2e%2fsecret", "a".repeat(64) + ".mp4%3Fkey=secret"]) {
+      expect((await call(`/${key}/file/${bad}`)).status).toBe(404);
+    }
+    expect((await call(`/deadbeef/file/${id}`)).status).toBe(404);
+    expect(f).not.toHaveBeenCalled();
   });
 });

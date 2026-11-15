@@ -1,8 +1,69 @@
 /** Browser-safe registry, verified against the engine SPECS fixture. */
 export type EngineValue = string | number | boolean;
 export type EngineValues = Record<string, EngineValue>;
-export type EngineConfigSpec = { key:string; label:string; description:string; group:string; kind:"int"|"float"|"choice"|"text"|"bool"|"url"|"secret"; min:number; max:number; live:boolean; choices:{value:string;label:string}[]; secret:boolean; restartNeeded:boolean };
+export type EngineConfigSpec = { key:string; label:string; description:string; group:string; kind:"int"|"float"|"choice"|"text"|"bool"|"url"|"secret"|"path"; min:number; max:number; live:boolean; choices:{value:string;label:string}[]; secret:boolean; restartNeeded:boolean };
 export const ENGINE_CONFIG_SPECS: EngineConfigSpec[] = [
+{
+  "key": "CDN_PROVIDER",
+  "label": "CDN provider",
+  "description": "Storage used on the next upload.",
+  "kind": "choice",
+  "min": 0,
+  "max": 0,
+  "live": true,
+  "choices": [
+    {
+      "value": "pixeldrain",
+      "label": "Pixeldrain"
+    },
+    {
+      "value": "local",
+      "label": "Local disk"
+    }
+  ],
+  "secret": false,
+  "restartNeeded": false,
+  "group": "Callbacks and storage"
+},
+{
+  "key": "LOCAL_CDN_DIR",
+  "label": "Local CDN directory",
+  "description": "Storage directory; existing files stay in the previous directory when changed.",
+  "kind": "path",
+  "min": 0,
+  "max": 0,
+  "live": true,
+  "choices": [],
+  "secret": false,
+  "restartNeeded": false,
+  "group": "Callbacks and storage"
+},
+{
+  "key": "LOCAL_CDN_VIDEO_GB",
+  "label": "Local video quota (GB)",
+  "description": "LRU video quota enforced before uploads.",
+  "kind": "float",
+  "min": 0,
+  "max": 1000000,
+  "live": true,
+  "choices": [],
+  "secret": false,
+  "restartNeeded": false,
+  "group": "Callbacks and storage"
+},
+{
+  "key": "LOCAL_CDN_SUBTITLE_GB",
+  "label": "Local subtitle quota (GB)",
+  "description": "Independent LRU subtitle quota.",
+  "kind": "float",
+  "min": 0,
+  "max": 1000000,
+  "live": true,
+  "choices": [],
+  "secret": false,
+  "restartNeeded": false,
+  "group": "Callbacks and storage"
+},
   {
     "key": "MAX_CONCURRENT_EXTRACTIONS",
     "label": "Parallel extractions",
@@ -344,6 +405,10 @@ export function validateEngineValue(key: string, value: unknown): EngineValue {
   if (!s) throw new Error("Unknown engine setting");
   const bad = (message: string): never => { throw new Error(`${key} ${message}`); };
   if (s.kind === "secret") return typeof value === "string" && value.length <= 16384 ? value : bad("must be a string of at most 16384 characters");
+  if (s.kind === "path") {
+    if (typeof value !== "string" || value.length > 4096 || /[\x00-\x1f]/.test(value) || !value.trim()) return bad("must be a nonempty path of at most 4096 characters without control characters");
+    return value.trim();
+  }
   if (s.kind === "url") {
     if (typeof value !== "string" || value.length > 4096) return bad("must be an HTTP(S) URL or empty");
     const text = value.trim(); if (!text) return "";

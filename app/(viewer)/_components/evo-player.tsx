@@ -10,6 +10,8 @@ import type { WatchSource, WatchSubtitle } from "@/lib/viewer/watch";
 import { normalizeSource } from "@/lib/viewer/providers";
 import { networkProblem, problemFromBody, problemOf, readProblem, type ViewerProblem } from "@/lib/client/problem";
 import { busyDelay, MAX_BUSY_RETRIES } from "@/lib/evo/problems";
+import { fetchWithRefresh } from "@/lib/client/api";
+import { abortableDelay, pollDelay, retryDelay } from "@/lib/evo/polling";
 import { markBusyWaited } from "./feedback-moments";
 
 type Props = {
@@ -47,6 +49,31 @@ function formatSubtitles(rawSubs: unknown[]): WatchSubtitle[] {
   }).filter((s) => !s.url.startsWith("/api/evo/subtitles/") || /^sub_\d+_[a-z]{2,3}_\d+$/.test(s.id));
 }
 
+/** Retry only transient transport failures, preserving the API's explicit engine-gone responses. */
+async function ingestFetch(url: string, init: RequestInit, signal: AbortSignal, initialRetryDelay = 1200): Promise<Response> {
+  let failures = 0;
+  for (;;) {
+    signal.throwIfAborted();
+    try {
+      const res = await fetchWithRefresh(url, { ...init, signal });
+      signal.throwIfAborted();
+      if (res.status < 500) return res;
+      const problem = await readProblem(res.clone());
+      signal.throwIfAborted();
+      if (["ENGINE_UNAVAILABLE", "NO_SOURCE", "BUSY"].includes(problem.code)) return res;
+      const delay = retryDelay(++failures, initialRetryDelay);
+      if (delay === null) return res;
+      await res.body?.cancel();
+      await abortableDelay(pollDelay(delay, document.visibilityState === "hidden"), signal, { target: document, isReady: () => document.visibilityState === "visible" });
+    } catch (error) {
+      if (signal.aborted || !(error instanceof TypeError)) throw error;
+      const delay = retryDelay(++failures, initialRetryDelay);
+      if (delay === null) throw error;
+      await abortableDelay(pollDelay(delay, document.visibilityState === "hidden"), signal, { target: document, isReady: () => document.visibilityState === "visible" });
+    }
+  }
+}
+
 export function EvoPlayer({
   tmdbId,
   mediaType = "movie",
@@ -77,6 +104,8 @@ export function EvoPlayer({
   const [busyTry, setBusyTry] = useState(0); // the same count, for the screen
   const countdown = useRef<ReturnType<typeof setInterval>>(undefined);
   const startAgain = useRef<(quality: string, automatic: boolean) => void>(() => {});
+  const ingestController = useRef<AbortController | null>(null);
+  const statusController = useRef<AbortController | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const stopCountdown = useCallback(() => {
@@ -99,7 +128,14 @@ export function EvoPlayer({
   // Trigger ingestion with 720p default
   const startIngest = useCallback(
     async (qualityToUse: string = "720p", automatic = false) => {
+      ingestController.current?.abort();
+      statusController.current?.abort();
+      clearTimeout(pollTimer.current);
+      const controller = new AbortController();
+      ingestController.current = controller;
+      const { signal } = controller;
       stopCountdown();
+      setTaskId(null);
       // A viewer pressing the button starts a fresh set of busy retries; our own retries use up the same set.
       if (!automatic) {
         busyTries.current = 0;
@@ -112,7 +148,7 @@ export function EvoPlayer({
       setMessage(`Connecting stream (${qualityToUse})...`);
 
       try {
-        const res = await fetch("/api/evo/ingest", {
+        const res = await ingestFetch("/api/evo/ingest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -122,10 +158,12 @@ export function EvoPlayer({
             episode,
             quality: qualityToUse,
           }),
-        });
+        }, signal);
+        signal.throwIfAborted();
 
         if (!res.ok) {
           const failure = await readProblem(res);
+          signal.throwIfAborted();
           if (failure.code === "BUSY") {
             if (busyTries.current < MAX_BUSY_RETRIES) {
               // Busy is not an error: stay on a calm waiting scene and come back by ourselves, a little later each time.
@@ -146,6 +184,7 @@ export function EvoPlayer({
         if (busyTries.current > 0) markBusyWaited();
         busyTries.current = 0;
         const data = await res.json();
+        signal.throwIfAborted();
 
         // Merge extracted subtitles if available
         if (data.subtitles && Array.isArray(data.subtitles)) {
@@ -189,6 +228,7 @@ export function EvoPlayer({
         setTaskId(data.task_id);
         setStatus(data.status ?? "PENDING");
       } catch (err: unknown) {
+        if (signal.aborted) return;
         // fetch itself failing (a TypeError) means the request never got out; anything else is a bug on our side.
         setProblem(err instanceof TypeError ? networkProblem() : problemOf("UNKNOWN"));
         setStatus("FAILED");
@@ -210,7 +250,7 @@ export function EvoPlayer({
 
   // Auto-start ingest on mount if no active source
   useEffect(() => {
-    if (activeSource || stage !== "INGESTING" || taskId) return;
+    if (activeSource || stage !== "INGESTING" || taskId || (ingestController.current && !ingestController.current.signal.aborted)) return;
     const t = setTimeout(() => startIngest("720p"), 0); // deferred: startIngest sets state
     return () => clearTimeout(t);
   }, [activeSource, stage, taskId, startIngest]);
@@ -219,23 +259,32 @@ export function EvoPlayer({
   useEffect(() => {
     if (!taskId || activeSource || stage !== "INGESTING") return;
 
-    let misses = 0;
+    const controller = new AbortController();
+    statusController.current = controller;
+    const { signal } = controller;
+    let polling = false;
+    let visibleAgain = false;
+    const schedule = (delay: number) => {
+      if (signal.aborted) return;
+      pollTimer.current = setTimeout(poll, pollDelay(delay, document.visibilityState === "hidden"));
+    };
     const poll = async () => {
+      if (signal.aborted || polling) return;
+      polling = true;
+      visibleAgain = false;
       try {
-        const res = await fetch(`/api/evo/status/${taskId}`, { cache: "no-store" });
+        const res = await ingestFetch(`/api/evo/status/${taskId}`, { cache: "no-store" }, signal, 2500);
+        signal.throwIfAborted();
         if (!res.ok) {
           const failure = await readProblem(res);
-          // The engine that owns this task is down or no longer knows it: stop waiting and offer the normal retry
-          // (which picks a healthy engine). Anything else may pass, so it is tried again a few times first.
-          if (failure.code === "ENGINE_UNAVAILABLE" || failure.code === "NO_SOURCE" || ++misses >= 6) {
-            setProblem(failure);
-            return;
-          }
-          throw new Error(`HTTP ${res.status}`);
+          signal.throwIfAborted();
+          setProblem(failure);
+          controller.abort();
+          return;
         }
-        misses = 0;
 
         const data = await res.json();
+        signal.throwIfAborted();
         setStatus(data.status);
         setProgressPct(data.progress_pct ?? 0);
         setMessage(data.message || "");
@@ -279,23 +328,41 @@ export function EvoPlayer({
 
         if (data.status === "FAILED") {
           setProblem(problemFromBody(data));
+          controller.abort();
           return;
         }
 
-        pollTimer.current = setTimeout(poll, 1200);
-      } catch {
-        pollTimer.current = setTimeout(poll, 2500);
+        schedule(visibleAgain ? 0 : 1200);
+      } catch (error) {
+        if (signal.aborted) return;
+        setProblem(error instanceof TypeError ? networkProblem() : problemOf("UNKNOWN"));
+        controller.abort();
+      } finally {
+        polling = false;
       }
     };
 
-    pollTimer.current = setTimeout(poll, 800);
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible" || signal.aborted) return;
+      clearTimeout(pollTimer.current);
+      if (polling) visibleAgain = true;
+      else void poll();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    schedule(800);
 
-    return () => clearTimeout(pollTimer.current);
+    return () => {
+      controller.abort();
+      clearTimeout(pollTimer.current);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [taskId, activeSource, tmdbId, season, episode, stage]);
 
   // Clean up poll timer on unmount
   useEffect(() => {
     return () => {
+      ingestController.current?.abort();
+      statusController.current?.abort();
       clearTimeout(pollTimer.current);
       clearInterval(countdown.current);
     };

@@ -1,8 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, errorText } from "@/lib/client/admin";
-import { configRegistry } from "@/lib/config/registry";
-import { configChanges, configValidation, groupConfig, type AdminConfigRow } from "@/lib/config/admin-view";
+import { configFields as configRegistry } from "@/lib/config/metadata";
+import { configChanges, configValidation, groupConfig, type AdminConfigRow } from "@/lib/config/admin-form";
 import { SaveBar, useDirtyForm } from "./form-kit";
 import { useConfirm } from "./confirm-dialog";
 import { useToast } from "./toast";

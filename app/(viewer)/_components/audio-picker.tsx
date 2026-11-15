@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { PlayLink } from "./play-link";
 import { AUDIO_COOKIE, audioLabel } from "@/lib/audio";
 
 const remember = (code: string) => {
@@ -15,9 +15,9 @@ export function AudioPicker({ basePath, languages, active }: { basePath: string;
       <ul className="v-sources v-audio">
         {languages.map((code) => (
           <li key={code}>
-            <Link href={`${basePath}?lang=${code}`} className="v-source" aria-current={code === active} replace prefetch={false} onClick={() => remember(code)}>
+            <PlayLink href={`${basePath}?lang=${code}`} className="v-source" aria-current={code === active} replace onClick={() => remember(code)}>
               {audioLabel(code)} dub
-            </Link>
+            </PlayLink>
           </li>
         ))}
       </ul>

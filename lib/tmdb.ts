@@ -1,4 +1,6 @@
 // Server-only TMDB client. The API key never leaves the server.
+import { cacheLife, cacheTag } from "next/cache";
+import { CATALOG_TAG, tmdbTag } from "@/lib/viewer/cache";
 import { getConfig } from "@/lib/config";
 import type { CastMember } from "@/db/schema";
 import { pickImages } from "@/lib/cms/image-pick";
@@ -184,7 +186,7 @@ export type SearchResult = {
   posterPath: string | null;
   overview: string;
 };
-export type SearchPage = { page: number; totalPages: number; results: SearchResult[] };
+export type SearchPage = { page: number; totalPages: number; totalResults: number; results: SearchResult[] };
 
 async function search(kind: "movie" | "tv", query: string, page: number): Promise<SearchPage> {
   const data = await tmdb<Raw>(`/search/${kind}`, { query, page, include_adult: "false" });
@@ -195,7 +197,7 @@ async function search(kind: "movie" | "tv", query: string, page: number): Promis
     posterPath: strOrNull(r.poster_path),
     overview: str(r.overview).slice(0, 200),
   }));
-  return { page: data.page ?? page, totalPages: data.total_pages ?? 1, results };
+  return { page: data.page ?? page, totalPages: data.total_pages ?? 1, totalResults: data.total_results ?? results.length, results };
 }
 
 export const searchMovies = (query: string, page = 1) => search("movie", query, page);
@@ -242,6 +244,10 @@ export type MoviePrefill = {
 
 export async function getMovieDetails(tmdbId: number): Promise<MoviePrefill> {
   const m = await tmdb<Raw>(`/movie/${tmdbId}`, { ...DETAIL_PARAMS, append_to_response: `${DETAIL_PARAMS.append_to_response},release_dates` });
+  return mapMovie(m);
+}
+
+function mapMovie(m: Raw): MoviePrefill {
   return {
     tmdbId: m.id,
     title: str(m.title),
@@ -260,6 +266,23 @@ export async function getMovieDetails(tmdbId: number): Promise<MoviePrefill> {
     cast: cast(m.credits),
     videos: mapVideos(m.videos),
   };
+}
+
+/** Viewer metadata only; watch avoids credits, images and trailers entirely. */
+export async function getMovieSummary(tmdbId: number, consumer: "detail" | "watch" = "detail") {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag(CATALOG_TAG, tmdbTag("movie", tmdbId));
+  return mapMovie(await tmdb<Raw>(`/movie/${tmdbId}`, consumer === "detail"
+    ? { append_to_response: "credits,images", include_image_language: "en,null" } : {}));
+}
+
+/** Trailer fallback has its own cache so a slow video endpoint cannot delay a hero. */
+export async function getViewerTmdbVideos(kind: "movie" | "tv", tmdbId: number) {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag(CATALOG_TAG, tmdbTag(kind, tmdbId));
+  return getTmdbVideos(kind, tmdbId);
 }
 
 export type EpisodePrefill = {
@@ -373,6 +396,45 @@ export async function getShowDetails(tmdbId: number): Promise<ShowPrefill> {
     seasons,
     warnings: warnings.sort(),
   };
+}
+
+export type ShowSummary = Omit<ShowPrefill, "seasons" | "warnings"> & {
+  seasons: (Omit<SeasonPrefill, "episodes"> & { episodeCount: number })[];
+  lastEpisode: { seasonNumber: number; episodeNumber: number } | null;
+};
+
+/** A show and its season summaries, without issuing any season requests. */
+export async function getShowSummary(tmdbId: number, consumer: "detail" | "watch" = "detail"): Promise<ShowSummary> {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag(CATALOG_TAG, tmdbTag("tv", tmdbId));
+  const s = await tmdb<Raw>(`/tv/${tmdbId}`, consumer === "detail"
+    ? { append_to_response: "credits,images", include_image_language: "en,null" } : {});
+  return {
+    tmdbId: s.id, certification: null, name: str(s.name), originalName: str(s.original_name),
+    tagline: str(s.tagline), overview: str(s.overview), firstAirDate: strOrNull(s.first_air_date),
+    lastAirDate: strOrNull(s.last_air_date), status: str(s.status), genres: genres(s.genres),
+    rating: rating(s.vote_average), voteCount: numOrNull(s.vote_count), originalLanguage: str(s.original_language),
+    ...withPicked(mapImages(s.images), { poster: strOrNull(s.poster_path), backdrop: strOrNull(s.backdrop_path) }),
+    cast: cast(s.credits), videos: [],
+    seasons: (Array.isArray(s.seasons) ? s.seasons as Raw[] : []).map((r) => ({
+      tmdbId: numOrNull(r.id), seasonNumber: r.season_number, name: str(r.name), overview: str(r.overview),
+      airDate: strOrNull(r.air_date), posterPath: strOrNull(r.poster_path), isVisible: true,
+      episodeCount: numOrNull(r.episode_count) ?? 0,
+    })),
+    lastEpisode: s.last_episode_to_air ? {
+      seasonNumber: s.last_episode_to_air.season_number, episodeNumber: s.last_episode_to_air.episode_number,
+    } : null,
+  };
+}
+
+/** Exactly one season. Credentials are resolved inside the cache, never passed as arguments. */
+export async function getShowSeason(tmdbId: number, seasonNumber: number): Promise<EpisodePrefill[]> {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag(CATALOG_TAG, tmdbTag("tv", tmdbId));
+  const data = await tmdb<Raw>(`/tv/${tmdbId}/season/${seasonNumber}`);
+  return (data.episodes ?? []).map(mapEpisode);
 }
 
 export type TmdbCatalogItem = {

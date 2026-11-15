@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { imageUrl } from "@/lib/images";
+import { PlayLink } from "./play-link";
+import { imageUrl, imageSrcSet, POSTER_ROW_SIZES } from "@/lib/images";
 import { PlayIcon } from "./icons";
 import { dateText, runtimeText } from "@/lib/viewer/format";
 import type { ShowDetail } from "@/lib/viewer/detail";
@@ -52,7 +52,7 @@ export function EpisodeRow({
   return upcoming ? (
     <div className="v-ep" aria-disabled="true">{inner}</div>
   ) : (
-    <Link href={`/watch/tv/${showId}/${seasonNumber}/${ep.episodeNumber}`} className="v-ep" aria-current={current} prefetch={false}>{inner}</Link>
+    <PlayLink href={`/watch/tv/${showId}/${seasonNumber}/${ep.episodeNumber}`} className="v-ep" aria-current={current}>{inner}</PlayLink>
   );
 }
 
@@ -73,16 +73,16 @@ export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: s
       <h2 id="seasons-h">Seasons</h2>
       <ul className="v-seasons">
         {seasons.map((s) => {
-          const poster = imageUrl(s.posterPath ?? show.posterPath, "w342");
+          const poster = imageSrcSet(s.posterPath ?? show.posterPath, "poster", 342);
           const base = `/watch/tv/${show.id}/${s.seasonNumber}`;
           // Pick up where the viewer left off when they were last watching this season.
           const href = s.firstEpisode == null ? null : resumeHref?.startsWith(`${base}/`) ? resumeHref : `${base}/${s.firstEpisode}`;
           const inner = (
             <>
               <span className="v-card-img" style={{ display: "block" }}>
-                {poster ? (
+                {poster.src ? (
                   // eslint-disable-next-line @next/next/no-img-element -- TMDB CDN
-                  <img src={poster} alt="" width={342} height={513} loading="lazy" decoding="async" />
+                  <img {...poster} sizes={`auto, ${POSTER_ROW_SIZES}`} alt="" width={342} height={513} loading="lazy" decoding="async" />
                 ) : (
                   <span className="v-card-ph">{label(s)}</span>
                 )}
@@ -96,7 +96,7 @@ export function Seasons({ show, resumeHref }: { show: ShowDetail; resumeHref?: s
           return (
             <li key={s.id}>
               {href ? (
-                <Link href={href} className="v-card" prefetch={false} aria-label={`Play ${label(s)}`}>{inner}</Link>
+                <PlayLink href={href} className="v-card" aria-label={`Play ${label(s)}`}>{inner}</PlayLink>
               ) : (
                 <div className="v-card" aria-disabled="true">{inner}</div>
               )}

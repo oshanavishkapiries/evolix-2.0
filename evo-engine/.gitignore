@@ -12,3 +12,5 @@ temp/
 test/cinesrc_*
 test/300726c-prod.js
 test/donut.js
+
+cdn/

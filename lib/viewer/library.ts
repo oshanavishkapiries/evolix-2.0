@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bookmarks, episodes, movies, seasons, shows, watchProgress } from "@/db/schema";
 import { airedEpisode } from "./availability-query";
@@ -243,6 +243,89 @@ export async function continueWatching(userId: string, limit = 20): Promise<Cont
 /** The Continue Watching entry for one title (movie in progress, or the show's current/next episode). */
 export async function resumeFor(userId: string, kind: "movie" | "show", id: string): Promise<ContinueItem | null> {
   if (!isUuid(id)) return null;
-  const key = `${kind === "movie" ? "m" : "s"}-${id}`;
-  return (await continueWatching(userId, 200)).find((it) => it.key === key) ?? null;
+  const pct = (p: number, d: number) => (d > 0 ? Math.min(99, Math.max(1, Math.round((p / d) * 100))) : 0);
+  const left = (p: number, d: number) => (d > 0 && p > 0 ? Math.max(1, Math.round((d - p) / 60)) : null);
+  if (kind === "movie") {
+    const [r] = await db
+      .select({
+        title: movies.title,
+        posterPath: movies.posterPath,
+        backdropPath: movies.backdropPath,
+        position: watchProgress.positionSeconds,
+        duration: watchProgress.durationSeconds,
+      })
+      .from(watchProgress)
+      .innerJoin(movies, eq(movies.id, watchProgress.movieId))
+      .where(and(
+        eq(watchProgress.userId, userId),
+        eq(watchProgress.movieId, id),
+        eq(watchProgress.completed, false),
+        sql`${watchProgress.positionSeconds} >= ${MIN_RESUME_SECONDS}`,
+        eq(movies.isPublished, true),
+      ))
+      .limit(1);
+    return r ? {
+      key: `m-${id}`, title: r.title, label: "", posterPath: r.posterPath, backdropPath: r.backdropPath,
+      leftMinutes: left(r.position, r.duration), href: `/watch/movie/${id}`, detailHref: `/movie/${id}`,
+      percent: pct(r.position, r.duration), target: { kind, id },
+    } : null;
+  }
+
+  const [r] = await db
+    .select({
+      title: shows.name,
+      posterPath: shows.posterPath,
+      backdropPath: shows.backdropPath,
+      seasonNumber: seasons.seasonNumber,
+      episodeNumber: episodes.episodeNumber,
+      name: episodes.name,
+      stillPath: episodes.stillPath,
+      position: watchProgress.positionSeconds,
+      duration: watchProgress.durationSeconds,
+      completed: watchProgress.completed,
+    })
+    .from(watchProgress)
+    .innerJoin(episodes, eq(episodes.id, watchProgress.episodeId))
+    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+    .innerJoin(shows, eq(shows.id, seasons.showId))
+    .where(and(
+      eq(watchProgress.userId, userId),
+      eq(shows.id, id),
+      eq(shows.isPublished, true),
+      eq(seasons.isVisible, true),
+      eq(episodes.isVisible, true),
+      airedEpisode(),
+    ))
+    .orderBy(desc(watchProgress.updatedAt))
+    .limit(1);
+  if (!r || (!r.completed && r.position < MIN_RESUME_SECONDS)) return null;
+  let ep = { seasonNumber: r.seasonNumber, episodeNumber: r.episodeNumber, name: r.name, stillPath: r.stillPath };
+  if (r.completed) {
+    const [next] = await db
+      .select({ seasonNumber: seasons.seasonNumber, episodeNumber: episodes.episodeNumber, name: episodes.name, stillPath: episodes.stillPath })
+      .from(episodes)
+      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+      .where(and(
+        eq(seasons.showId, id),
+        eq(seasons.isVisible, true),
+        eq(episodes.isVisible, true),
+        airedEpisode(),
+        or(
+          gt(seasons.seasonNumber, r.seasonNumber),
+          and(eq(seasons.seasonNumber, r.seasonNumber), gt(episodes.episodeNumber, r.episodeNumber)),
+        ),
+      ))
+      .orderBy(seasons.seasonNumber, episodes.episodeNumber)
+      .limit(1);
+    if (!next) return null;
+    ep = next;
+  }
+  return {
+    key: `s-${id}`, title: r.title,
+    label: `${code(ep.seasonNumber, ep.episodeNumber)}${ep.name ? ` - ${ep.name}` : ""}`,
+    posterPath: r.posterPath, backdropPath: ep.stillPath ?? r.backdropPath,
+    leftMinutes: r.completed ? null : left(r.position, r.duration),
+    href: `/watch/tv/${id}/${ep.seasonNumber}/${ep.episodeNumber}`, detailHref: `/tv/${id}`,
+    percent: r.completed ? 0 : pct(r.position, r.duration), target: { kind, id },
+  };
 }

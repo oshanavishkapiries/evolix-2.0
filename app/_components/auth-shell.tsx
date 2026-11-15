@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { Noto_Sans } from "next/font/google";
+import { font } from "@/app/fonts";
 import "./auth-shell.css";
-
-const font = Noto_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], display: "swap" });
 
 /** Shared frame for the signed-out pages: dark backdrop, logo, white card with a title. */
 export function AuthShell({

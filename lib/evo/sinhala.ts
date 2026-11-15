@@ -5,6 +5,7 @@ import type { WatchSubtitle } from "@/lib/viewer/watch";
 import { ensureEpisode, ensureMovie } from "./ensure";
 import { promote } from "./promote";
 import { SINHALA_FAILED } from "./problems";
+import { viewerFileUrl } from "./stream-url";
 import { visibleTo } from "@/lib/subtitles/store";
 
 export type SinhalaTarget = { tmdbId: number; mediaType: "movie" | "tv"; season?: number; episode?: number; sourceTrackId?: string };
@@ -27,7 +28,7 @@ export async function findSinhala(t: SinhalaTarget, userId?: string): Promise<Wa
     parent = eq(subtitles.episodeId, ep.episodeId);
   }
   const [row] = await db
-    .select({ id: subtitles.id, label: subtitles.label, language: subtitles.language, format: subtitles.format, url: subtitles.url,
+    .select({ engineId: subtitles.engineId, id: subtitles.id, label: subtitles.label, language: subtitles.language, format: subtitles.format, url: subtitles.url,
       source: subtitles.source, originTrackId: subtitles.originTrackId, visibility: subtitles.visibility, score: subtitles.score, lastUsedAt: subtitles.lastUsedAt })
     .from(subtitles)
     .where(and(parent, eq(subtitles.language, "si"), t.sourceTrackId ? or(eq(subtitles.originTrackId, t.sourceTrackId),
@@ -36,7 +37,9 @@ export async function findSinhala(t: SinhalaTarget, userId?: string): Promise<Wa
       userId ? visibleTo(userId) : and(eq(subtitles.visibility, "shared"), eq(subtitles.hidden, false))))
     .orderBy(sql`${subtitles.originTrackId} is null`, desc(subtitles.score), sql`${subtitles.lastUsedAt} desc nulls last`, subtitles.id)
     .limit(1);
-  return row ?? null;
+  if (!row) return null;
+  const { engineId, ...track } = row;
+  return { ...track, url: await viewerFileUrl(track.url, engineId) };
 }
 
 /**

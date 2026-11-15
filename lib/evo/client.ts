@@ -1,4 +1,4 @@
-import { registeredEngines, engineToken } from "./registry";
+import { registeredEngines, engineCredential, invalidateEngineCache } from "./registry";
 import { fetchEngine, EngineUnavailableError } from "./transport";
 export { DEFAULT_TIMEOUT_MS, EngineUnavailableError } from "./transport";
 
@@ -33,7 +33,17 @@ export type EngineCall = {
 export async function engineFetch(path: string, call: EngineCall = {}): Promise<Response> {
   const engine = call.engine ?? (await defaultEngine());
   if (!engine) throw new Error("No Evo engine configured");
-  return fetchEngine(engine.url, path, await engineToken(engine.id), call);
+  const credential = await engineCredential(engine.id);
+  const response = await fetchEngine(engine.url, path, credential.token, call);
+  if (credential.cached && [401, 403].includes(response.status) && !(call.body instanceof ReadableStream)) {
+    invalidateEngineCache();
+    const fresh = await engineCredential(engine.id);
+    if (fresh.token !== credential.token) {
+      await response.body?.cancel();
+      return fetchEngine(engine.url, path, fresh.token, call);
+    }
+  }
+  return response;
 }
 
 /** JSON call: `data` is the parsed body ({} when it is not JSON). */

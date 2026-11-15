@@ -1,7 +1,5 @@
-import { Noto_Sans } from "next/font/google";
+import { font } from "@/app/fonts";
 import "./status-screen.css";
-
-const font = Noto_Sans({ subsets: ["latin"], weight: ["400", "700", "800"], display: "swap" });
 
 export type StatusAction = { label: string; href?: string; onClick?: () => void; primary?: boolean };
 

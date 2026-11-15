@@ -1,4 +1,5 @@
 "use client";
+import { startVisibleInterval } from "@/lib/client/visible-interval";
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchWithRefresh } from "@/lib/client/api";
@@ -116,17 +117,17 @@ export function TaskFlow({ taskId, initial, subtitleJob = false }: { taskId: str
     if (done && !watching) return;
     let live = true;
     let polls = 0;
-    const tick = setInterval(async () => {
+    const stop = startVisibleInterval(async () => {
       polls++;
       const res = await fetchWithRefresh(`/api/admin/evo/tasks/${taskId}`, { cache: "no-store" }).catch(() => null);
       const body = res?.ok ? await res.json() : null;
       if (live && body?.task) setData({ task: body.task, events: body.events ?? [] });
       // Give a manually started translation a couple of polls to show up, then stop once it settles.
       if (live && watching && polls >= 3 && body && !(["translate", "subtitle_sync", "webhook"] as StepId[]).some((id) => foldEvents(body.events ?? [])[id].state === "running")) setWatching(false);
-    }, 2000);
+    }, 2000, false);
     return () => {
       live = false;
-      clearInterval(tick);
+      stop();
     };
   }, [taskId, done, watching]);
 
@@ -142,8 +143,8 @@ export function TaskFlow({ taskId, initial, subtitleJob = false }: { taskId: str
   const running = STEP_IDS.some((id) => folded[id].state === "running");
   useEffect(() => {
     if (!running) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const stop = startVisibleInterval(() => setNow(Date.now()), 1000, false);
+    return stop;
   }, [running]);
 
   const views = Object.fromEntries(
@@ -219,14 +220,14 @@ export function SummaryFlow({ initial, engine, byJourney = false, issuesOnly = f
   useEffect(() => {
     if (byJourney) return; // the journey panel refreshes its own report
     let live = true;
-    const tick = setInterval(async () => {
+    const stop = startVisibleInterval(async () => {
       const res = await fetchWithRefresh(`/api/admin/evo/summary${engine ? `?engine=${encodeURIComponent(engine)}` : ""}`, { cache: "no-store" }).catch(() => null);
       const body = res?.ok ? await res.json() : null;
       if (live && body?.summary) setSummary(body.summary);
-    }, 5000);
+    }, 5000, false);
     return () => {
       live = false;
-      clearInterval(tick);
+      stop();
     };
   }, [engine, byJourney]);
 

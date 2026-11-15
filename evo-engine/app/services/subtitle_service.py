@@ -299,17 +299,32 @@ class SubtitleService:
                 if delay:
                     time.sleep(delay)
                 try:
-                    session = requests.Session()
-                    try:
-                        r = session.get(candidate["dl_link"], headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-                    finally:
-                        session.close()
-                    if r.status_code != 200:
-                        reason = f"HTTP {r.status_code}"
-                        logger.warning("Subtitle download %s candidate %s attempt %s failed: %s", sub_id, candidate.get("rank", 1), attempt, reason)
-                        failures.append(reason)
-                        continue
-                    raw_bytes = r.content
+                    source_url = candidate["dl_link"]
+                    if source_url.startswith("evo-local://"):
+                        from app.services.storage import local_storage
+                        from app.services.local_storage import validate_file_id
+                        file_id = validate_file_id(source_url[len("evo-local://"):])
+                        if not file_id.endswith(".vtt"):
+                            raise ValueError("Local subtitle source must be a VTT file")
+                        provider = local_storage()
+                        handle = provider.open_file(file_id)
+                        try:
+                            # validate_subtitle has a 2 MB limit; bound local reads too.
+                            raw_bytes = handle.read(2 * 1024 * 1024 + 1)
+                        finally:
+                            provider.close_file(file_id, handle)
+                    else:
+                        session = requests.Session()
+                        try:
+                            r = session.get(source_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+                        finally:
+                            session.close()
+                        if r.status_code != 200:
+                            reason = f"HTTP {r.status_code}"
+                            logger.warning("Subtitle download %s candidate %s attempt %s failed: %s", sub_id, candidate.get("rank", 1), attempt, reason)
+                            failures.append(reason)
+                            continue
+                        raw_bytes = r.content
                     if raw_bytes[:2] == b"\x1f\x8b":
                         raw_bytes = gzip.decompress(raw_bytes)
                     decoded = raw_bytes.decode("utf-8", errors="replace")

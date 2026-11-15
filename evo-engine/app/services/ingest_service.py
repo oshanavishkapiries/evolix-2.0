@@ -188,7 +188,9 @@ class IngestService:
                 episode=episode,
             )
             if existing:
-                if existing.status == IngestStatus.COMPLETED and existing.result_url:
+                if existing.status == IngestStatus.COMPLETED and existing.result_url and (
+                    not existing.result_url.startswith("evo-local://") or self._cdn_alive(existing.result_url)
+                ):
                     return existing, False
                 # A streaming task whose CDN copy died is not reused: a new job retries the cache.
                 if existing.status == IngestStatus.STREAMING and existing.stream_url and not existing.cache_failed:
@@ -370,6 +372,12 @@ class IngestService:
     @staticmethod
     def _cdn_alive(url: str) -> bool:
         """Best effort: a Pixeldrain file that answers 404 is gone; any other outcome (network trouble) counts as alive."""
+        if (url or "").startswith("evo-local://"):
+            from app.services.storage import local_storage
+            try:
+                return local_storage().exists(url[len("evo-local://"):])
+            except (ValueError, OSError):
+                return False
         m = re.search(r"pixeldrain\.com/api/file/([A-Za-z0-9_-]+)", url or "")
         if not m:
             return True
@@ -643,7 +651,9 @@ class IngestService:
                 task.tmdb_id, task.media_type.value, task.resolved_quality,
                 season=task.season, episode=task.episode, exclude_task_id=task.task_id,
             )
-            if twin and twin.result_url:
+            if twin and twin.result_url and (
+                not twin.result_url.startswith("evo-local://") or self._cdn_alive(twin.result_url)
+            ):
                 logger.info(f"[{task_id}] {task.resolved_quality} is already cached by {twin.task_id}; reusing it")
                 self._event(task, "cdn_check", "skipped", f"{task.resolved_quality} already cached by {twin.task_id[:8]}")
                 for reused in ("download", "verify", "upload"):
@@ -686,7 +696,7 @@ class IngestService:
             local_file.rename(final_file)
             local_file = final_file
             step = "upload"
-            self._event(task, "upload", "running", "Uploading to Pixeldrain")
+            self._event(task, "upload", "running", "Uploading to CDN")
             upload_res = self.storage.upload_file(local_file)
             self._event(task, "upload", "ok", upload_res.direct_url)
 

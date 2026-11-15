@@ -44,11 +44,22 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
   const [raw, sp] = await Promise.all([params, searchParams]);
   const p = parse(raw);
   if (!p) notFound();
-  const data = await getEpisodeWatch(p.id, p.season, p.episode);
+  const dataPromise = getEpisodeWatch(p.id, p.season, p.episode);
+  const userPromise = currentUserId();
+  const cookiesPromise = cookies();
+  const approvalPromise = userPromise.then(canWatch);
+  const data = await dataPromise;
   if (!data) notFound();
   const { current, prev, next } = data;
-  const userId = await currentUserId();
-  if (!(await canWatch(userId))) return <ApprovalNotice />;
+  const progressPromise = userPromise.then(async (userId) => {
+    if (isUpcoming(current.airDate)) return { episodeId: null, startAt: 0 };
+    // Persist TMDB-only episodes only for approved, signed-in viewers.
+    const episodeId = isUuid(current.id) ? current.id : userId && await approvalPromise ? (await ensureEpisode(current.tmdbId, p.season, p.episode).catch(() => null))?.episodeId ?? null : null;
+    const startAt = userId && episodeId ? await resumePosition(userId, { episodeId }) : 0;
+    return { episodeId, startAt };
+  });
+  const [approved, { episodeId, startAt }, cookieStore] = await Promise.all([approvalPromise, progressPromise, cookiesPromise]);
+  if (!approved) return <ApprovalNotice />;
   if (isUpcoming(current.airDate)) {
     return (
       <section className="v-detail">
@@ -59,11 +70,8 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       </section>
     );
   }
-  // Evo episodes start as TMDB-only ids; signed-in viewers get catalog rows so progress and reports can attach.
-  const episodeId = isUuid(current.id) ? current.id : userId ? (await ensureEpisode(current.tmdbId, p.season, p.episode).catch(() => null))?.episodeId ?? null : null;
-  const startAt = userId && episodeId ? await resumePosition(userId, { episodeId }) : 0;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-  const audio = chooseAudio(data.sources, { source: one(sp.source), lang: one(sp.lang), saved: (await cookies()).get(AUDIO_COOKIE)?.value });
+  const audio = chooseAudio(data.sources, { source: one(sp.source), lang: one(sp.lang), saved: cookieStore.get(AUDIO_COOKIE)?.value });
   const href = (e: EpisodeRef) => `/watch/tv/${p.id}/${e.seasonNumber}/${e.episodeNumber}`;
   const label = (e: EpisodeRef) => (e.seasonNumber === p.season ? `Episode ${e.episodeNumber}` : code(e.seasonNumber, e.episodeNumber));
 
@@ -93,8 +101,8 @@ export default async function WatchEpisodePage({ params, searchParams }: Props) 
       }}
       nav={
         <nav className="v-epnav" aria-label="Episode navigation">
-          {prev ? <Link href={href(prev)} className="v-btn" prefetch={false}>← Previous: {label(prev)}</Link> : <span className="v-btn" aria-disabled="true">← Previous</span>}
-          {next ? <Link href={href(next)} className="v-btn v-btn-primary" prefetch={false}>Next: {label(next)} →</Link> : <span className="v-btn" aria-disabled="true">Next →</span>}
+          {prev ? <Link href={href(prev)} className="v-btn">← Previous: {label(prev)}</Link> : <span className="v-btn" aria-disabled="true">← Previous</span>}
+          {next ? <Link href={href(next)} className="v-btn v-btn-primary">Next: {label(next)} →</Link> : <span className="v-btn" aria-disabled="true">Next →</span>}
         </nav>
       }
       side={

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { sources } from "@/db/schema";
 import { parseBody } from "@/lib/auth/http";
 import { adminRoute } from "@/lib/cms/api";
+import { invalidateCatalogParent } from "@/lib/cms/catalog-invalidation";
 import { engineProxyFor } from "@/lib/cms/evo-admin";
 
 /** Batch delete: files go from the CDN, and catalog sources pointing at them are removed. */
@@ -13,6 +14,10 @@ export const POST = adminRoute(async (req) => {
   const res = await engineProxyFor(req, "POST", "/cdn/delete-many", { urls: parsed.data.urls });
   if (!res.ok) return res;
   const { data } = (await res.clone().json()) as { data?: { deleted?: string[] } };
-  if (data?.deleted?.length) await db.delete(sources).where(inArray(sources.url, data.deleted));
+  if (data?.deleted?.length) {
+    const removed = await db.delete(sources).where(inArray(sources.url, data.deleted))
+      .returning({ movieId: sources.movieId, episodeId: sources.episodeId });
+    for (const parent of removed) await invalidateCatalogParent(parent);
+  }
   return res;
 });

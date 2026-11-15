@@ -1,3 +1,5 @@
+import "./install-demo.css";
+
 export type DemoPlatform = "iphone" | "ipad" | "android";
 
 const Share = ({ size = 12 }: { size?: number }) => (
@@ -20,7 +22,7 @@ const ROWS: Record<DemoPlatform, [string, string, string]> = {
 /**
  * Looping, silent walkthrough of installing Evolix, drawn with HTML and CSS (no video or GIF):
  * tap Share or the menu, pick the install entry, then the Evolix icon lands on the home screen.
- * The three phases share one 8s timeline with the numbered steps next to it (see pwa-gate.css).
+ * The three phases share one 8s timeline with the numbered steps next to it (see install-demo.css).
  */
 export function InstallDemo({ platform }: { platform: DemoPlatform }) {
   const [a, b, c] = ROWS[platform];

@@ -1,4 +1,5 @@
 "use client";
+import { startVisibleInterval } from "@/lib/client/visible-interval";
 import {useCallback,useEffect,useState} from "react";
 import {adminApi,errorText} from "@/lib/client/admin";
 import {ENGINE_CONFIG_SPECS,ENGINE_CONFIG_BY_KEY,syncLabel,validateEngineValue,type ConfigSyncStatus,type EngineValues} from "@/lib/evo/engine-config";
@@ -15,8 +16,8 @@ export function EngineConfigSyncChip({engine}:{engine:string}) {
   useEffect(()=>{
     let alive=true;
     const load=()=>adminApi<Snapshot>("GET",`/api/admin/evo/config?scope=${encodeURIComponent(`engine:${engine}`)}`).then(r=>{if(alive && r.ok) setSync(r.sync);});
-    const initial=setTimeout(load,0), poll=setInterval(load,10000);
-    return ()=>{alive=false;clearTimeout(initial);clearInterval(poll);};
+    const stop=startVisibleInterval(load,10000);
+    return ()=>{alive=false;stop();};
   },[engine]);
   return sync ? <span className="engine-config-sync" data-state={sync.state} role="status">{syncLabel(sync)}{sync.restartNeeded.length > 0 && <span> · Restart needed: {sync.restartNeeded.join(", ")}</span>}</span> : null;
 }
@@ -54,8 +55,9 @@ export function EngineConfigPanel({engine,locked=false,view="all"}:{engine?:stri
   },[query,revision,filter,cursor]);
   useEffect(()=>{
     if(scope === "global") return;
-    const poll=setInterval(()=>{adminApi<Snapshot>("GET",`${base}${query}`).then(r=>{if(r.ok) setSnapshot(old=>old ? {...old,sync:r.sync} : old);});},10000);
-    return ()=>clearInterval(poll);
+    let alive=true;
+    const stop=startVisibleInterval(()=>adminApi<Snapshot>("GET",`${base}${query}`).then(r=>{if(alive && r.ok) setSnapshot(old=>old ? {...old,sync:r.sync} : old);}),10000,false);
+    return ()=>{alive=false;stop();};
   },[scope,query]);
   const changes:EngineValues={}, invalid:Record<string,string>={};
   for(const s of ENGINE_CONFIG_SPECS) {
@@ -96,7 +98,7 @@ export function EngineConfigPanel({engine,locked=false,view="all"}:{engine?:stri
           const props={id:`engine-config-${s.key}`,value,onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLSelectElement>)=>form.setValues(old=>({...old,[s.key]:e.target.value})),"aria-invalid":Boolean(errors[s.key] || invalid[s.key]),"aria-describedby":`${s.key}-help`};
           return <div className="config-row" key={s.key} data-dirty={s.key in changes}><div><label htmlFor={props.id}>{s.label}{s.secret ? " · Replace" : ""}</label><p id={`${s.key}-help`}>{s.description}</p><code>{s.key}</code>{s.restartNeeded && <p>Requires restart</p>}</div><div className="config-control">
             <div className="config-effective"><span className="config-source">{row.source}</span><span>Effective: <code>{row.value === null ? "Engine .env default" : row.value === "" ? "(empty)" : String(row.value)}</code></span></div>
-            {s.kind === "choice" || s.kind === "bool" ? <select {...props}><option value="" disabled>Engine default</option>{(s.kind === "bool" ? [{value:"true",label:"Enabled"},{value:"false",label:"Disabled"}] : s.choices).map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</select> : <input {...props} type={s.secret ? "password" : s.kind === "int" || s.kind === "float" ? "number" : "text"} min={s.min} max={s.max} step={s.kind === "int" ? 1 : "any"} autoComplete={s.secret ? "new-password" : "off"} placeholder={s.secret ? "Blank keeps current secret" : "Engine default"} />}
+            {s.kind === "choice" || s.kind === "bool" ? <select {...props}><option value="" disabled>Engine default</option>{(s.kind === "bool" ? [{value:"true",label:"Enabled"},{value:"false",label:"Disabled"}] : s.choices).map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</select> : <input {...props} type={s.secret ? "password" : s.kind === "int" || s.kind === "float" ? "number" : "text"} min={s.min} max={s.max} step={s.kind === "int" ? 1 : "any"} autoComplete={s.secret ? "new-password" : "off"} placeholder={s.secret ? "Blank keeps current secret" : s.kind === "path" ? "/app/cdn" : "Engine default"} />}
             {s.secret && <small>Blank keeps the existing secret.</small>}
             {s.kind === "url" && row.value === null && <button type="button" className="btn-secondary" onClick={()=>form.setValues(old=>({...old,[s.key]:"",[`__empty:${s.key}`]:true}))}>Use empty value ({s.key === "EVO_WEBHOOK_URL" ? "disable callbacks" : "derive from completion webhook"})</button>}
             {(errors[s.key] || invalid[s.key]) && <span role="alert">{errors[s.key] || invalid[s.key]}</span>}

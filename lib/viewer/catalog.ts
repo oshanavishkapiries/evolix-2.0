@@ -1,11 +1,12 @@
 import { AUDIO_LANGUAGES } from "@/lib/audio";
-import { catalogCache } from "./cache";
+import { cacheTag } from "next/cache";
+import { catalogCache, catalogListTag, CATALOG_TAG, tmdbTag } from "./cache";
 import { and, count, eq, ilike, inArray, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { movies, shows } from "@/db/schema";
 import { escapeLike } from "@/lib/cms/search";
-import { getDiscoverMedia, getPopularMedia, getTmdbLogo, getTrendingMedia, searchMovies, searchShows, type TmdbCatalogItem } from "@/lib/tmdb";
+import { getDiscoverMedia, getTmdbLogo, getTrendingMedia, searchMovies, searchShows, type TmdbCatalogItem } from "@/lib/tmdb";
 import type { CardKind } from "./ids";
 import { captureException } from "@/lib/errors/capture";
 
@@ -28,7 +29,8 @@ export type Card = {
 };
 
 export type Sort = "newest" | "title" | "year";
-export const SORTS: Sort[] = ["newest", "title", "year"];
+// TMDB discover supports release dates, but no consistent title order across movies/TV.
+export const SORTS: Sort[] = ["newest", "year"];
 export type TypeFilter = "all" | CardKind;
 export const SEARCH_PAGE_SIZE = 24;
 export const MIN_QUERY = 2;
@@ -186,6 +188,14 @@ async function browseDb(p: BrowseParams = {}): Promise<{ items: Card[]; total: n
   };
 }
 
+/** The local-source prefix is shared across offsets and page sizes. */
+async function localSourcePrefix(type: TypeFilter, withBackdrop: boolean): Promise<Card[]> {
+  "use cache";
+  catalogCache();
+  cacheTag(catalogListTag, CATALOG_TAG);
+  return (await browseDb({ type, withBackdrop, limit: 10, offset: 0, withTotal: false })).items;
+}
+
 /** TMDB items -> cards; titles already cached locally link to their catalog row instead of `tmdb-N`. */
 async function tmdbCards(tmdbItems: (TmdbCatalogItem & { kind: CardKind })[], limit: number): Promise<Card[]> {
   // Cross-reference with local database: a title with a cached source is served by its row, the rest are on-demand (Evo)
@@ -194,17 +204,19 @@ async function tmdbCards(tmdbItems: (TmdbCatalogItem & { kind: CardKind })[], li
 
   const [localMovies, localShows] = await Promise.all([
     movieTmdbIds.length > 0
-      ? db.select({ id: movies.id, tmdbId: movies.tmdbId, hasSources: hasSourcesOf("movie") }).from(movies).where(inArray(movies.tmdbId, movieTmdbIds))
+      ? db.select({ id: movies.id, tmdbId: movies.tmdbId, isPublished: movies.isPublished, hasSources: hasSourcesOf("movie") }).from(movies).where(inArray(movies.tmdbId, movieTmdbIds))
       : [],
     showTmdbIds.length > 0
-      ? db.select({ id: shows.id, tmdbId: shows.tmdbId, hasSources: hasSourcesOf("show") }).from(shows).where(inArray(shows.tmdbId, showTmdbIds))
+      ? db.select({ id: shows.id, tmdbId: shows.tmdbId, isPublished: shows.isPublished, hasSources: hasSourcesOf("show") }).from(shows).where(inArray(shows.tmdbId, showTmdbIds))
       : [],
   ]);
 
   const movieMap = new Map(localMovies.map((m) => [m.tmdbId, m]));
   const showMap = new Map(localShows.map((s) => [s.tmdbId, s]));
 
-  const cards: Card[] = tmdbItems.slice(0, limit).map((item) => {
+  // An admin-unpublished title is hidden everywhere, including TMDB-sourced rows.
+  const visible = tmdbItems.filter((item) => (item.kind === "movie" ? movieMap : showMap).get(item.tmdbId)?.isPublished !== false);
+  const cards: Card[] = visible.slice(0, limit).map((item) => {
     const local = item.kind === "movie" ? movieMap.get(item.tmdbId) : showMap.get(item.tmdbId);
     const hasLocalSources = Boolean(local?.hasSources);
     return {
@@ -222,99 +234,143 @@ async function tmdbCards(tmdbItems: (TmdbCatalogItem & { kind: CardKind })[], li
   return cards;
 }
 
-/** Fetches catalog items from TMDB and cross-references with local DB for manual sources. */
-async function getTmdbCatalog(p: BrowseParams): Promise<{ items: Card[]; total: number }> {
-  const type = p.type ?? "all";
-  const limit = p.limit ?? SEARCH_PAGE_SIZE;
-  const page = Math.floor((p.offset ?? 0) / limit) + 1;
-  const genreId = p.genre ? TMDB_GENRES[p.genre] : undefined;
+type NormalizedBrowse = Required<BrowseParams>;
+type RemoteItem = TmdbCatalogItem & { kind: CardKind };
+const TMDB_PAGE_SIZE = 20;
+const TMDB_MAX_PAGES = 500;
 
-  let tmdbItems: (TmdbCatalogItem & { kind: CardKind })[] = [];
-  let total = 0;
+/** Normalize before entering the cache: omitted, default and empty filters share an entry. */
+export function normalizeBrowse(p: BrowseParams = {}): NormalizedBrowse {
+  const q = p.q?.trim().slice(0, 100) ?? "";
+  return {
+    q: q.length >= MIN_QUERY ? q : "",
+    genre: p.genre?.trim().slice(0, 50) ?? "",
+    type: p.type === "movie" || p.type === "show" ? p.type : "all",
+    sort: q.length >= MIN_QUERY ? "newest" : p.sort === "year" ? "year" : "newest",
+    withBackdrop: Boolean(p.withBackdrop),
+    limit: Number.isFinite(p.limit) ? Math.max(1, Math.min(100, Math.trunc(p.limit!))) : SEARCH_PAGE_SIZE,
+    offset: Number.isFinite(p.offset) ? Math.max(0, Math.trunc(p.offset!)) : 0,
+    withTotal: Boolean(p.withTotal),
+  };
+}
 
-  if (p.q && p.q.trim().length >= MIN_QUERY) {
-    if (type === "show") {
-      const sp = await searchShows(p.q, page);
-      tmdbItems = sp.results.map((r) => ({ ...r, kind: "show" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
-      total = sp.totalPages * 20;
-    } else if (type === "movie") {
-      const sp = await searchMovies(p.q, page);
-      tmdbItems = sp.results.map((r) => ({ ...r, kind: "movie" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
-      total = sp.totalPages * 20;
-    } else {
-      const [m, s] = await Promise.all([searchMovies(p.q, page), searchShows(p.q, page)]);
-      const mItems = m.results.map((r) => ({ ...r, kind: "movie" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
-      const sItems = s.results.map((r) => ({ ...r, kind: "show" as CardKind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null }));
-      tmdbItems = [...mItems, ...sItems];
-      total = (m.totalPages + s.totalPages) * 20;
-    }
-  } else if (genreId) {
-    if (type === "show") {
-      const sp = await getDiscoverMedia("tv", { withGenres: String(genreId), page });
-      tmdbItems = sp.items.map((i) => ({ ...i, kind: "show" as CardKind }));
-      total = sp.totalResults;
-    } else {
-      const sp = await getDiscoverMedia("movie", { withGenres: String(genreId), page });
-      tmdbItems = sp.items.map((i) => ({ ...i, kind: "movie" as CardKind }));
-      total = sp.totalResults;
-    }
-  } else if (p.sort === "newest" || p.withBackdrop) {
-    if (type === "show") {
-      const sp = await getTrendingMedia("tv", "week", page);
-      tmdbItems = sp.items.map((i) => ({ ...i, kind: "show" as CardKind }));
-      total = sp.totalResults;
-    } else if (type === "movie") {
-      const sp = await getTrendingMedia("movie", "week", page);
-      tmdbItems = sp.items.map((i) => ({ ...i, kind: "movie" as CardKind }));
-      total = sp.totalResults;
-    } else {
-      const [m, s] = await Promise.all([getTrendingMedia("movie", "week", page), getTrendingMedia("tv", "week", page)]);
-      tmdbItems = [...m.items.map((i) => ({ ...i, kind: "movie" as CardKind })), ...s.items.map((i) => ({ ...i, kind: "show" as CardKind }))];
-      total = m.totalResults + s.totalResults;
+/** Individually cached upstream pages are reused between row sizes and browse offsets. */
+async function remotePage(kind: CardKind, q: string, genre: string, sort: Sort, page: number): Promise<{ items: RemoteItem[]; total: number }> {
+  "use cache";
+  catalogCache();
+  cacheTag(catalogListTag, CATALOG_TAG);
+  const media = kind === "movie" ? "movie" : "tv";
+  if (q) {
+    const result = await (kind === "movie" ? searchMovies : searchShows)(q, page);
+    return {
+      items: result.results.map((r) => ({ ...r, kind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null })),
+      total: Math.min(result.totalResults, TMDB_MAX_PAGES * TMDB_PAGE_SIZE),
+    };
+  }
+  const genreId = genre ? TMDB_GENRES[genre] : undefined;
+  // These are separate TMDB taxonomies. Map the combined movie/TV row to its TV equivalent.
+  const tvGenre = genre === "Action" || genre === "Adventure" ? 10759
+    : genre === "Sci-Fi" || genre === "Science Fiction" || genre === "Fantasy" ? 10765 : genreId;
+  const movieGenre = genre === "Action & Adventure" ? 28 : genre === "Sci-Fi & Fantasy" ? 878 : genreId;
+  const result = genre || sort === "year"
+    ? await getDiscoverMedia(media, {
+        withGenres: (kind === "show" ? tvGenre : movieGenre)?.toString(),
+        sortBy: sort === "year" ? (kind === "movie" ? "primary_release_date.desc" : "first_air_date.desc") : "popularity.desc",
+        page,
+      })
+    : await getTrendingMedia(media, "week", page);
+  return { items: result.items.map((item) => ({ ...item, kind })), total: Math.min(result.totalResults, TMDB_MAX_PAGES * TMDB_PAGE_SIZE) };
+}
+
+async function getTmdbCatalog(p: NormalizedBrowse): Promise<{ items: Card[]; total: number }> {
+  "use cache";
+  catalogCache();
+  cacheTag(catalogListTag, CATALOG_TAG);
+  const kinds: CardKind[] = p.type === "all" ? ["movie", "show"] : [p.type];
+  const first = await Promise.all(kinds.map((kind) => remotePage(kind, p.q, p.genre, p.sort, 1)));
+  const totals = first.map((r) => r.total);
+  const total = totals.reduce((a, b) => a + b, 0);
+  const end = Math.min(p.offset + p.limit, total);
+  if (p.offset >= end) return { items: [], total };
+
+  // For relevance/popularity, alternate the two ranked streams, draining the longer one
+  // after the shorter stream ends. This sequence is independent of the caller's page size.
+  const positions: { stream: number; index: number }[] = [];
+  if (kinds.length === 1) {
+    for (let index = p.offset; index < end; index++) positions.push({ stream: 0, index });
+  } else if (p.sort !== "year") {
+    const shorter = Math.min(...totals);
+    for (let index = p.offset; index < end; index++) {
+      positions.push(index < 2 * shorter
+        ? { stream: index % 2, index: Math.floor(index / 2) }
+        : { stream: totals[0] > totals[1] ? 0 : 1, index: index - shorter });
     }
   } else {
-    if (type === "show") {
-      const sp = await getPopularMedia("tv", page);
-      tmdbItems = sp.items.map((i) => ({ ...i, kind: "show" as CardKind }));
-      total = sp.totalResults;
-    } else if (type === "movie") {
-      const sp = await getPopularMedia("movie", page);
-      tmdbItems = sp.items.map((i) => ({ ...i, kind: "movie" as CardKind }));
-      total = sp.totalResults;
-    } else {
-      const [m, s] = await Promise.all([getPopularMedia("movie", page), getPopularMedia("tv", page)]);
-      tmdbItems = [...m.items.map((i) => ({ ...i, kind: "movie" as CardKind })), ...s.items.map((i) => ({ ...i, kind: "show" as CardKind }))];
-      total = m.totalResults + s.totalResults;
+    // A sorted merge needs the prefix of both date-sorted streams to find this window.
+    for (let stream = 0; stream < kinds.length; stream++) {
+      for (let index = 0; index < Math.min(end, totals[stream]); index++) positions.push({ stream, index });
     }
   }
 
-  return { items: await tmdbCards(tmdbItems, limit), total };
+  const pages = new Map<string, RemoteItem[]>();
+  first.forEach((r, stream) => pages.set(`${stream}:1`, r.items));
+  const needed = new Map<string, { stream: number; page: number }>();
+  for (const { stream, index } of positions) {
+    const page = Math.floor(index / TMDB_PAGE_SIZE) + 1;
+    const key = `${stream}:${page}`;
+    if (!pages.has(key)) needed.set(key, { stream, page });
+  }
+  const requests = [...needed.entries()];
+  // Bound concurrent requests on deep date-sorted pages to avoid an API burst.
+  for (let i = 0; i < requests.length; i += 8) {
+    await Promise.all(requests.slice(i, i + 8).map(async ([key, { stream, page }]) => {
+      pages.set(key, (await remotePage(kinds[stream], p.q, p.genre, p.sort, page)).items);
+    }));
+  }
+  let items = positions.flatMap(({ stream, index }) => {
+    const item = pages.get(`${stream}:${Math.floor(index / TMDB_PAGE_SIZE) + 1}`)?.[index % TMDB_PAGE_SIZE];
+    return item ? [item] : [];
+  });
+  if (kinds.length > 1 && p.sort === "year") {
+    items = items.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || a.kind.localeCompare(b.kind)).slice(p.offset, end);
+  }
+  return { items: await tmdbCards(items, p.limit), total };
 }
 
-/** Published titles (movies and/or shows), filtered, sorted and paged. */
-export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; total: number }> {
+/** Public lists only. Request-specific/personal data must stay outside this cache. */
+export function browse(p: BrowseParams = {}): Promise<{ items: Card[]; total: number }> {
+  return browseCached(normalizeBrowse(p));
+}
+
+async function browseCached(p: NormalizedBrowse): Promise<{ items: Card[]; total: number }> {
   "use cache";
   catalogCache();
-
-  // Hybrid catalog: TMDB plus titles already cached locally.
+  cacheTag(catalogListTag, CATALOG_TAG);
   try {
-    const tmdbRes = await getTmdbCatalog(p);
-
-    // On page 1 (no search query or genre filter), prepend any local manual titles for the main section
-    if ((p.offset ?? 0) === 0 && !p.genre && !p.q) {
-      const localManual = await browseDb({ ...p, limit: 10, offset: 0 });
-      const localWithSources = localManual.items.filter((item) => !item.isEvo);
-      if (localWithSources.length > 0) {
-        const localIds = new Set(localWithSources.map((i) => i.id));
-        const filteredTmdb = tmdbRes.items.filter((i) => !localIds.has(i.id));
-        return {
-          items: [...localWithSources, ...filteredTmdb].slice(0, p.limit ?? SEARCH_PAGE_SIZE),
-          total: tmdbRes.total + localWithSources.length,
-        };
+    // Keep the same local-source prefix on every page, excluding its identities from
+    // the entire remote sequence. A page-one-only prepend loses displaced results.
+    const local = !p.genre && !p.q && p.sort === "newest"
+      ? await localSourcePrefix(p.type, p.withBackdrop) : [];
+    if (!local.length) return await getTmdbCatalog(p);
+    const localIds = new Set(local.map((item) => `${item.kind}:${item.id}`));
+    const sequence = [...local];
+    let remoteOffset = 0;
+    let remoteTotal = 0;
+    let duplicates = 0;
+    do {
+      const remote = await getTmdbCatalog({ ...p, withBackdrop: false, withTotal: false, offset: remoteOffset, limit: TMDB_PAGE_SIZE });
+      remoteTotal = remote.total;
+      for (const item of remote.items) {
+        if (localIds.has(`${item.kind}:${item.id}`)) duplicates++;
+        else sequence.push(item);
       }
-    }
-
-    return tmdbRes;
+      remoteOffset += remote.items.length;
+      if (!remote.items.length) break;
+    } while (sequence.length < p.offset + p.limit && remoteOffset < remoteTotal);
+    // Until the remote stream is exhausted, its overlap with the local prefix is
+    // unknowable without scanning every upstream page. Keep the upper bound stable.
+    const total = remoteOffset >= remoteTotal ? remoteTotal + local.length - duplicates : remoteTotal + local.length;
+    return { items: sequence.slice(p.offset, p.offset + p.limit), total };
   } catch (err) {
     console.error("TMDB catalog fetch failed, falling back to local DB:", err);
     await captureException(err, { level: "warning", route: "catalog TMDB fetch", tags: { mechanism: "catalogFallback" } });
@@ -324,21 +380,14 @@ export async function browse(p: BrowseParams = {}): Promise<{ items: Card[]; tot
 
 export const listLatest = (kind: CardKind, limit = 20) => browse({ type: kind, limit }).then((r) => r.items);
 
-/** Home "Featured" row: newest titles that have a backdrop (curation can replace this later). */
-export const listFeatured = (limit = 10) => browse({ withBackdrop: true, limit }).then((r) => withLogos(r.items));
+/** Logos resolve inside card-level Suspense so they never hold up featured backdrops. */
+export const listFeatured = (limit = 10) => browse({ withBackdrop: true, limit }).then((r) => r.items);
 
-/** TMDB list endpoints carry no title logos: fetch them for the on-demand items so Featured cards can show them. */
-async function withLogos(items: Card[]): Promise<Card[]> {
+export async function featuredLogo(kind: CardKind, tmdbId: number): Promise<string | null> {
   "use cache";
   catalogCache();
-  return Promise.all(
-    items.map(async (item) => {
-      const m = /^tmdb-(\d+)$/.exec(item.id);
-      if (item.logoPath || !m) return item;
-      const logoPath = await getTmdbLogo(item.kind === "movie" ? "movie" : "tv", Number(m[1])).catch(() => null);
-      return { ...item, logoPath };
-    }),
-  );
+  cacheTag(catalogListTag, CATALOG_TAG, tmdbTag(kind === "movie" ? "movie" : "tv", tmdbId));
+  return getTmdbLogo(kind === "movie" ? "movie" : "tv", tmdbId).catch(() => null);
 }
 
 /** Genre names for the quick-pick rows (fixed lists: the catalog itself comes from TMDB). */
@@ -346,6 +395,7 @@ async function withLogos(items: Card[]): Promise<Card[]> {
 export async function listGenres(_minItems = 4, limit = 4, kind?: CardKind): Promise<string[]> {
   "use cache";
   catalogCache();
+  cacheTag(catalogListTag, CATALOG_TAG);
   const genres = kind === "show"
     ? ["Drama", "Action & Adventure", "Comedy", "Crime", "Mystery", "Sci-Fi & Fantasy"]
     : ["Action", "Comedy", "Drama", "Thriller", "Sci-Fi", "Adventure", "Crime", "Animation"];
@@ -358,6 +408,7 @@ export type GenreTile = { genre: string; count: number; backdropPath: string | n
 export async function listGenreTiles(kind: CardKind): Promise<GenreTile[]> {
   "use cache";
   catalogCache();
+  cacheTag(catalogListTag, CATALOG_TAG);
   const genreNames = kind === "show"
     ? ["Drama", "Action & Adventure", "Comedy", "Crime"]
     : ["Action", "Comedy", "Drama", "Thriller"];

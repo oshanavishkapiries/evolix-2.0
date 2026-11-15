@@ -1,4 +1,6 @@
 "use client";
+import { waitUntilVisible } from "@/lib/client/visible-interval";
+import { useVisibleInterval } from "@/lib/client/use-visible-interval";
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,14 +24,7 @@ function useQueue(q: string, everyMs = 5000) {
     setQueue(res.ok ? res.data : null);
     return res.ok;
   }, [q]);
-  useEffect(() => {
-    const first = setTimeout(load, 0);
-    const t = setInterval(() => document.visibilityState === "visible" && load(), everyMs);
-    return () => {
-      clearTimeout(first);
-      clearInterval(t);
-    };
-  }, [load, everyMs]);
+  useVisibleInterval(load, everyMs, true, load);
   return [queue, setQueue, load] as const;
 }
 
@@ -90,6 +85,7 @@ export function EngineActions({ engine, children }: { engine?: string; children?
     // Wait until it answers again (it first has to stop answering).
     await new Promise((r) => setTimeout(r, 4000));
     for (let i = 0; i < 30; i++) {
+      await waitUntilVisible();
       if (await loadQueue()) {
         setBusy(false);
         return toast.success("The engine is back");

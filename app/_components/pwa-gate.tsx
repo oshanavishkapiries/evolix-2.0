@@ -1,10 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { detectDevice, GATE_ATTR, gateExempt, isInstalled } from "@/lib/client/device";
-import { InstallDemo, type DemoPlatform } from "./install-demo";
+import type { DemoPlatform } from "./install-demo";
 import "./pwa-gate.css";
+
+const InstallDemo = lazy(() => import("./install-demo").then((mod) => ({ default: mod.InstallDemo })));
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 
@@ -35,7 +37,10 @@ export function PwaGate() {
   const platform: DemoPlatform = iphone ? "iphone" : ipad ? "ipad" : "android";
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    // Dev chunks change in place; only production builds should install the static cache.
+    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {});
+    }
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setPrompt(e as InstallPrompt);
@@ -80,7 +85,7 @@ export function PwaGate() {
             )}
             {prompt && <p className="pwa-or">or install it from your browser menu</p>}
             <div className="pwa-how">
-              <InstallDemo platform={platform} />
+              <Suspense fallback={<div className="pwa-demo-slot" data-platform={platform} aria-hidden="true" />}><InstallDemo platform={platform} /></Suspense>
               {platform === "android" ? (
                 <ol className="pwa-steps">
                   <li>Open your browser menu <strong>⋮</strong></li>

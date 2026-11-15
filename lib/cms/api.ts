@@ -1,11 +1,10 @@
-import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/admin";
 import { fail, parseBody } from "@/lib/auth/http";
 import { captureException } from "@/lib/errors/capture";
 import { TmdbError } from "@/lib/tmdb";
-import { CATALOG_TAG } from "@/lib/viewer/cache";
+import { prepareCatalogInvalidation } from "./catalog-invalidation";
 
 type Ctx<P> = { params: Promise<P> };
 
@@ -17,9 +16,9 @@ export function adminRoute<P extends Record<string, string> = Record<string, nev
     const admin = await requireAdmin(req);
     if (admin instanceof NextResponse) return admin;
     try {
+      const invalidate = await prepareCatalogInvalidation(req);
       const res = await handler(req, await ctx.params);
-      // Any successful write may change what viewers see: drop the cached catalog right away.
-      if (req.method !== "GET" && res.ok) revalidateTag(CATALOG_TAG, { expire: 0 });
+      await invalidate?.(res);
       return res;
     } catch (e) {
       if (e instanceof TmdbError) return fail(e.status, "TMDB_ERROR", e.message);
