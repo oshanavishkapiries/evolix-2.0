@@ -26,7 +26,7 @@ export async function startIngest(input: IngestInput, opts: { avoidEngine?: stri
   // titles after their own site, and without an IMDb id there are no subtitles (and nothing to translate).
   const ctx = await titleContext(mediaType, tmdbId, season, episode);
   if (!ctx) return { kind: "not_found", message: "Episode not found" };
-  if (mediaType === "tv" && isUpcoming(ctx.airDate)) return { kind: "error", status: 409, body: problemBody("NOT_AIRED") };
+  if (isUpcoming(ctx.airDate)) return { kind: "error", status: 409, body: problemBody("NOT_AIRED") };
 
   const key = ingestKey(mediaType, tmdbId, season, episode, quality);
   const payload = { tmdb_id: tmdbId, media_type: mediaType, quality, season, episode, runtime_minutes: ctx.runtimeMinutes, synopsis: ctx.synopsis.slice(0, 1500) || undefined, characters: ctx.characters, title: ctx.title || undefined, imdb_id: ctx.imdbId ?? undefined };

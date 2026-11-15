@@ -14,7 +14,7 @@ import { browse, listFeatured, normalizeBrowse, SORTS } from '@/lib/viewer/catal
 
 const item = (kind: 'movie' | 'tv', index: number): TmdbCatalogItem => ({
   tmdbId: (kind === 'movie' ? 1000 : 2000) + index,
-  title: `${kind} ${index}`, date: `${2099 - index}-01-01`, posterPath: '/poster.jpg', backdropPath: '/backdrop.jpg', rating: 7, overview: '',
+  title: `${kind} ${index}`, date: `${1999 - index}-01-01`, posterPath: '/poster.jpg', backdropPath: '/backdrop.jpg', rating: 7, overview: '',
 });
 const totals = { movie: 65, tv: 43 };
 const remote = (kind: 'movie' | 'tv', page: number) => ({
@@ -36,7 +36,7 @@ beforeEach(async () => {
   state.trending.mockImplementation(async (kind, _window, page) => remote(kind, page));
   state.discover.mockImplementation(async (kind, params) => remote(kind, params.page));
   for (const [mock, kind, count] of [[state.searchMovies, 'movie', 23], [state.searchShows, 'tv', 7]] as const) {
-    mock.mockImplementation(async (_q, page) => ({ page, totalPages: Math.ceil(count / 20), totalResults: count, results: Array.from({ length: count }, (_, i) => ({ ...item(kind, i), year: 2099 - i })).slice((page - 1) * 20, page * 20) }));
+    mock.mockImplementation(async (_q, page) => ({ page, totalPages: Math.ceil(count / 20), totalResults: count, results: Array.from({ length: count }, (_, i) => ({ ...item(kind, i), year: 1999 - i })).slice((page - 1) * 20, page * 20) }));
   }
 });
 
@@ -121,5 +121,22 @@ describe('P2-C hybrid browse pagination and sorting', () => {
   it('returns featured backdrops without fetching logos', async () => {
     expect(await listFeatured()).toHaveLength(10);
     expect(state.logo).not.toHaveBeenCalled();
+  });
+
+  it('never lists unreleased titles from trending, discover or search, and bounds discover by today', async () => {
+    const future = '2999-01-01';
+    state.trending.mockImplementation(async (kind) => ({ page: 1, totalPages: 1, totalResults: 3, items: [{ ...item(kind, 1), title: 'Out', date: '1999-01-01' }, { ...item(kind, 2), title: 'Soon', date: future }, { ...item(kind, 3), title: 'Undated', date: null }] }));
+    const trending = await browse({ type: 'movie', limit: 24 });
+    expect(trending.items.map((i) => i.title)).toEqual(['Out', 'Undated']);
+
+    state.discover.mockImplementation(async (kind) => ({ page: 1, totalPages: 1, totalResults: 2, items: [{ ...item(kind, 1), title: 'Out', date: '1999-01-01' }, { ...item(kind, 2), title: 'Soon', date: future }] }));
+    const discovered = await browse({ type: 'show', sort: 'year', limit: 24 });
+    expect(discovered.items.map((i) => i.title)).toEqual(['Out']);
+    expect(state.discover).toHaveBeenCalledWith('tv', expect.objectContaining({ releasedBy: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) }));
+
+    // A search result's year alone would pass as "this year"; its full date decides.
+    state.searchMovies.mockImplementation(async () => ({ page: 1, totalPages: 1, totalResults: 2, results: [{ ...item('movie', 1), title: 'Out', year: 1999, date: '1999-01-01' }, { ...item('movie', 2), title: 'Soon', year: 2999, date: future }] }));
+    const found = await browse({ type: 'movie', q: 'out', limit: 24 });
+    expect(found.items.map((i) => i.title)).toEqual(['Out']);
   });
 });

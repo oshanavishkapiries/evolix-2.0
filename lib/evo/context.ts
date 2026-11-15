@@ -29,8 +29,8 @@ export async function titleContext(mediaType: "movie" | "tv", tmdbId: number, se
   let ctx: Omit<TitleContext, "imdbId">;
   if (mediaType === "movie") {
     const id = await ensureMovie(tmdbId);
-    const [m] = await db.select({ r: movies.runtimeMinutes, overview: movies.overview, cast: movies.cast, title: movies.title }).from(movies).where(eq(movies.id, id)).limit(1);
-    ctx = { airDate: null, runtimeMinutes: m?.r ?? null, synopsis: m?.overview ?? "", characters: characterNames(m?.cast ?? []), title: m?.title ?? "" };
+    const [m] = await db.select({ released: movies.releaseDate, r: movies.runtimeMinutes, overview: movies.overview, cast: movies.cast, title: movies.title }).from(movies).where(eq(movies.id, id)).limit(1);
+    ctx = { airDate: m?.released ?? null, runtimeMinutes: m?.r ?? null, synopsis: m?.overview ?? "", characters: characterNames(m?.cast ?? []), title: m?.title ?? "" };
   } else {
     const ep = await ensureEpisode(tmdbId, season!, episode!);
     if (!ep) return null;

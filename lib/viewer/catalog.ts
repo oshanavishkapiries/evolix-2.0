@@ -8,6 +8,8 @@ import { movies, shows } from "@/db/schema";
 import { escapeLike } from "@/lib/cms/search";
 import { getDiscoverMedia, getTmdbLogo, getTrendingMedia, searchMovies, searchShows, type TmdbCatalogItem } from "@/lib/tmdb";
 import type { CardKind } from "./ids";
+import { isUpcoming } from "./availability";
+import { tzDay } from "@/lib/tz";
 import { captureException } from "@/lib/errors/capture";
 
 // Everything here only ever returns PUBLISHED titles.
@@ -260,10 +262,12 @@ async function remotePage(kind: CardKind, q: string, genre: string, sort: Sort, 
   catalogCache();
   cacheTag(catalogListTag, CATALOG_TAG);
   const media = kind === "movie" ? "movie" : "tv";
+  // Unreleased titles cannot be played (no provider has them yet), so they are not listed.
+  const today = tzDay(new Date());
   if (q) {
     const result = await (kind === "movie" ? searchMovies : searchShows)(q, page);
     return {
-      items: result.results.map((r) => ({ ...r, kind, date: r.year ? `${r.year}-01-01` : null, backdropPath: null, rating: null })),
+      items: result.results.filter((r) => !isUpcoming(r.date, today)).map((r) => ({ ...r, kind, date: r.date ?? (r.year ? `${r.year}-01-01` : null), backdropPath: null, rating: null })),
       total: Math.min(result.totalResults, TMDB_MAX_PAGES * TMDB_PAGE_SIZE),
     };
   }
@@ -277,9 +281,10 @@ async function remotePage(kind: CardKind, q: string, genre: string, sort: Sort, 
         withGenres: (kind === "show" ? tvGenre : movieGenre)?.toString(),
         sortBy: sort === "year" ? (kind === "movie" ? "primary_release_date.desc" : "first_air_date.desc") : "popularity.desc",
         page,
+        releasedBy: today,
       })
     : await getTrendingMedia(media, "week", page);
-  return { items: result.items.map((item) => ({ ...item, kind })), total: Math.min(result.totalResults, TMDB_MAX_PAGES * TMDB_PAGE_SIZE) };
+  return { items: result.items.filter((item) => !isUpcoming(item.date, today)).map((item) => ({ ...item, kind })), total: Math.min(result.totalResults, TMDB_MAX_PAGES * TMDB_PAGE_SIZE) };
 }
 
 async function getTmdbCatalog(p: NormalizedBrowse): Promise<{ items: Card[]; total: number }> {

@@ -183,6 +183,8 @@ export type SearchResult = {
   tmdbId: number;
   title: string;
   year: number | null;
+  /** Full release / first-air date; the year alone cannot tell an unreleased title from this year's releases. */
+  date: string | null;
   posterPath: string | null;
   overview: string;
 };
@@ -194,6 +196,7 @@ async function search(kind: "movie" | "tv", query: string, page: number): Promis
     tmdbId: r.id,
     title: str(kind === "movie" ? r.title : r.name),
     year: year(kind === "movie" ? r.release_date : r.first_air_date),
+    date: strOrNull(kind === "movie" ? r.release_date : r.first_air_date),
     posterPath: strOrNull(r.poster_path),
     overview: str(r.overview).slice(0, 200),
   }));
@@ -482,7 +485,7 @@ export async function getTrendingMedia(kind: "movie" | "tv", timeWindow: "day" |
   return { page: data.page ?? page, totalPages: Math.min(data.total_pages ?? 1, 500), totalResults: data.total_results ?? items.length, items };
 }
 
-export async function getDiscoverMedia(kind: "movie" | "tv", params: { withGenres?: string; sortBy?: string; page?: number } = {}): Promise<TmdbCatalogPage> {
+export async function getDiscoverMedia(kind: "movie" | "tv", params: { withGenres?: string; sortBy?: string; page?: number; releasedBy?: string } = {}): Promise<TmdbCatalogPage> {
   const tmdbParams: Record<string, string | number> = {
     page: params.page ?? 1,
     include_adult: "false",
@@ -490,6 +493,8 @@ export async function getDiscoverMedia(kind: "movie" | "tv", params: { withGenre
   };
   if (params.withGenres) tmdbParams.with_genres = params.withGenres;
   if (params.sortBy) tmdbParams.sort_by = params.sortBy;
+  // Only titles out by this day (YYYY-MM-DD), so unreleased ones never take a slot in the page.
+  if (params.releasedBy) tmdbParams[kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte"] = params.releasedBy;
   const data = await tmdb<Raw>(`/discover/${kind}`, tmdbParams);
   const items: TmdbCatalogItem[] = (data.results ?? []).map((r: Raw) => ({
     tmdbId: r.id,

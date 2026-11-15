@@ -43,4 +43,11 @@ describe('blocking extraction before an episode airs', () => {
     state.context.mockResolvedValue({ airDate: null, runtimeMinutes: 40, synopsis: '', characters: [], title: 'Older show', imdbId: null });
     expect(await startIngest({ tmdbId: 1, mediaType: 'tv', quality: '720p', season: 1, episode: 6 })).toMatchObject({ kind: 'started' });
   });
+
+  it('refuses a movie before its release date the same way', async () => {
+    state.context.mockResolvedValue({ airDate: '2026-12-25', runtimeMinutes: 120, synopsis: '', characters: [], title: 'Holiday film', imdbId: null });
+    expect(await startIngest({ tmdbId: 2, mediaType: 'movie', quality: '720p' })).toMatchObject({ kind: 'error', status: 409, body: { code: 'NOT_AIRED' } });
+    expect(state.claim).not.toHaveBeenCalled();
+    expect(state.fetch).not.toHaveBeenCalled();
+  });
 });
