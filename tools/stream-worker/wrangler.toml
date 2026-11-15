@@ -6,7 +6,7 @@ compatibility_date = "2026-01-01"
 # (e.g. http://169-58-244-90.sslip.io:8000). The app and this Worker must list the SAME addresses.
 # Set the real value in the Cloudflare dashboard (Worker -> Settings -> Variables) or here.
 [vars]
-EVO_ENGINES = '["http://oshan-evoengine-n4l9vv-f76be8-38-242-251-70.sslip.io","http://evolix-evoengine-0tznpd-68bdf0-161-97-135-43.sslip.io"]'
+EVO_ENGINES = '["https://oshan-evoengine-n9gehr-564348-38-242-251-70.sslip.io","http://evolix-evoengine-0tznpd-68bdf0-161-97-135-43.sslip.io"]'
 # Sites allowed to play from this Worker in a browser, comma-separated, no trailing slash.
 ALLOWED_ORIGINS = "https://evolix-mu.vercel.app"
 
