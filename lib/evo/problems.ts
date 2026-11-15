@@ -8,7 +8,7 @@ export type ProblemCode = "BUSY" | "ENGINE_UNAVAILABLE" | "NO_SOURCE" | "NOT_AIR
 type Entry = { title: string; message: string; retry: "auto" | "manual"; retryAfter?: number };
 
 export const PROBLEMS: Record<ProblemCode, Entry> = {
-  NOT_AIRED: { title: "Coming soon", message: "This episode hasn’t aired yet. Please come back on its scheduled air date.", retry: "manual" },
+  NOT_AIRED: { title: "Coming soon", message: "This hasn’t been released yet. Please come back on its release date.", retry: "manual" },
   BUSY: { title: "We’re very busy right now", message: "Lots of people are watching. We’ll keep trying for you.", retry: "auto", retryAfter: 20 },
   ENGINE_UNAVAILABLE: { title: "Our video service is restarting", message: "Please try again in a minute.", retry: "manual" },
   NO_SOURCE: { title: "No playable copy yet", message: "We couldn’t find a copy of this to play right now. Try again later, or pick another source.", retry: "manual" },

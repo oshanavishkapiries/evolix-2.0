@@ -95,6 +95,8 @@ export const getMovieWatch = cache(async (id: string): Promise<MovieWatch | null
 
     try {
       const tmdbMovie = await getMovieSummary(media.tmdbId, "watch");
+      // Nothing can be played before release: no provider has it, and an extraction would only fail.
+      if (isUpcoming(tmdbMovie.releaseDate)) return null;
       return {
         id: `tmdb-${media.tmdbId}`,
         tmdbId: media.tmdbId,
@@ -112,7 +114,8 @@ export const getMovieWatch = cache(async (id: string): Promise<MovieWatch | null
     }
   }
 
-  return getDbMovieWatch(media.id);
+  const row = await getDbMovieWatch(media.id);
+  return row && row.sources.length === 0 && isUpcoming(row.releaseDate) ? null : row;
 });
 
 export type EpisodeRef = { seasonNumber: number; episodeNumber: number; name: string };

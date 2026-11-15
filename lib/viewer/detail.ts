@@ -98,7 +98,7 @@ async function getDbMovieDetail(id: string) {
   ]);
   const hasSources = langs.length > 0;
   if (movie?.tmdbId) cacheTag(tmdbTag("movie", movie.tmdbId));
-  return movie ? { ...movie, videos: vids, playable: hasSources || Boolean(movie.tmdbId), isEvo: !hasSources && Boolean(movie.tmdbId), dubs: dubCodes(langs) } : null;
+  return movie ? { ...movie, videos: vids, playable: hasSources || (Boolean(movie.tmdbId) && !isUpcoming(movie.releaseDate)), isEvo: !hasSources && Boolean(movie.tmdbId) && !isUpcoming(movie.releaseDate), dubs: dubCodes(langs) } : null;
 }
 
 export type MovieDetail = NonNullable<Awaited<ReturnType<typeof getDbMovieDetail>>>;
@@ -141,8 +141,8 @@ export const getMovieDetail = cache(async (id: string): Promise<MovieDetail | nu
         cast: tmdbMovie.cast,
         tmdbId: tmdbMovie.tmdbId,
         videos: tmdbMovie.videos.map((v, i) => ({ id: `tmdb-vid-${i}`, ...v })),
-        playable: true,
-        isEvo: true,
+        playable: !isUpcoming(tmdbMovie.releaseDate),
+        isEvo: !isUpcoming(tmdbMovie.releaseDate),
         dubs: [],
       };
     } catch {
